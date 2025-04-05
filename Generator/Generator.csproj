@@ -12,4 +12,8 @@
       <ProjectReference Include="..\ExcelParser\ExcelParser.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Command\" />
+    </ItemGroup>
+
 </Project>

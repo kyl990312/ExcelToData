@@ -1,4 +1,4 @@
-namespace ExcelToData.ExtractBytes;
+namespace ExcelToData;
 
 [Serializable]
 public class DataExtractConfig

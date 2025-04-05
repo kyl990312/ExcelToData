@@ -1,11 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Common.Command;
-using ExcelParser;
 using Generator.DataExtractor;
 
-namespace ExcelToData.ExtractBytes;
+namespace ExcelToData;
 
 public class ExtractBinaryCommand : Command
 {
