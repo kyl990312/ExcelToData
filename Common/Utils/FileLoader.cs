@@ -24,12 +24,12 @@ public static class FileLoader
             string configJson = JsonSerializer.Serialize(obj, options);
             File.WriteAllText(filePath, configJson);
 
-            Logger.Instance.Log($"[CodeGenerateHelper] Saved config to: {filePath}");
+            Logger.Instance.Log($"[FileLoader] Saved config to: {filePath}");
             return true;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[CodeGenerateHelper] Error saving config: {ex.Message}");
+            Logger.Instance.Error($"[FileLoader] Error saving config: {ex.Message}");
             return false;
         }
     }
@@ -67,6 +67,27 @@ public static class FileLoader
         {
             result = null;
             Logger.Instance.Error($"[FileLoader] Error loading config: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static bool SaveText(string text, string filePath)
+    {
+        try
+        {
+            string directory = Path.GetDirectoryName(filePath) ?? string.Empty;
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+        
+            File.WriteAllText(filePath, text);
+            Logger.Instance.Log($"[CodeGenerateHelper] SaveText - Saved config to: {filePath}");
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Instance.Log($"[CodeGenerateHelper] SaveText - Failed Save Text: {filePath}\n{e}");
             return false;
         }
     }

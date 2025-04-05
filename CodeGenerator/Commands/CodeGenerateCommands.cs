@@ -1,6 +1,8 @@
+using ClosedXML.Excel;
 using Common.Command;
 using Common.Utils;
 using Generator.CodeGenerator;
+using Generator.EnumGenerator;
 
 namespace CodeGenerator;
 
@@ -9,38 +11,32 @@ namespace CodeGenerator;
 /// </summary>
 public class GenerateCSharpCodeCommand : Command
 {
-    private readonly string _configPath;
+    private readonly CodeGenerateConfig _config;
 
-    public GenerateCSharpCodeCommand(string configPath)
+    public GenerateCSharpCodeCommand(CodeGenerateConfig config)
     {
-        _configPath = configPath;
+        _config = config;
     }
 
     public override void Execute(out string result)
     {
-        if (!FileLoader.LoadAndConvertJson(_configPath, out CodeGenerateConfig config))
+        if (!Directory.Exists(_config.BinaryDirectory))
         {
-            result = $"[GenerateCodeCommand] Failed to load config from: {_configPath}";
-            return;
-        }
-
-        if (!Directory.Exists(config.BinaryDirectory))
-        {
-            result = $"[GenerateCodeCommand] Binary directory not found: {config.BinaryDirectory}";
+            result = $"[GenerateCodeCommand] Binary directory not found: {_config.BinaryDirectory}";
             return;
         }
 
         try
         {
             // directory 준비
-            if (!Directory.Exists(config.ClassOutputDirectory))
-                Directory.CreateDirectory(config.ClassOutputDirectory);
+            if (!Directory.Exists(_config.ClassOutputDirectory))
+                Directory.CreateDirectory(_config.ClassOutputDirectory);
 
-            if (!Directory.Exists(config.ManagerOutputDirectory))
-                Directory.CreateDirectory(config.ManagerOutputDirectory);
+            if (!Directory.Exists(_config.ManagerOutputDirectory))
+                Directory.CreateDirectory(_config.ManagerOutputDirectory);
 
             // 클래스 생성
-            int classCount = GenerateClasses(config);
+            int classCount = GenerateClasses(_config);
             result = $"[GenerateCodeCommand] Generated {classCount} classes.";
         }
         catch (Exception ex)
@@ -125,3 +121,5 @@ public class GenerateCodeConfigCommand : Command
         }
     }
 }
+
+

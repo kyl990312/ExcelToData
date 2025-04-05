@@ -32,20 +32,9 @@ public class CodeGenerateConfig
     public string ManagerNamespace { get; set; } = "Generated.Managers";
 
     public string ReadFileExtension { get; set; } = "*.bin";
-
-    /// <summary>
-    /// 타입 매핑 정보 (Excel 타입 → C# 타입)
-    /// </summary>
-    public Dictionary<string, string> TypeMappings { get; set; } = new Dictionary<string, string>
-    {
-        { "Int32", "int" },
-        { "Int64", "long" },
-        { "Single", "float" },
-        { "Double", "double" },
-        { "String", "string" },
-        { "Boolean", "bool" },
-        { "DateTime", "System.DateTime" }
-    };
+    
+    public string EnumFilePath { get; set; } = "Generated/SystemEnum.xmsl";
+    public string EnumDriectory { get; set; } = "Generated/Enums";
 
     public static CodeGenerateConfig GetDefault()
     {
@@ -54,6 +43,7 @@ public class CodeGenerateConfig
             BinaryDirectory = "Binary",
             ClassOutputDirectory = "Generated/Classes",
             ManagerOutputDirectory = "Generated/Managers",
+            EnumFilePath = "Generated/Enums",
             ClassNamespace = "Generated.Data",
             ManagerNamespace = "Generated.Managers"
         };

@@ -16,7 +16,7 @@ namespace Generator.CodeGenerator
     // 코드 생성기 기본 클래스
     public abstract class CodeGeneratorBase : ICodeGenerator
     {
-  public void Generate(string binaryFilePath, string outputPath)
+        public void Generate(string binaryFilePath, string outputPath)
         {
             if (!File.Exists(binaryFilePath))
             {
@@ -28,13 +28,13 @@ namespace Generator.CodeGenerator
             {
                 // 바이너리 파일 로드
                 byte[] binaryData = File.ReadAllBytes(binaryFilePath);
-                
+
                 // UTF-8로 인코딩된 JSON 데이터를 파싱
                 string jsonString = Encoding.UTF8.GetString(binaryData);
-                
+
                 // JsonDocument로 파싱
                 using var document = JsonDocument.Parse(jsonString);
-                
+
                 // 루트 요소 검사 (객체 또는 배열)
                 if (document.RootElement.ValueKind == JsonValueKind.Object)
                 {
@@ -53,7 +53,8 @@ namespace Generator.CodeGenerator
                         }
                         else
                         {
-                            Logger.Instance.Error($"[CodeGenerator] First array element is not an object: {binaryFilePath}");
+                            Logger.Instance.Error(
+                                $"[CodeGenerator] First array element is not an object: {binaryFilePath}");
                             return;
                         }
                     }
@@ -65,13 +66,15 @@ namespace Generator.CodeGenerator
                 }
                 else
                 {
-                    Logger.Instance.Error($"[CodeGenerator] Root element is neither object nor array: {binaryFilePath}");
+                    Logger.Instance.Error(
+                        $"[CodeGenerator] Root element is neither object nor array: {binaryFilePath}");
                     return;
                 }
             }
             catch (JsonException ex)
             {
-                Logger.Instance.Error($"[CodeGenerator] Failed to parse binary data: {binaryFilePath}. Error: {ex.Message}");
+                Logger.Instance.Error(
+                    $"[CodeGenerator] Failed to parse binary data: {binaryFilePath}. Error: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -97,9 +100,10 @@ namespace Generator.CodeGenerator
 
             // 실제 코드 생성 (자식 클래스에서 구현)
             GenerateCode(data, outputPath);
-            
+
             Logger.Instance.Log($"[CodeGenerator] Generated code: {outputPath}");
         }
+
         protected abstract void GenerateCode(Dictionary<string, JsonElement> data, string outputPath);
     }
 }

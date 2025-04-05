@@ -1,3 +1,5 @@
+using Common.Utils;
+
 namespace CodeGenerator;
 
 public static class ProjectDefine

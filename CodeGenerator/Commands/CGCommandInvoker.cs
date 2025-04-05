@@ -1,5 +1,4 @@
 using Common.Command;
-using Generator.CodeGenerator;
 namespace CodeGenerator;
 
 public class CGCommandInvoker : CommandInvoker
@@ -9,15 +8,21 @@ public class CGCommandInvoker : CommandInvoker
         var list = new List<ICommand>();
         var fullPath =
             $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{ProjectDefine.CodeGenerateConfigPath}";
+        
         if(!File.Exists(fullPath))
         {
             list.Add(new GenerateCodeConfigCommand(fullPath));
             return list;
         }
         
+        if (!FileLoader.LoadAndConvertJson(fullPath, out CodeGenerateConfig config))
+        {
+            return list;
+        }
+        
         if (ProjectDefine.CodeExtension.EndsWith("cs"))
         {
-            list.Add(new GenerateCSharpCodeCommand(fullPath));
+            list.Add(new GenerateCSharpCodeCommand(config));
         }
         
         return list;
