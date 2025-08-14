@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using Microsoft.VisualBasic;
-using System;
 using System.IO;
 
 namespace Common.Utils;
@@ -33,9 +33,23 @@ public class Logger : IDisposable
         _log += '\n'+log;
     }
 
+    public void Error(string msg, StackTrace stackTrace)
+    {
+        var log = $"[Error][{DateTime.Now}] {msg}\n{stackTrace}";
+        Console.Error.WriteLine(log);
+        _log += '\n'+log;
+    }
+
     public void Warning(string msg)
     {
         var log = $"[Warning][{DateTime.Now}] {msg}";
+        Console.WriteLine(log);
+        _log += '\n'+log;
+    }
+    
+    public void Warning(string msg, StackTrace stackTrace)
+    {
+        var log = $"[Warning][{DateTime.Now}] {msg}/\n{stackTrace}";
         Console.WriteLine(log);
         _log += '\n'+log;
     }

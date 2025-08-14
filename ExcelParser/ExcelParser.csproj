@@ -4,6 +4,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <OutputPath>$(SolutionDir)Output\$(Configuration)\</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
@@ -18,6 +19,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Common\Common.csproj" />
+      <ProjectReference Include="..\BinaryParser\BinaryParser.csproj" />
     </ItemGroup>
 
 </Project>

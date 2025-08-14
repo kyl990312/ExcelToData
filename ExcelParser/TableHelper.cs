@@ -2,8 +2,6 @@ using ClosedXML.Excel;
 using System.Data;
 using System.Text.Json;
 using Common.Utils;
-using System.Text.Json.Nodes;
-using DocumentFormat.OpenXml.Office2010.Excel;
 
 namespace ExcelParser;
 
@@ -63,7 +61,8 @@ public static class TableHelper
         var rows = GetRows(sheet, out _, out _);
         for (int i = 0; i < header.HeaderRowCount; i++)
         {
-            rows.RemoveAt(0);
+            if (rows.Count > 0)
+                rows.RemoveAt(0);
         }
         foreach (var row in rows)
         {
@@ -97,56 +96,149 @@ public static class TableHelper
         return JsonSerializer.Serialize(dictTable);
     }
 
+    /// <summary>
+    /// DataTable을 Dictionary 형태로 변환합니다
+    /// </summary>
+    /// <param name="table">변환할 DataTable</param>
+    /// <returns>Dictionary 형태의 데이터</returns>
+    public static List<Dictionary<string, object>> ConvertDataTableToBinary(DataTable table)
+    {
+        var result = new List<Dictionary<string, object>>();
+        
+        foreach (DataRow row in table.Rows)
+        {
+            var rowDict = new Dictionary<string, object>();
+            foreach (DataColumn column in table.Columns)
+            {
+                var value = row[column];
+                rowDict.Add(column.ColumnName, value == DBNull.Value ? null : value);
+            }
+            result.Add(rowDict);
+        }
+        
+        return result;
+    }
+
+    /// <summary>
+    /// Dictionary 형태의 데이터를 DataTable로 변환합니다
+    /// </summary>
+    /// <param name="data">변환할 데이터</param>
+    /// <param name="tableName">테이블 이름</param>
+    /// <returns>변환된 DataTable</returns>
+    public static DataTable ConvertBinaryToDataTable(List<Dictionary<string, object>> data, string tableName = "Data")
+    {
+        var table = new DataTable(tableName);
+        
+        if (data == null || data.Count == 0)
+        {
+            return table;
+        }
+        
+        // 칼럼 정보 추출 (모든 행에서 칼럼명 수집)
+        var allColumns = new HashSet<string>();
+        foreach (var row in data)
+        {
+            foreach (var key in row.Keys)
+            {
+                allColumns.Add(key);
+            }
+        }
+        
+        // 칼럼 타입 추론 및 테이블 스키마 생성
+        foreach (var columnName in allColumns)
+        {
+            var columnType = InferColumnType(data, columnName);
+            table.Columns.Add(columnName, columnType);
+        }
+        
+        // 데이터 행 추가
+        foreach (var rowData in data)
+        {
+            var row = table.NewRow();
+            foreach (var column in table.Columns.Cast<DataColumn>())
+            {
+                if (rowData.ContainsKey(column.ColumnName))
+                {
+                    var value = rowData[column.ColumnName];
+                    row[column.ColumnName] = value ?? DBNull.Value;
+                }
+                else
+                {
+                    row[column.ColumnName] = DBNull.Value;
+                }
+            }
+            table.Rows.Add(row);
+        }
+        
+        return table;
+    }
+
     public static object GetConvertedCellValue(IXLCell cell, Type type)
     {
         if (CheckValue(cell, type) == false)
             return GetDefaultValue(type);
 
         object result = 0;
-        if (type == typeof(Int16) ||
-            type == typeof(Int32) ||
-            type == typeof(Int64) ||
-            type == typeof(Single) ||
-            type == typeof(Double))
+        try
         {
-            result = Convert.ChangeType(cell.Value.GetNumber(), type);
-        }
-        else if (type == typeof(String))
-        {
-            result = Convert.ChangeType(cell.Value.GetText(), type);
-        }
-        else if (type.IsArray)
-        {
-            var elementType = Type.GetType(type.ToString().Replace("[]", ""));
-            if (elementType == null)
+            if (type == typeof(Int16) ||
+                type == typeof(Int32) ||
+                type == typeof(Int64) ||
+                type == typeof(Single) ||
+                type == typeof(Double))
             {
-                Logger.Instance.Warning(
-                    $"Parsing Failed(Try to parse Enum, but failed)(type : {type.ToString()}, value: {cell.Value.GetText()})");
+                result = Convert.ChangeType(cell.Value.GetNumber(), type);
+            }
+            else if (type == typeof(String))
+            {
+                if(cell.Value.IsNumber)
+                    result = Convert.ChangeType(cell.Value.GetNumber().ToString(), type);
+                else if(cell.Value.IsDateTime)
+                    result = Convert.ChangeType(cell.Value.GetDateTime().ToString(), type);
+                else if(cell.Value.IsBoolean)
+                    result = Convert.ChangeType(cell.Value.GetBoolean().ToString(), type);
+                else if(cell.Value.IsTimeSpan)
+                    result = Convert.ChangeType(cell.Value.GetTimeSpan().ToString(), type);
+                else
+                    result = Convert.ChangeType(cell.Value.GetText(), type);
+            }
+            else if (type.IsArray)
+            {
+                var elementType = Type.GetType(type.ToString().Replace("[]", ""));
+                if (elementType == null)
+                {
+                    Logger.Instance.Warning(
+                        $"Parsing Failed(Try to parse Enum, but failed)(type : {type.ToString()}, value: {cell.Value.GetText()})");
+                }
+                else
+                {
+                    result = ConvertTextToArray(cell.Value.GetText(), elementType);
+                }
+            }
+            else if (type.IsEnum)
+            {
+                var value = cell.Value.GetText();
+                if (int.TryParse(value, out var iResult))
+                    result = Convert.ChangeType(iResult, type);
+                else if (Enum.TryParse(type, value, out var eResult))
+                    result = eResult;
+                else
+                {
+                    Logger.Instance.Warning(
+                        $"Parsing Failed(Try to parse Enum, but failed)(type : {type.ToString()}, value: {value})");
+                }
             }
             else
             {
-                result = ConvertTextToArray(cell.Value.GetText(), elementType);
-            }
-        }
-        else if (type.IsEnum)
-        {
-            var value = cell.Value.GetText();
-            if (int.TryParse(value, out var iResult))
-                result = Convert.ChangeType(iResult, type);
-            else if (Enum.TryParse(type, value, out var eResult))
-                result = eResult;
-            else
-            {
                 Logger.Instance.Warning(
-                    $"Parsing Failed(Try to parse Enum, but failed)(type : {type.ToString()}, value: {value})");
+                    $"Parsing Failed(Cannot find type)(type : {type.ToString()}, value: {cell.Value.ToString()})");
             }
         }
-        else
+        catch (Exception e)
         {
-            Logger.Instance.Warning(
-                $"Parsing Failed(Cannot find type)(type : {type.ToString()}, value: {cell.Value.ToString()})");
+            Logger.Instance.Error($"[TableHelper] GetConvertedCellValue failed({type.ToString()}, value: {cell.Value
+                .ToString()}) - {e.Message}\n{e.StackTrace}");
         }
-
         return result;
     }
 
@@ -249,33 +341,116 @@ public static class TableHelper
 
     private static object GetDefaultValue(Type type)
     {
-        if (type == typeof(Int16))
-            return (Int16)0;
-        if (type == typeof(Int32))
-            return (Int32)0;
-        if (type == typeof(Int64))
-            return (Int64)0;
-        if (type == typeof(Single))
-            return (Single)0.0f;
-        if (type == typeof(Double))
-            return (Double)0.0;
-        if (type == typeof(String))
-            return string.Empty;
-        if (type.IsArray)
+        try
         {
-            // 배열 타입의 기본값은 빈 배열
-            Type elementType = type.GetElementType();
-            return Array.CreateInstance(elementType, 0);
-        }
+            if (type == typeof(Int16))
+                return (Int16)0;
+            if (type == typeof(Int32))
+                return (Int32)0;
+            if (type == typeof(Int64))
+                return (Int64)0;
+            if (type == typeof(Single))
+                return (Single)0.0f;
+            if (type == typeof(Double))
+                return (Double)0.0;
+            if (type == typeof(String))
+                return string.Empty;
+            if (type.IsArray)
+            {
+                // 배열 타입의 기본값은 빈 배열
+                Type elementType = type.GetElementType();
+                return Array.CreateInstance(elementType, 0);
+            }
 
-        if (type.IsEnum)
+            if (type.IsEnum)
+            {
+                // Enum의 기본값은 첫 번째 정의된 값 또는 0
+                Array values = Enum.GetValues(type);
+                return values.Length > 0 ? values.GetValue(0) : Enum.ToObject(type, 0);
+            }
+
+            // 그 외 타입은 기본값
+            return type.IsValueType ? Activator.CreateInstance(type) : null;
+        }
+        catch (Exception e)
         {
-            // Enum의 기본값은 첫 번째 정의된 값 또는 0
-            Array values = Enum.GetValues(type);
-            return values.Length > 0 ? values.GetValue(0) : Enum.ToObject(type, 0);
+            Logger.Instance.Error($"[TableHelper] - GetDefaultValue ({e.Message})\n{e.StackTrace}");
+            return null;
         }
+    }
+    
+    private static Type InferColumnType(List<Dictionary<string, object>> data, string columnName)
+    {
+        Type resultType = typeof(string); // 기본값
+        
+        foreach (var row in data)
+        {
+            if (row.ContainsKey(columnName) && row[columnName] != null)
+            {
+                var valueType = row[columnName].GetType();
+                
+                // 첫 번째 null이 아닌 값의 타입을 사용
+                if (resultType == typeof(string))
+                {
+                    resultType = valueType;
+                }
+                else if (resultType != valueType)
+                {
+                    // 타입이 다르면 더 일반적인 타입으로 변경
+                    if (IsNumericType(resultType) && IsNumericType(valueType))
+                    {
+                        resultType = GetWiderNumericType(resultType, valueType);
+                    }
+                    else
+                    {
+                        resultType = typeof(string); // 가장 일반적인 타입
+                    }
+                }
+            }
+        }
+        
+        return resultType;
+    }
 
-        // 그 외 타입은 기본값
-        return type.IsValueType ? Activator.CreateInstance(type) : null;
+    private static bool IsNumericType(Type type)
+    {
+        return type == typeof(Int16) || type == typeof(Int32) || type == typeof(Int64) ||
+               type == typeof(Single) || type == typeof(Double) || type == typeof(decimal);
+    }
+
+    private static Type GetWiderNumericType(Type type1, Type type2)
+    {
+        var numericHierarchy = new Type[]
+        {
+            typeof(Int16), typeof(Int32), typeof(Int64),
+            typeof(Single), typeof(Double), typeof(decimal)
+        };
+        
+        int index1 = Array.IndexOf(numericHierarchy, type1);
+        int index2 = Array.IndexOf(numericHierarchy, type2);
+        
+        if (index1 == -1) index1 = 0;
+        if (index2 == -1) index2 = 0;
+        
+        return numericHierarchy[Math.Max(index1, index2)];
+    }
+
+    private static bool AreDataTableValuesEqual(object value1, object value2)
+    {
+        if (value1 == null && value2 == null) return true;
+        if (value1 == null || value2 == null) return false;
+        
+        if (value1 is Array array1 && value2 is Array array2)
+        {
+            if (array1.Length != array2.Length) return false;
+            for (int i = 0; i < array1.Length; i++)
+            {
+                if (!Equals(array1.GetValue(i), array2.GetValue(i)))
+                    return false;
+            }
+            return true;
+        }
+        
+        return Equals(value1, value2);
     }
 }

@@ -19,4 +19,11 @@ public class BytesExtractor : DataExtractorBase
         File.WriteAllBytes(path, bytes);
         Logger.Instance.Log($"Save File Byte {path}");
     }
+
+    private void SaveHeader(DataTable table)
+    {
+        
+    }
+    
+    
 }

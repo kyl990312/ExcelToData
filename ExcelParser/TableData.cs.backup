@@ -1,0 +1,143 @@
+namespace ExcelParser;
+
+/// <summary>
+/// DataTable을 대체하는 새로운 테이블 데이터 구조
+/// TableHeader와 Dictionary<string, List<object>>를 조합하여 사용
+/// </summary>
+public class TableData
+{
+    /// <summary>
+    /// 테이블 헤더 정보 (컬럼명, 타입 등)
+    /// </summary>
+    public TableHeader Header { get; set; }
+    
+    /// <summary>
+    /// 실제 데이터 저장소
+    /// Key: 컬럼명, Value: 해당 컬럼의 데이터 리스트
+    /// </summary>
+    public Dictionary<string, List<object>> Data { get; set; }
+    
+    /// <summary>
+    /// 행 개수
+    /// </summary>
+    public int RowCount => Data.Values.FirstOrDefault()?.Count ?? 0;
+    
+    /// <summary>
+    /// 컬럼 개수
+    /// </summary>
+    public int ColumnCount => Data.Count;
+
+    public TableData(TableHeader header)
+    {
+        Header = header;
+        Data = new Dictionary<string, List<object>>();
+        
+        // 헤더의 각 컬럼명으로 빈 리스트 초기화
+        foreach (var columnName in header.Names)
+        {
+            Data[columnName] = new List<object>();
+        }
+    }
+
+    /// <summary>
+    /// 새로운 행 추가
+    /// </summary>
+    /// <param name="rowData">컬럼명을 키로 하는 행 데이터</param>
+    public void AddRow(Dictionary<string, object> rowData)
+    {
+        foreach (var columnName in Header.Names)
+        {
+            if (rowData.ContainsKey(columnName))
+            {
+                Data[columnName].Add(rowData[columnName]);
+            }
+            else
+            {
+                // 기본값 추가
+                var columnType = Header.GetColumnType(columnName);
+                Data[columnName].Add(GetDefaultValue(columnType));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 특정 행의 데이터 반환
+    /// </summary>
+    /// <param name="rowIndex">행 인덱스</param>
+    /// <returns>해당 행의 데이터 (컬럼명 -> 값)</returns>
+    public Dictionary<string, object> GetRow(int rowIndex)
+    {
+        if (rowIndex < 0 || rowIndex >= RowCount)
+            throw new ArgumentOutOfRangeException(nameof(rowIndex));
+
+        var row = new Dictionary<string, object>();
+        foreach (var columnName in Header.Names)
+        {
+            row[columnName] = Data[columnName][rowIndex];
+        }
+        return row;
+    }
+
+    /// <summary>
+    /// 특정 컬럼의 모든 데이터 반환
+    /// </summary>
+    /// <param name="columnName">컬럼명</param>
+    /// <returns>해당 컬럼의 모든 값</returns>
+    public List<object> GetColumn(string columnName)
+    {
+        if (!Data.ContainsKey(columnName))
+            throw new ArgumentException($"Column '{columnName}' not found");
+
+        return Data[columnName];
+    }
+
+    /// <summary>
+    /// 특정 셀의 값 반환
+    /// </summary>
+    /// <param name="rowIndex">행 인덱스</param>
+    /// <param name="columnName">컬럼명</param>
+    /// <returns>셀 값</returns>
+    public object GetValue(int rowIndex, string columnName)
+    {
+        if (rowIndex < 0 || rowIndex >= RowCount)
+            throw new ArgumentOutOfRangeException(nameof(rowIndex));
+        
+        if (!Data.ContainsKey(columnName))
+            throw new ArgumentException($"Column '{columnName}' not found");
+
+        return Data[columnName][rowIndex];
+    }
+
+    /// <summary>
+    /// 모든 행을 Dictionary 형태로 반환
+    /// </summary>
+    /// <returns>행들의 컬렉션</returns>
+    public IEnumerable<Dictionary<string, object>> GetAllRows()
+    {
+        for (int i = 0; i < RowCount; i++)
+        {
+            yield return GetRow(i);
+        }
+    }
+
+    private object GetDefaultValue(Type type)
+    {
+        if (type == typeof(Int16)) return (Int16)0;
+        if (type == typeof(Int32)) return (Int32)0;
+        if (type == typeof(Int64)) return (Int64)0;
+        if (type == typeof(Single)) return (Single)0.0f;
+        if (type == typeof(Double)) return (Double)0.0;
+        if (type == typeof(String)) return string.Empty;
+        if (type.IsArray)
+        {
+            Type elementType = type.GetElementType()!;
+            return Array.CreateInstance(elementType, 0);
+        }
+        if (type.IsEnum)
+        {
+            Array values = Enum.GetValues(type);
+            return values.Length > 0 ? values.GetValue(0)! : Enum.ToObject(type, 0);
+        }
+        return type.IsValueType ? Activator.CreateInstance(type)! : null!;
+    }
+}

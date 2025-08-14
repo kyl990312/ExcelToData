@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>EnumGenerator</RootNamespace>
+        <OutputPath>$(SolutionDir)Output\$(Configuration)\</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>

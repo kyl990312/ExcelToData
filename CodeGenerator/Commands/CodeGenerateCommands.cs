@@ -122,4 +122,75 @@ public class GenerateCodeConfigCommand : Command
     }
 }
 
+/// <summary>
+/// 구조화된 바이너리용 C# 데이터 클래스 생성 명령어
+/// </summary>
+public class GenerateStructuredBinaryCSharpCommand : Command
+{
+    private readonly string _configPath;
+
+    public GenerateStructuredBinaryCSharpCommand(string configPath)
+    {
+        _configPath = configPath;
+    }
+
+    public override void Execute(out string result)
+    {
+        try
+        {
+            if (!File.Exists(_configPath))
+            {
+                result = $"[GenerateStructuredBinaryCSharpCommand] Config file not found: {_configPath}";
+                return;
+            }
+
+            // 설정 로드 (CodeGenerateConfig 사용)
+            if (!Common.Command.FileLoader.LoadAndConvertJson(_configPath, out CodeGenerator.CodeGenerateConfig config))
+            {
+                result = $"[GenerateStructuredBinaryCSharpCommand] Failed to load config: {_configPath}";
+                return;
+            }
+
+            if (!Directory.Exists(config.BinaryDirectory))
+            {
+                result = $"[GenerateStructuredBinaryCSharpCommand] Binary directory not found: {config.BinaryDirectory}";
+                return;
+            }
+
+            // 출력 디렉토리 준비
+            if (!Directory.Exists(config.ClassOutputDirectory))
+                Directory.CreateDirectory(config.ClassOutputDirectory);
+
+            // 구조화된 바이너리 파일들 처리
+            var files = Directory.GetFiles(config.BinaryDirectory, "*.sbin", SearchOption.AllDirectories);
+            var param = new CSharpClassParam { @namespace = config.ClassNamespace };
+            var generator = new StructuredBinaryCSharpGenerator(param);
+
+            int count = 0;
+            foreach (var file in files)
+            {
+                try
+                {
+                    string relativePath = Path.GetRelativePath(config.BinaryDirectory, file);
+                    string outputPath = Path.Combine(config.ClassOutputDirectory, Path.ChangeExtension(relativePath, ".cs"));
+                    
+                    generator.Generate(file, outputPath);
+                    count++;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error($"[GenerateStructuredBinaryCSharpCommand] Error processing {file}: {ex.Message}");
+                }
+            }
+
+            result = $"[GenerateStructuredBinaryCSharpCommand] Generated {count} classes from structured binary files.";
+        }
+        catch (Exception ex)
+        {
+            result = $"[GenerateStructuredBinaryCSharpCommand] Error: {ex.Message}";
+            Logger.Instance.Error($"[GenerateStructuredBinaryCSharpCommand] Exception: {ex}");
+        }
+    }
+}
+
 

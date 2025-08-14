@@ -1,4 +1,6 @@
 using Common.Command;
+using Generator.CodeGenerator;
+
 namespace CodeGenerator;
 
 public class CGCommandInvoker : CommandInvoker
@@ -23,6 +25,8 @@ public class CGCommandInvoker : CommandInvoker
         if (ProjectDefine.CodeExtension.EndsWith("cs"))
         {
             list.Add(new GenerateCSharpCodeCommand(config));
+            // 구조화된 바이너리 지원 추가
+            list.Add(new GenerateStructuredBinaryCSharpCommand(fullPath));
         }
         
         return list;

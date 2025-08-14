@@ -64,8 +64,11 @@ public class TableHeader
             var typeStr = "System." + (types[i]?.Value.ToString() ?? "" );
             var type = Type.GetType(typeStr);
 
-            if (name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
+            if (!string.IsNullOrEmpty(name) && name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
+            {
+                Logger.Instance.Log($"{sheet.Name} Excluding commented column: '{name}' (column index: {i})");
                 continue;
+            }
             
             if ("".Equals(name))
             {
