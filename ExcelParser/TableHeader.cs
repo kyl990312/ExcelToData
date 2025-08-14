@@ -1,7 +1,7 @@
 using ClosedXML.Excel;
 using Common.Utils;
 
-namespace ExcelParser;
+namespace ExcelParser.Core;
 
 public class TableHeader
 {
