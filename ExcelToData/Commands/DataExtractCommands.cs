@@ -5,49 +5,6 @@ using Generator.DataExtractor;
 
 namespace ExcelToData;
 
-public class ExtractBinaryCommand : Command
-{
-    private DataExtractConfig _config;
-
-    public ExtractBinaryCommand(string configPath)
-    {
-        var config = JsonSerializer.Deserialize<DataExtractConfig>(File.ReadAllText(configPath));
-        _config = config;
-    }
-
-    public override void Execute(out string result)
-    {
-        var sb = new StringBuilder();
-        if (!Directory.Exists(_config.SrcDirectory))
-        {
-            sb.AppendLine($"[ExtractBinaryCommand] log: Wrong Src Directory : {_config.SrcDirectory}");
-            result = sb.ToString();
-            return;
-        }
-        if (string.Empty.Equals(_config.DstDirectory))
-        {
-            sb.AppendLine($"[ExtractBinaryCommand] log: Wrong Dst Directory : {_config.DstDirectory}");
-            result = sb.ToString();
-            return;
-        }
-        
-        var files = SystemDefine.SearchPatterns
-            .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
-            .Distinct()
-            .ToArray();
-        if (files == null || files.Length == 0)
-            sb.AppendLine($"[ExtractBinaryCommand] warning : There is no table files.");
-        var extractor = new BytesExtractor(_config.DstDirectory);
-        foreach (var filePath in files)
-        {
-            extractor.ExtractData(filePath);
-            sb.AppendLine($"[ExtractBinaryCommand] log:  Extract Binary ({filePath})");
-        }
-        sb.AppendLine($"[ExtractBinaryCommand] log: Complete Extract Binary ({_config.SrcDirectory})");
-        result = sb.ToString();
-    }
-}
-
 public class ExtractJsonCommand : Command
 {
     private DataExtractConfig _config;
@@ -73,7 +30,7 @@ public class ExtractJsonCommand : Command
             return;
         }
         
-        var files = SystemDefine.SearchPatterns
+        var files = SystemDefine.SearchPatternsBin
             .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
             .Distinct()
             .ToArray();

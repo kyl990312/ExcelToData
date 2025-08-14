@@ -24,29 +24,21 @@ public abstract class DataExtractorBase : IDataExtractor
     
     public void ExtractData(string filePath)
     {
-        using (var workbook = new XLWorkbook(filePath))
+        var tableTupleList = ConvertToDataTable(filePath);
+        foreach (var tableTuple in tableTupleList)
         {
-            if (workbook.Worksheets.Count == 0)
-            {
-                Logger.Instance.Error($"Fail to load. (file path : {filePath})");
-                return;
-            }
-            Logger.Instance.Log($"Success to load. (file path : {filePath})");
-            foreach (var workSheet in workbook.Worksheets)
-            {
-                Logger.Instance.Log($"Start Convert Worksheet ({workSheet.Name})");
-                var table = TableHelper.GetTable(workSheet);
-                var path = GetFilePath(workSheet.Name, _extend);
-                PostProcessSaveData(table, path);
-                SaveData(table, GetFilePath(workSheet.Name, _extend));
-                Logger.Instance.Log($"Finish Convert Worksheet ({workSheet.Name})");
-            }
+            var path = GetFilePath(tableTuple.name, _extend);
+            PostProcessSaveData(tableTuple.table,path);
+            SaveData(tableTuple.table, GetFilePath(tableTuple.name, _extend));
+            Logger.Instance.Log($"Finish Extract Data ({tableTuple.name})");
         }
     }
 
     protected abstract void SaveData(DataTable table, string path);
     
-    private string GetFilePath(string fileName, string extend, string middle = "")
+    protected abstract List<(DataTable table, string name)> ConvertToDataTable(string path);
+    
+    protected string GetFilePath(string fileName, string extend, string middle = "")
     {
         if (!middle.Equals("")) return ResultDirectoryPath + "/" + middle + "/" + fileName + "." + extend;
         return ResultDirectoryPath + "/" + fileName + "." + extend;

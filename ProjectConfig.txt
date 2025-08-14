@@ -1,0 +1,5 @@
+// 프로젝트의 경로 및 각종 설정을 클로드에 지정합니다.
+
+ProjectDirectory:C:\PROJECT\TableAutomarionTool
+Git:https://github.com/kyl990312/ExcelToData
+DocumentDirectory:D:\Obsidian_Personal\YRKim\개발 문서\TableAutomation

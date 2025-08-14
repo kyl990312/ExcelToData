@@ -22,20 +22,6 @@ public class ETDCommandInvoker : CommandInvoker
         return commands;
     }
 
-    private void AddBinaryCommands(List<ICommand> commands, string baseDirectory)
-    {
-        var binaryConfigPath = Path.Combine(baseDirectory, SystemDefine.BinaryConfigPath);
-        
-        if (!File.Exists(binaryConfigPath))
-        {
-            commands.Add(new GenerateConfigCommand(binaryConfigPath));
-        }
-        else
-        {
-            commands.Add(new ExtractBinaryCommand(binaryConfigPath));
-        }
-    }
-
     private void AddJsonCommands(List<ICommand> commands, string baseDirectory)
     {
         var jsonConfigPath = Path.Combine(baseDirectory, SystemDefine.JsonConfigPath);

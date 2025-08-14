@@ -27,4 +27,5 @@ public static class SystemDefine
     
     // 검색 패턴 (기존 호환성 유지)
     public static string[] SearchPatterns = { "*.xlsm", "*.xlsx" };
+    public static string[] SearchPatternsBin = { "*.bin" };
 }
