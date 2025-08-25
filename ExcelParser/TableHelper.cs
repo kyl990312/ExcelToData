@@ -70,7 +70,11 @@ public static class TableHelper
             return GetDefaultValue(type);
 
         object result = 0;
-        if (type == typeof(Int16) ||
+        if(type == typeof(DateTime))
+        {
+            result = Convert.ToDateTime(cell.Value);   
+        }
+        else if (type == typeof(Int16) ||
             type == typeof(Int32) ||
             type == typeof(Int64) ||
             type == typeof(Single) ||
@@ -80,7 +84,14 @@ public static class TableHelper
         }
         else if (type == typeof(String))
         {
-            result = Convert.ChangeType(cell.Value.GetText(), type);
+            if(cell.Value.IsNumber)
+                result = Convert.ChangeType(cell.Value.GetNumber(), type);
+            if(cell.Value.IsBoolean)
+                result = Convert.ChangeType(cell.Value.GetBoolean(), type);
+            if(cell.Value.IsDateTime)
+                result = Convert.ChangeType(cell.Value.GetDateTime(), type);
+            if(cell.Value.IsText)
+                result = Convert.ChangeType(cell.Value.GetText(), type);
         }
         else if (type.IsArray)
         {

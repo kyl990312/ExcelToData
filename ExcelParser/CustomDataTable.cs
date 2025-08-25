@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Common.Utils;
 using System.Text.Json;
+using DocumentFormat.OpenXml.Spreadsheet;
 using ExcelParser.Core;
 
 namespace ExcelParser;
@@ -42,23 +43,29 @@ public class CustomDataTable
         }
 
         // 4. 각 행의 데이터 추출
-        foreach (var row in rows)
+        foreach (var columnIndex in _header.ColumnIndices)
         {
-            foreach (var columnIndex in _header.ColumnIndices)
+            var headerGroup = _header[columnIndex];
+            var columnName = headerGroup.name;
+            var columnType = headerGroup.type;
+            foreach (var row in rows)
             {
-                var headerGroup = _header[columnIndex];
-                var columnName = headerGroup.name;
-                var columnType = headerGroup.type;
-                
                 // 셀 값을 해당 타입으로 변환
                 var cell = row.Cell(columnIndex + 1); // ClosedXML은 1-based 인덱스
-                var convertedValue = TableHelper.GetConvertedCellValue(cell, columnType);
-                
-                // 변환된 값을 해당 컬럼 데이터에 추가
-                _data[columnName].Add(convertedValue);
+                try
+                {
+                    var convertedValue = TableHelper.GetConvertedCellValue(cell, columnType);
+                    // 변환된 값을 해당 컬럼 데이터에 추가
+                    _data[columnName].Add(convertedValue);
+                }
+                catch (Exception e)
+                {
+                    Logger.Instance.Error($"[StructuredBinaryExtractor] Error converting column {columnName} - {cell
+                        .Address.RowNumber} : {e.Message}");
+                    _data[columnName].Add("");
+                }
             }
         }
-
         Logger.Instance.Log($"Extracted {RowCount} rows with {ColumnCount} columns from worksheet");
     }
 

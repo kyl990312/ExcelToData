@@ -20,27 +20,6 @@ public class StructuredBinaryExtractor : DataExtractorBase
         _binaryWriter = new BinaryWriter();
     }
 
-    protected List<(CustomDataTable table, string name)> ConvertToDataTable(string filePath)
-    {
-       List<(CustomDataTable table, string name)> result = new ();
-       using (var workbook = new XLWorkbook(filePath))
-       {
-           if (workbook.Worksheets.Count == 0)
-           {
-               Logger.Instance.Error($"Fail to load. (file path : {filePath})");
-               return null;
-           }
-           Logger.Instance.Log($"Success to load. (file path : {filePath})");
-           foreach (var workSheet in workbook.Worksheets)
-           {
-               Logger.Instance.Log($"Start Convert Worksheet ({workSheet.Name})");
-               var table = TableHelper.GetTable(workSheet);
-               result.Add((table,workSheet.Name));
-           }
-       }
-       return result;
-    }
-
     protected override void SaveData(CustomDataTable table, string path)
     {
         try

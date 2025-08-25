@@ -95,7 +95,7 @@ public class ExtractStructuredBinaryCommand : Command
         }
         catch (Exception ex)
         {
-            sb.AppendLine($"[ExtractStructuredBinaryCommand] Error: {ex.Message}");
+            sb.AppendLine($"[ExtractStructuredBinaryCommand] Error: {ex.Message}\n{ex.StackTrace}");
         }
         
         result = sb.ToString();
