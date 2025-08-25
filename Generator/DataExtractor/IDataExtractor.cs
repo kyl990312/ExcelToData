@@ -1,5 +1,4 @@
 using System.Data;
-using System.Data;
 using ClosedXML.Excel;
 using Common.Utils;
 using ExcelParser;
@@ -24,27 +23,43 @@ public abstract class DataExtractorBase : IDataExtractor
     
     public void ExtractData(string filePath)
     {
-        var tableTupleList = ConvertToDataTable(filePath);
-        foreach (var tableTuple in tableTupleList)
+        using (var workbook = new XLWorkbook(filePath))
         {
-            var path = GetFilePath(tableTuple.name, _extend);
-            PostProcessSaveData(tableTuple.table,path);
-            SaveData(tableTuple.table, GetFilePath(tableTuple.name, _extend));
-            Logger.Instance.Log($"Finish Extract Data ({tableTuple.name})");
+            if (workbook.Worksheets.Count == 0)
+            {
+                Logger.Instance.Error($"Fail to load. (file path : {filePath})");
+                return;
+            }
+            Logger.Instance.Log($"Success to load. (file path : {filePath})");
+            
+            foreach (var workSheet in workbook.Worksheets)
+            {
+                Logger.Instance.Log($"Start Convert Worksheet ({workSheet.Name})");
+                
+                // CustomDataTable 사용
+                var table = TableHelper.GetTable(workSheet);
+                var path = GetFilePath(workSheet.Name, _extend);
+                
+                PostProcessSaveData(table, path);
+                SaveData(table, path);
+                
+                Logger.Instance.Log($"Finish Convert Worksheet ({workSheet.Name})");
+            }
         }
     }
 
-    protected abstract void SaveData(DataTable table, string path);
+    /// <summary>
+    /// CustomDataTable을 저장하는 추상 메서드
+    /// </summary>
+    protected abstract void SaveData(CustomDataTable table, string path);
     
-    protected abstract List<(DataTable table, string name)> ConvertToDataTable(string path);
-    
-    protected string GetFilePath(string fileName, string extend, string middle = "")
+    private string GetFilePath(string fileName, string extend, string middle = "")
     {
         if (!middle.Equals("")) return ResultDirectoryPath + "/" + middle + "/" + fileName + "." + extend;
         return ResultDirectoryPath + "/" + fileName + "." + extend;
     }
 
-    private void PostProcessSaveData(DataTable table, string path)
+    private void PostProcessSaveData(CustomDataTable table, string path)
     {
         var directoryPath = Path.GetDirectoryName(path);
         if (!Directory.Exists(directoryPath))

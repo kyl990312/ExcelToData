@@ -6,8 +6,14 @@ namespace Generator.CodeGenerator
     public struct CSharpClassParam
     {
         public string @namespace;
+        public bool generateToString;
+        public bool generateEquals;
+        public bool generateGetHashCode;
     }
     
+    /// <summary>
+    /// Binary 파일에서 C# 클래스를 생성하는 기존 생성기
+    /// </summary>
     public class CSharpClassGenerator : CodeGeneratorBase
     {
         private readonly CSharpClassParam _param;
@@ -22,7 +28,28 @@ namespace Generator.CodeGenerator
             var className = Path.GetFileNameWithoutExtension(outputPath);
             var sb = new StringBuilder();
             
-            // 파일 헤더 및 네임스페이스
+            GenerateClassHeader(sb, className);
+            GenerateConstructors(sb, className, data);
+            GenerateProperties(sb, data);
+            
+            if (_param.generateToString)
+                GenerateToStringMethod(sb, data);
+            
+            if (_param.generateEquals)
+                GenerateEqualsMethod(sb, className, data);
+                
+            if (_param.generateGetHashCode)
+                GenerateGetHashCodeMethod(sb, data);
+            
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+            
+            // 파일 저장
+            File.WriteAllText(outputPath, sb.ToString());
+        }
+        
+        private void GenerateClassHeader(StringBuilder sb, string className)
+        {
             sb.AppendLine("// 자동 생성된 코드 - 수정하지 마세요");
             sb.AppendLine("// 생성 시간: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             sb.AppendLine();
@@ -31,23 +58,30 @@ namespace Generator.CodeGenerator
             sb.AppendLine();
             sb.AppendLine($"namespace {_param.@namespace}");
             sb.AppendLine("{");
-            
-            // 클래스 정의
+            sb.AppendLine($"    /// <summary>");
+            sb.AppendLine($"    /// {className} 데이터 클래스");
+            sb.AppendLine($"    /// </summary>");
             sb.AppendLine($"    public class {className}");
             sb.AppendLine("    {");
-            
-            // 생성자 추가
-            sb.AppendLine($"        // 기본 생성자");
+        }
+        
+        private void GenerateConstructors(StringBuilder sb, string className, Dictionary<string, JsonElement> data)
+        {
+            // 기본 생성자
+            sb.AppendLine($"        /// <summary>");
+            sb.AppendLine($"        /// 기본 생성자");
+            sb.AppendLine($"        /// </summary>");
             sb.AppendLine($"        public {className}()");
             sb.AppendLine("        {");
             sb.AppendLine("        }");
             sb.AppendLine();
             
-            // 매개변수 있는 생성자 추가
-            sb.AppendLine($"        // 모든 필드 초기화 생성자");
+            // 매개변수 있는 생성자
+            sb.AppendLine($"        /// <summary>");
+            sb.AppendLine($"        /// 모든 필드 초기화 생성자");
+            sb.AppendLine($"        /// </summary>");
             sb.AppendLine($"        public {className}(");
             
-            // 생성자 매개변수
             int paramCount = 0;
             foreach (var item in data)
             {
@@ -65,7 +99,6 @@ namespace Generator.CodeGenerator
             sb.AppendLine("        )");
             sb.AppendLine("        {");
             
-            // 생성자 내에서 프로퍼티 초기화
             foreach (var item in data)
             {
                 string paramName = char.ToLower(item.Key[0]) + item.Key.Substring(1);
@@ -74,19 +107,56 @@ namespace Generator.CodeGenerator
             
             sb.AppendLine("        }");
             sb.AppendLine();
-            
-            // 데이터 항목을 프로퍼티로 변환 (private setter)
+        }
+        
+        private void GenerateProperties(StringBuilder sb, Dictionary<string, JsonElement> data)
+        {
             foreach (var item in data)
             {
                 string propertyType = DeterminePropertyType(item.Value);
+                sb.AppendLine($"        /// <summary>");
+                sb.AppendLine($"        /// {item.Key} 프로퍼티");
+                sb.AppendLine($"        /// </summary>");
                 sb.AppendLine($"        public {propertyType} {item.Key} {{ get; private set; }}");
+                sb.AppendLine();
             }
-            
-            sb.AppendLine("    }");
-            sb.AppendLine("}");
-            
-            // 파일 저장
-            File.WriteAllText(outputPath, sb.ToString());
+        }
+        
+        private void GenerateToStringMethod(StringBuilder sb, Dictionary<string, JsonElement> data)
+        {
+            sb.AppendLine($"        /// <summary>");
+            sb.AppendLine($"        /// 문자열 표현을 반환합니다.");
+            sb.AppendLine($"        /// </summary>");
+            sb.AppendLine($"        public override string ToString()");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            return $\"{{{string.Join(", ", data.Keys.Select(k => $"{k}={{{k}}}"))}\";");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+        }
+        
+        private void GenerateEqualsMethod(StringBuilder sb, string className, Dictionary<string, JsonElement> data)
+        {
+            sb.AppendLine($"        /// <summary>");
+            sb.AppendLine($"        /// 다른 객체와의 동등성을 비교합니다.");
+            sb.AppendLine($"        /// </summary>");
+            sb.AppendLine($"        public override bool Equals(object? obj)");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            if (obj is not {className} other) return false;");
+            sb.AppendLine($"            return {string.Join(" && ", data.Keys.Select(k => $"Equals({k}, other.{k})"))};");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+        }
+        
+        private void GenerateGetHashCodeMethod(StringBuilder sb, Dictionary<string, JsonElement> data)
+        {
+            sb.AppendLine($"        /// <summary>");
+            sb.AppendLine($"        /// 해시 코드를 반환합니다.");
+            sb.AppendLine($"        /// </summary>");
+            sb.AppendLine($"        public override int GetHashCode()");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            return HashCode.Combine({string.Join(", ", data.Keys)});");
+            sb.AppendLine("        }");
+            sb.AppendLine();
         }
         
         private string DeterminePropertyType(JsonElement element)
@@ -105,7 +175,6 @@ namespace Generator.CodeGenerator
         
         private string DetermineArrayType(JsonElement element)
         {
-            // 배열의 첫 번째 요소를 기준으로 타입 결정 (배열이 비어있으면 object 배열로 가정)
             if (element.GetArrayLength() == 0)
                 return "object[]";
                 
@@ -122,7 +191,6 @@ namespace Generator.CodeGenerator
         
         private string DetermineNumberType(JsonElement element)
         {
-            // 정수 vs 부동소수점 구분
             if (element.TryGetInt32(out _))
                 return "int";
                 

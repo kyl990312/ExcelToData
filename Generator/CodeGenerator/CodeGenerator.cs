@@ -1,5 +1,3 @@
-// Generator 프로젝트에 추가될 코드 생성 시스템
-
 using Common.Utils;
 using System.Text.Json;
 using ExcelParser;
@@ -12,10 +10,15 @@ namespace Generator.CodeGenerator
         void Generate(string binaryFilePath, string outputPath);
     }
 
+    // CustomDataTable 기반 코드 생성기 인터페이스
+    public interface ITableCodeGenerator
+    {
+        void Generate(CustomDataTable table, string outputPath);
+    }
+
     // 코드 생성기 기본 클래스
     public abstract class CodeGeneratorBase : ICodeGenerator
     {
-        BinaryParser.BinaryReader _binaryReader = new ();
         public void Generate(string binaryFilePath, string outputPath)
         {
             if (!File.Exists(binaryFilePath))
@@ -26,8 +29,11 @@ namespace Generator.CodeGenerator
 
             try
             {
-                var table = _binaryReader.ReadFromFile(binaryFilePath);
-                string jsonString = TableHelper.ConverDataTableToJSON(TableHelper.ConvertBinaryToDataTable(table));
+                // 바이너리 파일 로드 (UTF-8로 인코딩된 JSON 데이터)
+                byte[] binaryData = File.ReadAllBytes(binaryFilePath);
+                string jsonString = System.Text.Encoding.UTF8.GetString(binaryData);
+
+                // JsonDocument로 파싱
                 using var document = JsonDocument.Parse(jsonString);
 
                 // 루트 요소 검사 (객체 또는 배열)

@@ -1,7 +1,7 @@
 using ClosedXML.Excel;
 using Common.Utils;
 
-namespace ExcelParser.Core;
+namespace ExcelParser;
 
 public class TableHeader
 {
@@ -10,6 +10,7 @@ public class TableHeader
         public string name;
         public Type type;
     }
+    
     private Dictionary<int, Group> _headers = new Dictionary<int, Group>();
 
     public IEnumerable<Group> Headers => _headers.Values;
@@ -30,27 +31,19 @@ public class TableHeader
         
         if (rows.Count < 2)
             return;
+            
         // 첫 번째 행은 칼럼 명
         var names = rows[0].Cells()?.ToList();
-        if (names == null)
+        if (names == null || names.Count == 0)
         {
             Logger.Instance.Error($"{sheet.Name} InValid Sheet. There is no columns (row : {HeaderEndRow})");
             return;
         }
-        if (names.Count == 0)
-        {
-            Logger.Instance.Error($"{sheet.Name} InValid Sheet. There is no columns (row : {HeaderEndRow})");
-            return; 
-        }
+        
         // 두 번째 행은 칼럼 타입
         HeaderEndRow++;
         var types = rows[1].Cells()?.ToList();
-        if (types == null)
-        {
-            Logger.Instance.Error($"{sheet.Name} InValid Sheet. There is no columns (row : {HeaderEndRow})");
-            return;
-        }
-        if (types.Count == 0)
+        if (types == null || types.Count == 0)
         {
             Logger.Instance.Error($"{sheet.Name} InValid Sheet. There is no columns (row : {HeaderEndRow})");
             return;
@@ -60,21 +53,20 @@ public class TableHeader
         {
             if (types.Count <= i)
                 break;
+                
             var name = names[i]?.Value.ToString() ?? "";
-            var typeStr = "System." + (types[i]?.Value.ToString() ?? "" );
+            var typeStr = "System." + (types[i]?.Value.ToString() ?? "");
             var type = Type.GetType(typeStr);
 
-            if (!string.IsNullOrEmpty(name) && name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
-            {
-                Logger.Instance.Log($"{sheet.Name} Excluding commented column: '{name}' (column index: {i})");
+            if (name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
                 continue;
-            }
             
-            if ("".Equals(name))
+            if (string.IsNullOrEmpty(name))
             {
                 Logger.Instance.Error($"{sheet.Name} Name is empty. (column : {i})");
                 continue;
             }
+            
             if (type == null)
             {
                 Logger.Instance.Error($"{sheet.Name} Type is invalid. (column : {i}, type : {typeStr})");

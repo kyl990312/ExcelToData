@@ -20,9 +20,9 @@ public class StructuredBinaryExtractor : DataExtractorBase
         _binaryWriter = new BinaryWriter();
     }
 
-    protected override List<(DataTable table, string name)> ConvertToDataTable(string filePath)
+    protected List<(CustomDataTable table, string name)> ConvertToDataTable(string filePath)
     {
-       List<(DataTable table, string name)> result = new ();
+       List<(CustomDataTable table, string name)> result = new ();
        using (var workbook = new XLWorkbook(filePath))
        {
            if (workbook.Worksheets.Count == 0)
@@ -41,15 +41,12 @@ public class StructuredBinaryExtractor : DataExtractorBase
        return result;
     }
 
-    protected override void SaveData(DataTable table, string path)
+    protected override void SaveData(CustomDataTable table, string path)
     {
         try
         {
-            // DataTable을 Dictionary 형태로 변환
-            var data = TableHelper.ConvertDataTableToBinary(table);
-            
             // 구조화된 바이너리 형식으로 저장
-            _binaryWriter.WriteToFile(data, path);
+            _binaryWriter.WriteToFile(table.GetAllRowsData(), path);
             Logger.Instance.Log($"[StructuredBinaryExtractor] Save File StructuredBinary {path}");
         }
         catch (Exception ex)
