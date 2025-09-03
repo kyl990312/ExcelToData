@@ -23,9 +23,33 @@ public class TableHeader
     public int HeaderStartRow { get; private set; }
     public int HeaderEndRow { get; private set; }
     public int HeaderRowCount => HeaderEndRow - HeaderStartRow + 1;
+    
+    public string TableName { get; private set; }
+
+    /// <summary>
+    /// Dictionary로부터 TableHeader를 생성합니다.
+    /// </summary>
+    public TableHeader(string tableName, Dictionary<string, Type> columnTypes)
+    {
+        TableName = tableName;
+        HeaderStartRow = HeaderEndRow = 1;
+        
+        int index = 0;
+        foreach (var kvp in columnTypes)
+        {
+            _headers.Add(index, new Group()
+            {
+                name = kvp.Key,
+                type = kvp.Value
+            });
+            index++;
+        }
+    }
 
     public TableHeader(IXLWorksheet sheet)
     {
+        TableName = sheet.Name;
+        
         var rows = TableHelper.GetRows(sheet, out var startIdx, out _);
         HeaderStartRow = HeaderEndRow = startIdx;
         

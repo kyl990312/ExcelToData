@@ -64,6 +64,45 @@ public static class TableHelper
         return table.ToJson();
     }
 
+    /// <summary>
+    /// Dictionary 리스트를 CustomDataTable로 변환합니다.
+    /// </summary>
+    /// <param name="data">변환할 Dictionary 리스트</param>
+    /// <param name="tableName">테이블 이름 (선택사항)</param>
+    /// <returns>변환된 CustomDataTable</returns>
+    public static CustomDataTable ConvertToCustomDataTable(List<Dictionary<string, object>> data, string tableName = "DataTable")
+    {
+        if (data == null || data.Count == 0)
+        {
+            Logger.Instance.Warning("Empty data list provided to ConvertToCustomDataTable");
+            return new CustomDataTable(new List<Dictionary<string, object>>(), tableName);
+        }
+
+        Logger.Instance.Log($"Converting {data.Count} rows to CustomDataTable: {tableName}");
+        return new CustomDataTable(data, tableName);
+    }
+
+    /// <summary>
+    /// 여러 Dictionary 리스트를 각각 CustomDataTable로 변환합니다.
+    /// </summary>
+    /// <param name="dataList">변환할 Dictionary 리스트들</param>
+    /// <param name="tableNames">각 테이블의 이름들 (선택사항)</param>
+    /// <returns>변환된 CustomDataTable 리스트</returns>
+    public static List<CustomDataTable> ConvertToCustomDataTableList(List<List<Dictionary<string, object>>> dataList, List<string> tableNames = null)
+    {
+        var result = new List<CustomDataTable>();
+        
+        for (int i = 0; i < dataList.Count; i++)
+        {
+            var tableName = tableNames != null && i < tableNames.Count ? tableNames[i] : $"DataTable{i}";
+            var customTable = ConvertToCustomDataTable(dataList[i], tableName);
+            result.Add(customTable);
+        }
+        
+        Logger.Instance.Log($"Converted {dataList.Count} data lists to CustomDataTable list");
+        return result;
+    }
+
     public static object GetConvertedCellValue(IXLCell cell, Type type)
     {
         if (CheckValue(cell, type) == false)

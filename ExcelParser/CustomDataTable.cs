@@ -14,11 +14,39 @@ public class CustomDataTable
 {
     private TableHeader _header;
     private Dictionary<string, List<object>> _data = new();
+    
+    public string Name => _header.TableName;
 
     public CustomDataTable(IXLWorksheet worksheet)
     {
         _header = new TableHeader(worksheet);
         ExtractData(worksheet);
+    }
+
+    /// <summary>
+    /// Dictionary 리스트로부터 CustomDataTable을 생성합니다.
+    /// </summary>
+    public CustomDataTable(List<Dictionary<string, object>> data, string tableName = "DataTable")
+    {
+        if (data == null || data.Count == 0)
+        {
+            Logger.Instance.Warning("Empty data provided to CustomDataTable constructor");
+            _header = new TableHeader(tableName, new Dictionary<string, Type>());
+            return;
+        }
+
+        // 첫 번째 행에서 컬럼 정보 추출
+        var firstRow = data[0];
+        var columnTypes = new Dictionary<string, Type>();
+        
+        foreach (var kvp in firstRow)
+        {
+            Type valueType = kvp.Value?.GetType() ?? typeof(string);
+            columnTypes[kvp.Key] = valueType;
+        }
+
+        _header = new TableHeader(tableName, columnTypes);
+        ExtractDataFromDictionaries(data);
     }
 
     /// <summary>
@@ -67,6 +95,56 @@ public class CustomDataTable
             }
         }
         Logger.Instance.Log($"Extracted {RowCount} rows with {ColumnCount} columns from worksheet");
+    }
+
+    /// <summary>
+    /// Dictionary 리스트로부터 데이터를 추출하여 테이블에 저장
+    /// </summary>
+    private void ExtractDataFromDictionaries(List<Dictionary<string, object>> data)
+    {
+        // 1. 컬럼별 데이터 리스트 초기화
+        foreach (var name in _header.Names)
+        {
+            _data[name] = new List<object>();
+        }
+
+        // 2. 각 행의 데이터 추출
+        foreach (var rowData in data)
+        {
+            foreach (var columnName in _header.Names)
+            {
+                if (rowData.TryGetValue(columnName, out var value))
+                {
+                    _data[columnName].Add(value);
+                }
+                else
+                {
+                    // 컬럼이 없는 경우 기본값 추가
+                    var columnType = _header.GetColumnType(columnName);
+                    var defaultValue = GetDefaultValueForType(columnType);
+                    _data[columnName].Add(defaultValue);
+                    Logger.Instance.Warning($"Column '{columnName}' not found in row data, using default value");
+                }
+            }
+        }
+        
+        Logger.Instance.Log($"Extracted {RowCount} rows with {ColumnCount} columns from dictionary list");
+    }
+
+    /// <summary>
+    /// 타입에 맞는 기본값을 반환합니다.
+    /// </summary>
+    private static object GetDefaultValueForType(Type type)
+    {
+        if (type == typeof(string)) return string.Empty;
+        if (type == typeof(int)) return 0;
+        if (type == typeof(long)) return 0L;
+        if (type == typeof(float)) return 0f;
+        if (type == typeof(double)) return 0.0;
+        if (type == typeof(bool)) return false;
+        if (type.IsArray) return Array.CreateInstance(type.GetElementType() ?? typeof(object), 0);
+        
+        return type.IsValueType ? Activator.CreateInstance(type) : null;
     }
 
     // 프로퍼티들

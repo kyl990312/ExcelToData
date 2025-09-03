@@ -1,5 +1,3 @@
-using System.Data;
-using ClosedXML.Excel;
 using Common.Utils;
 using ExcelParser;
 
@@ -23,31 +21,18 @@ public abstract class DataExtractorBase : IDataExtractor
     
     public void ExtractData(string filePath)
     {
-        using (var workbook = new XLWorkbook(filePath))
+        var dataDataTables = GetDataTablesByFile(filePath);
+        foreach (var table in dataDataTables)
         {
-            if (workbook.Worksheets.Count == 0)
-            {
-                Logger.Instance.Error($"Fail to load. (file path : {filePath})");
-                return;
-            }
-            Logger.Instance.Log($"Success to load. (file path : {filePath})");
-            
-            foreach (var workSheet in workbook.Worksheets)
-            {
-                Logger.Instance.Log($"Start Convert Worksheet ({workSheet.Name})");
+            var path = GetFilePath(table.Name, _extend);
                 
-                // CustomDataTable 사용
-                var table = TableHelper.GetTable(workSheet);
-                var path = GetFilePath(workSheet.Name, _extend);
-                
-                PostProcessSaveData(table, path);
-                SaveData(table, path);
-                
-                Logger.Instance.Log($"Finish Convert Worksheet ({workSheet.Name})");
-            }
+            PostProcessSaveData(table, path);
+            SaveData(table, path);
         }
     }
 
+    protected abstract List<CustomDataTable> GetDataTablesByFile(string filePath);
+    
     /// <summary>
     /// CustomDataTable을 저장하는 추상 메서드
     /// </summary>
@@ -69,3 +54,4 @@ public abstract class DataExtractorBase : IDataExtractor
         }
     }
 }
+
