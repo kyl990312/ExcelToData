@@ -25,7 +25,6 @@ public abstract class DataExtractorBase : IDataExtractor
         foreach (var table in dataDataTables)
         {
             var path = GetFilePath(table.Name, _extend);
-                
             PostProcessSaveData(table, path);
             SaveData(table, path);
         }
