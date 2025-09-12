@@ -46,7 +46,8 @@ public class ETDCommandInvoker : CommandInvoker
         }
         else
         {
-            commands.Add(new ExtractStructuredBinaryCommand(jsonConfigPath));
+            commands.Add(new ExtractBinaryCommand(jsonConfigPath));
+            commands.Add(new ExtractBinaryFromGSheet(jsonConfigPath));
         }
     }
 }
@@ -87,7 +88,7 @@ public class StructuredBinaryOnlyInvoker : CommandInvoker
         }
         else
         {
-            commands.Add(new ExtractStructuredBinaryCommand(configPath));
+            commands.Add(new ExtractBinaryCommand(configPath));
         }
         
         return commands;

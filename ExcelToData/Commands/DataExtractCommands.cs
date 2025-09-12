@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Common.Command;
+using EnumGenerator.DataExtractor;
 using Generator.DataExtractor;
 
 namespace ExcelToData;
@@ -48,11 +49,11 @@ public class ExtractJsonCommand : Command
 /// <summary>
 /// Excel 파일을 구조화된 바이너리 형식으로 추출하는 명령어
 /// </summary>
-public class ExtractStructuredBinaryCommand : Command
+public class ExtractBinaryCommand : Command
 {
     private readonly DataExtractConfig _config;
 
-    public ExtractStructuredBinaryCommand(string configPath)
+    public ExtractBinaryCommand(string configPath)
     {
         var configText = File.ReadAllText(configPath);
         var config = JsonSerializer.Deserialize<DataExtractConfig>(configText);
@@ -62,17 +63,23 @@ public class ExtractStructuredBinaryCommand : Command
     public override void Execute(out string result)
     {
         var sb = new StringBuilder();
+        if (_config.IsLoadFromLocal == false)
+        {
+            sb.AppendLine($"[ExtractBinaryCommand] IsUseLoadFromLocal is false.");
+            result = sb.ToString();
+            return;
+        }
         
         if (!Directory.Exists(_config.SrcDirectory))
         {
-            sb.AppendLine($"[ExtractStructuredBinaryCommand] Wrong Src Directory : {_config.SrcDirectory}");
+            sb.AppendLine($"[ExtractBinaryCommand] Wrong Src Directory : {_config.SrcDirectory}");
             result = sb.ToString();
             return;
         }
         
         if (string.IsNullOrEmpty(_config.DstDirectory))
         {
-            sb.AppendLine($"[ExtractStructuredBinaryCommand] Wrong Dst Directory : {_config.DstDirectory}");
+            sb.AppendLine($"[ExtractBinaryCommand] Wrong Dst Directory : {_config.DstDirectory}");
             result = sb.ToString();
             return;
         }
@@ -88,14 +95,56 @@ public class ExtractStructuredBinaryCommand : Command
             foreach (var filePath in files)
             {
                 extractor.ExtractData(filePath);
-                sb.AppendLine($"[ExtractStructuredBinaryCommand] Extract StructuredBinary ({filePath})");
+                sb.AppendLine($"[ExtractBinaryCommand] Extract StructuredBinary ({filePath})");
             }
             
-            sb.AppendLine($"[ExtractStructuredBinaryCommand] Complete Extract StructuredBinary ({_config.SrcDirectory})");
+            sb.AppendLine($"[ExtractBinaryCommand] Complete Extract StructuredBinary ({_config.SrcDirectory})");
         }
         catch (Exception ex)
         {
-            sb.AppendLine($"[ExtractStructuredBinaryCommand] Error: {ex.Message}\n{ex.StackTrace}");
+            sb.AppendLine($"[ExtractBinaryCommand] Error: {ex.Message}\n{ex.StackTrace}");
+        }
+        
+        result = sb.ToString();
+    }
+}
+
+public class ExtractBinaryFromGSheet : Command
+{
+    private readonly DataExtractConfig _config;
+
+    public ExtractBinaryFromGSheet(string configPath)
+    {
+        var configText = File.ReadAllText(configPath);
+        var config = JsonSerializer.Deserialize<DataExtractConfig>(configText);
+        _config = config ?? new DataExtractConfig();
+    }
+
+    public override void Execute(out string result)
+    {
+        var sb = new StringBuilder();
+        if (_config.IsLoadFromGSheet == false)
+        {
+            sb.AppendLine($"[ExtractBinaryFromGSheet] IsUseLoadFromLocal is false.");
+            result = sb.ToString();
+            return;
+        }
+        if (string.IsNullOrEmpty(_config.DstDirectory))
+        {
+            sb.AppendLine($"[ExtractBinaryFromGSheet] Wrong Dst Directory : {_config.DstDirectory}");
+            result = sb.ToString();
+            return;
+        }
+
+        try
+        {
+            var extractor = new BytesExtractorFromGSheet(_config.DstDirectory);
+            extractor.ExtractData(_config.SrcGDriveLink);
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[ExtractBinaryFromGSheet] Error: {ex.Message}\n{ex.StackTrace}");
+            throw;
         }
         
         result = sb.ToString();

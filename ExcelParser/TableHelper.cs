@@ -1,6 +1,5 @@
 using ClosedXML.Excel;
 using System.Data;
-using System.Text.Json;
 using Common.Utils;
 
 namespace ExcelParser;
@@ -54,6 +53,226 @@ public static class TableHelper
     public static CustomDataTable GetTable(IXLWorksheet sheet)
     {
         return new CustomDataTable(sheet);
+    }
+
+    /// <summary>
+    /// DataTable을 CustomDataTable로 변환합니다.
+    /// Google Sheets에서 읽어온 데이터를 Excel과 동일한 방식으로 처리합니다.
+    /// 1행: 컬럼명, 2행: 타입 정의, 3행부터: 데이터
+    /// </summary>
+    /// <param name="table">변환할 DataTable</param>
+    /// <returns>변환된 CustomDataTable</returns>
+    public static CustomDataTable GetTable(DataTable table)
+    {
+        if (table == null)
+        {
+            Logger.Instance.Error("[TableHelper] Input DataTable is null");
+            return null;
+        }
+
+        if (table.Rows.Count < 2)
+        {
+            Logger.Instance.Error($"[TableHelper] DataTable must have at least 2 rows (header name and type). Current rows: {table.Rows.Count}");
+            return null;
+        }
+
+        try
+        {
+            Logger.Instance.Log($"[TableHelper] Converting DataTable to CustomDataTable: {table.TableName}");
+            
+            // 1행: 컬럼명, 2행: 컬럼타입 추출
+            var nameRow = table.Rows[0];
+            var typeRow = table.Rows[1];
+            
+            var columnTypes = new Dictionary<string, Type>();
+            var validColumnIndices = new List<int>();
+            
+            // 헤더 정보 파싱 (Excel과 동일한 방식)
+            for (int i = 0; i < table.Columns.Count; i++)
+            {
+                var name = nameRow[i]?.ToString() ?? "";
+                var typeStr = typeRow[i]?.ToString() ?? "";
+                
+                // 제외 컬럼 필터링 (TableDefine 상수 사용)
+                if (name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
+                {
+                    Logger.Instance.Log($"[TableHelper] Skipping column: {name} (excluded by prefix)");
+                    continue;
+                }
+                
+                if (string.IsNullOrEmpty(name))
+                {
+                    Logger.Instance.Error($"[TableHelper] Name is empty. (column : {i})");
+                    continue;
+                }
+                
+                // 타입 문자열 파싱 (System. 접두사 추가)
+                if (!string.IsNullOrEmpty(typeStr) && !typeStr.StartsWith("System."))
+                {
+                    typeStr = "System." + typeStr;
+                }
+                
+                var type = Type.GetType(typeStr);
+                if (type == null)
+                {
+                    Logger.Instance.Error($"[TableHelper] Type is invalid. (column : {i}, type : {typeStr})");
+                    continue;
+                }
+
+                // 중복 컬럼명 확인
+                if (columnTypes.ContainsKey(name))
+                {
+                    Logger.Instance.Warning($"[TableHelper] Duplicate column name: {name}");
+                    continue;
+                }
+                
+                columnTypes[name] = type;
+                validColumnIndices.Add(i);
+                Logger.Instance.Log($"[TableHelper] Added column: {name} ({type.Name})");
+            }
+            
+            if (columnTypes.Count == 0)
+            {
+                Logger.Instance.Warning("[TableHelper] No valid columns found");
+                return new CustomDataTable(new List<Dictionary<string, object>>(), table.TableName);
+            }
+            
+            // 데이터 행들을 Dictionary 리스트로 변환 (3행부터 데이터)
+            var dictList = new List<Dictionary<string, object>>();
+            
+            for (int rowIndex = 2; rowIndex < table.Rows.Count; rowIndex++) // 3행부터 데이터
+            {
+                var row = table.Rows[rowIndex];
+                
+                // 빈 행 체크
+                if (row.ItemArray.All(field => string.IsNullOrWhiteSpace(field?.ToString())))
+                {
+                    continue;
+                }
+                
+                // 제외 행 필터링 (TableDefine 상수 사용)
+                if (row.ItemArray.Length > 0 && 
+                    row.ItemArray[0]?.ToString().StartsWith(TableDefine.REGEX_START_EXCEPT_ROW) == true)
+                {
+                    Logger.Instance.Log($"[TableHelper] Skipping row {rowIndex + 1} (comment row)");
+                    continue;
+                }
+
+                // EOF 마커 확인
+                if (row.ItemArray.Length > 0 && 
+                    row.ItemArray[0]?.ToString().Equals("EOF", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    Logger.Instance.Log($"[TableHelper] Reached EOF marker at row {rowIndex + 1}");
+                    break;
+                }
+
+                var rowDict = new Dictionary<string, object>();
+                
+                // 유효한 컬럼들에 대해서만 데이터 추출
+                for (int i = 0; i < validColumnIndices.Count; i++)
+                {
+                    var columnIndex = validColumnIndices[i];
+                    var columnName = nameRow[columnIndex].ToString();
+                    var columnType = columnTypes[columnName];
+                    
+                    // 셀 값을 해당 타입으로 변환 (TableHelper.GetConvertedCellValue와 유사한 로직)
+                    var cellValueString = row[columnIndex]?.ToString() ?? "";
+                    var convertedValue = ConvertStringToType(cellValueString, columnType, columnName, rowIndex + 1);
+                    
+                    rowDict[columnName] = convertedValue;
+                }
+                
+                dictList.Add(rowDict);
+            }
+            
+            Logger.Instance.Log($"[TableHelper] Extracted {dictList.Count} valid data rows");
+            
+            // CustomDataTable 생성 (Dictionary 리스트 생성자 사용)
+            var customTable = new CustomDataTable(dictList, table.TableName);
+            
+            Logger.Instance.Log($"[TableHelper] CustomDataTable created: {customTable.Name} with {customTable.RowCount} rows and {customTable.ColumnCount} columns");
+            return customTable;
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[TableHelper] Error converting DataTable to CustomDataTable: {ex.Message}");
+            return null;
+        }
+    }
+    
+    /// <summary>
+    /// 문자열을 지정된 타입으로 변환합니다. (TableHelper.GetConvertedCellValue의 문자열 버전)
+    /// </summary>
+    private static object ConvertStringToType(string value, Type type, string columnName, int rowNumber)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return GetDefaultValue(type);
+        }
+        
+        try
+        {
+            if (type == typeof(Int16) || type == typeof(Int32) || type == typeof(Int64) || 
+                type == typeof(Single) || type == typeof(Double))
+            {
+                if (!double.TryParse(value, out double number))
+                {
+                    Logger.Instance.Warning($"[TableHelper] Value '{value}' is not a number for column '{columnName}' at row {rowNumber}");
+                    return GetDefaultValue(type);
+                }
+
+                // 범위 체크 및 변환
+                if (type == typeof(Int16) && (number < Int16.MinValue || number > Int16.MaxValue))
+                {
+                    Logger.Instance.Warning($"[TableHelper] Value {number} is outside the range of Int16 for column '{columnName}' at row {rowNumber}");
+                    return GetDefaultValue(type);
+                }
+                else if (type == typeof(Int32) && (number < Int32.MinValue || number > Int32.MaxValue))
+                {
+                    Logger.Instance.Warning($"[TableHelper] Value {number} is outside the range of Int32 for column '{columnName}' at row {rowNumber}");
+                    return GetDefaultValue(type);
+                }
+                
+                return Convert.ChangeType(number, type);
+            }
+            else if (type == typeof(String))
+            {
+                return value;
+            }
+            else if (type.IsArray)
+            {
+                var elementType = type.GetElementType();
+                if (elementType == null)
+                {
+                    Logger.Instance.Warning($"[TableHelper] Cannot determine array element type for column '{columnName}' at row {rowNumber}");
+                    return GetDefaultValue(type);
+                }
+                
+                return ConvertTextToArray(value, elementType);
+            }
+            else if (type.IsEnum)
+            {
+                if (int.TryParse(value, out var iResult))
+                    return Convert.ChangeType(iResult, type);
+                else if (Enum.TryParse(type, value, out var eResult))
+                    return eResult;
+                else
+                {
+                    Logger.Instance.Warning($"[TableHelper] Cannot parse '{value}' as enum type {type} for column '{columnName}' at row {rowNumber}");
+                    return GetDefaultValue(type);
+                }
+            }
+            else
+            {
+                Logger.Instance.Warning($"[TableHelper] Unsupported type {type} for column '{columnName}' at row {rowNumber}");
+                return GetDefaultValue(type);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Warning($"[TableHelper] Error converting '{value}' to {type.Name} for column '{columnName}' at row {rowNumber}: {ex.Message}");
+            return GetDefaultValue(type);
+        }
     }
 
     /// <summary>

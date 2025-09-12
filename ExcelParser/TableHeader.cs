@@ -24,7 +24,7 @@ public class TableHeader
     public int HeaderEndRow { get; private set; }
     public int HeaderRowCount => HeaderEndRow - HeaderStartRow + 1;
     
-    public string TableName { get; private set; }
+    public string TableName { get; set; }
 
     /// <summary>
     /// Dictionary로부터 TableHeader를 생성합니다.

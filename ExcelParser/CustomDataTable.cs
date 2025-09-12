@@ -15,7 +15,17 @@ public class CustomDataTable
     private TableHeader _header;
     private Dictionary<string, List<object>> _data = new();
     
-    public string Name => _header.TableName;
+    public string Name
+    {
+        get
+        {
+            return _header.TableName;
+        }
+        set
+        {
+            _header.TableName = value;
+        }
+    }
 
     public CustomDataTable(IXLWorksheet worksheet)
     {
