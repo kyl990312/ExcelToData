@@ -56,15 +56,47 @@ internal static class GAuthAPIHandler
             Initialize();
         }
         
-        using var stream = new FileStream(_config.ClientSceret, FileMode.Open, FileAccess.Read);
-        string credPath = "token.json";
+        try
+        {
+            using var stream = new FileStream(_config.ClientSceret, FileMode.Open, FileAccess.Read);
+            string credPath = "token.json";
 
-        return GoogleWebAuthorizationBroker.AuthorizeAsync(
-            GoogleClientSecrets.FromStream(stream).Secrets,
-            Scopes,
-            _config.User,
-            CancellationToken.None,
-            new FileDataStore(credPath, true)).Result;
+            var credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                GoogleClientSecrets.FromStream(stream).Secrets,
+                Scopes,
+                _config.User,
+                CancellationToken.None,
+                new FileDataStore(credPath, true)).Result;
+                
+            return credential;
+        }
+        catch (AggregateException ex) when (ex.InnerException is Google.Apis.Auth.OAuth2.Responses.TokenResponseException tokenEx)
+        {
+            Console.WriteLine($"[GAuth] Token error: {tokenEx.Error.Error} - {tokenEx.Error.ErrorDescription}");
+            Console.WriteLine("[GAuth] Attempting to refresh credentials...");
+            
+            // 토큰 파일 삭제하고 재인증 시도
+            string credPath = "token.json";
+            if (Directory.Exists(credPath))
+            {
+                Directory.Delete(credPath, true);
+                Console.WriteLine("[GAuth] Deleted old token. Please re-authenticate.");
+            }
+            
+            // 재시도
+            using var stream = new FileStream(_config.ClientSceret, FileMode.Open, FileAccess.Read);
+            return GoogleWebAuthorizationBroker.AuthorizeAsync(
+                GoogleClientSecrets.FromStream(stream).Secrets,
+                Scopes,
+                _config.User,
+                CancellationToken.None,
+                new FileDataStore(credPath, true)).Result;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[GAuth] Fatal error getting credentials: {ex.Message}");
+            throw;
+        }
     }
  
 }

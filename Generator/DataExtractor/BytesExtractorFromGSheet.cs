@@ -4,7 +4,7 @@ using GAuth;
 
 namespace EnumGenerator.DataExtractor;
 
-public class BytesExtractorFromGSheet : BytesExtractor
+public class BytesExtractorFromGSheet : StructuredBinaryExtractor
 {
     public BytesExtractorFromGSheet(string directory) : base(directory)
     {

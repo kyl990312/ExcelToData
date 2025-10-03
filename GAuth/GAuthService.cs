@@ -29,8 +29,6 @@ public static List<DataTable> GetTableFromGSheet(string folderLink)
         {
             try
             {
-                
-                
                 Logger.Instance.Log($"[GAuthService] Processing sheet: {sheetFile.Name}");
                 
                 // 시트의 모든 탭 정보 가져오기
@@ -63,13 +61,13 @@ public static List<DataTable> GetTableFromGSheet(string folderLink)
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error($"[GAuthService] Error processing sheet {sheetFile.Name}: {ex.Message}");
+                Logger.Instance.Error($"[GAuthService] Error processing sheet {sheetFile.Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
     }
     catch (Exception ex)
     {
-        Logger.Instance.Error($"[GAuthService] Error in GetTableFromGSheet: {ex.Message}");
+        Logger.Instance.Error($"[GAuthService] Error in GetTableFromGSheet: {ex.Message}\n{ex.StackTrace}");
     }
     
     Logger.Instance.Log($"[GAuthService] Total DataTables created: {tables.Count}");
@@ -88,41 +86,47 @@ private static DataTable ConvertToDataTable(IList<IList<object>> values, string 
     var table = new DataTable(tableName);
     
     if (values == null || values.Count == 0)
+    {
+        Logger.Instance.Warning($"[GAuthService] No values to convert for table: {tableName}");
         return table;
+    }
     
     try
     {
-        for (int rowIndex = 0; rowIndex < values.Count; rowIndex++)
+        // 헤더 행 처리 (첫 번째 행)
+        var headerRow = values[0];
+        for (int i = 0; i < headerRow.Count; i++)
         {
-            var headerRow = values[0];
-            for (int i = 0; i < headerRow.Count; i++)
-            {
-                var columnName = headerRow[i]?.ToString() ?? $"Column{i + 1}";
-                table.Columns.Add(columnName, typeof(string));
-            }
+            var columnName = headerRow[i]?.ToString() ?? $"Column{i + 1}";
+            table.Columns.Add(columnName, typeof(string));
+        }
+        
+        Logger.Instance.Log($"[GAuthService] Created {table.Columns.Count} columns for table: {tableName}");
+        
+        // 데이터 행 처리 (두 번째 행부터 시작하여 헤더 제외)
+        for (int rowIndex = 1; rowIndex < values.Count; rowIndex++)
+        {
             var row = values[rowIndex];
-            
             var dataRow = table.NewRow();
-            int columnIndex = 0;
             
-            for (int cellIndex = 0; cellIndex < row.Count && columnIndex < table.Columns.Count; cellIndex++)
+            for (int cellIndex = 0; cellIndex < row.Count && cellIndex < table.Columns.Count; cellIndex++)
             {
-                if (columnIndex < table.Columns.Count)
-                {
-                    // 모든 데이터를 string으로 변환
-                    dataRow[columnIndex] = row[cellIndex]?.ToString() ?? string.Empty;
-                    columnIndex++;
-                }
+                // 모든 데이터를 string으로 변환
+                dataRow[cellIndex] = row[cellIndex]?.ToString() ?? string.Empty;
             }
             
-            table.Rows.Add(dataRow);
+            // 행이 비어있지 않으면 추가
+            if (dataRow.ItemArray.Any(item => !string.IsNullOrWhiteSpace(item?.ToString())))
+            {
+                table.Rows.Add(dataRow);
+            }
         }
         
         Logger.Instance.Log($"[GAuthService] DataTable created: {tableName} with {table.Rows.Count} rows and {table.Columns.Count} columns");
     }
     catch (Exception ex)
     {
-        Logger.Instance.Error($"[GAuthService] Error converting to DataTable: {ex.Message}");
+        Logger.Instance.Error($"[GAuthService] Error converting to DataTable: {ex.Message}\n{ex.StackTrace}");
     }
     
     return table;

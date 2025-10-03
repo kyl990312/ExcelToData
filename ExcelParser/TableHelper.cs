@@ -58,7 +58,7 @@ public static class TableHelper
     /// <summary>
     /// DataTable을 CustomDataTable로 변환합니다.
     /// Google Sheets에서 읽어온 데이터를 Excel과 동일한 방식으로 처리합니다.
-    /// 1행: 컬럼명, 2행: 타입 정의, 3행부터: 데이터
+    /// 1행: 컬럼명, 2행부터: 데이터 (Google Sheets용)
     /// </summary>
     /// <param name="table">변환할 DataTable</param>
     /// <returns>변환된 CustomDataTable</returns>
@@ -70,65 +70,40 @@ public static class TableHelper
             return null;
         }
 
-        if (table.Rows.Count < 2)
+        if (table.Rows.Count == 0)
         {
-            Logger.Instance.Error($"[TableHelper] DataTable must have at least 2 rows (header name and type). Current rows: {table.Rows.Count}");
-            return null;
+            Logger.Instance.Warning($"[TableHelper] DataTable is empty: {table.TableName}");
+            return new CustomDataTable(new List<Dictionary<string, object>>(), table.TableName);
         }
 
         try
         {
-            Logger.Instance.Log($"[TableHelper] Converting DataTable to CustomDataTable: {table.TableName}");
+            Logger.Instance.Log($"[TableHelper] Converting Google Sheets DataTable to CustomDataTable: {table.TableName}");
             
-            // 1행: 컬럼명, 2행: 컬럼타입 추출
-            var nameRow = table.Rows[0];
-            var typeRow = table.Rows[1];
-            
+            // Google Sheets DataTable의 컬럼명을 그대로 사용하고 모든 데이터를 string 타입으로 처리
             var columnTypes = new Dictionary<string, Type>();
-            var validColumnIndices = new List<int>();
             
-            // 헤더 정보 파싱 (Excel과 동일한 방식)
-            for (int i = 0; i < table.Columns.Count; i++)
+            // DataTable의 컬럼명과 타입 정보 추출
+            foreach (DataColumn column in table.Columns)
             {
-                var name = nameRow[i]?.ToString() ?? "";
-                var typeStr = typeRow[i]?.ToString() ?? "";
+                var columnName = column.ColumnName;
                 
                 // 제외 컬럼 필터링 (TableDefine 상수 사용)
-                if (name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
+                if (columnName.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
                 {
-                    Logger.Instance.Log($"[TableHelper] Skipping column: {name} (excluded by prefix)");
+                    Logger.Instance.Log($"[TableHelper] Skipping column: {columnName} (excluded by prefix)");
                     continue;
                 }
                 
-                if (string.IsNullOrEmpty(name))
+                if (string.IsNullOrEmpty(columnName))
                 {
-                    Logger.Instance.Error($"[TableHelper] Name is empty. (column : {i})");
+                    Logger.Instance.Error($"[TableHelper] Column name is empty at index: {column.Ordinal}");
                     continue;
                 }
                 
-                // 타입 문자열 파싱 (System. 접두사 추가)
-                if (!string.IsNullOrEmpty(typeStr) && !typeStr.StartsWith("System."))
-                {
-                    typeStr = "System." + typeStr;
-                }
-                
-                var type = Type.GetType(typeStr);
-                if (type == null)
-                {
-                    Logger.Instance.Error($"[TableHelper] Type is invalid. (column : {i}, type : {typeStr})");
-                    continue;
-                }
-
-                // 중복 컬럼명 확인
-                if (columnTypes.ContainsKey(name))
-                {
-                    Logger.Instance.Warning($"[TableHelper] Duplicate column name: {name}");
-                    continue;
-                }
-                
-                columnTypes[name] = type;
-                validColumnIndices.Add(i);
-                Logger.Instance.Log($"[TableHelper] Added column: {name} ({type.Name})");
+                // Google Sheets에서는 모든 데이터가 string으로 처리됨
+                columnTypes[columnName] = typeof(string);
+                Logger.Instance.Log($"[TableHelper] Added column: {columnName} (String)");
             }
             
             if (columnTypes.Count == 0)
@@ -137,13 +112,11 @@ public static class TableHelper
                 return new CustomDataTable(new List<Dictionary<string, object>>(), table.TableName);
             }
             
-            // 데이터 행들을 Dictionary 리스트로 변환 (3행부터 데이터)
+            // 데이터 행들을 Dictionary 리스트로 변환
             var dictList = new List<Dictionary<string, object>>();
             
-            for (int rowIndex = 2; rowIndex < table.Rows.Count; rowIndex++) // 3행부터 데이터
+            foreach (DataRow row in table.Rows)
             {
-                var row = table.Rows[rowIndex];
-                
                 // 빈 행 체크
                 if (row.ItemArray.All(field => string.IsNullOrWhiteSpace(field?.ToString())))
                 {
@@ -154,7 +127,7 @@ public static class TableHelper
                 if (row.ItemArray.Length > 0 && 
                     row.ItemArray[0]?.ToString().StartsWith(TableDefine.REGEX_START_EXCEPT_ROW) == true)
                 {
-                    Logger.Instance.Log($"[TableHelper] Skipping row {rowIndex + 1} (comment row)");
+                    Logger.Instance.Log($"[TableHelper] Skipping row (comment row)");
                     continue;
                 }
 
@@ -162,24 +135,24 @@ public static class TableHelper
                 if (row.ItemArray.Length > 0 && 
                     row.ItemArray[0]?.ToString().Equals("EOF", StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    Logger.Instance.Log($"[TableHelper] Reached EOF marker at row {rowIndex + 1}");
+                    Logger.Instance.Log($"[TableHelper] Reached EOF marker");
                     break;
                 }
 
                 var rowDict = new Dictionary<string, object>();
                 
                 // 유효한 컬럼들에 대해서만 데이터 추출
-                for (int i = 0; i < validColumnIndices.Count; i++)
+                foreach (var columnName in columnTypes.Keys)
                 {
-                    var columnIndex = validColumnIndices[i];
-                    var columnName = nameRow[columnIndex].ToString();
-                    var columnType = columnTypes[columnName];
-                    
-                    // 셀 값을 해당 타입으로 변환 (TableHelper.GetConvertedCellValue와 유사한 로직)
-                    var cellValueString = row[columnIndex]?.ToString() ?? "";
-                    var convertedValue = ConvertStringToType(cellValueString, columnType, columnName, rowIndex + 1);
-                    
-                    rowDict[columnName] = convertedValue;
+                    if (table.Columns.Contains(columnName))
+                    {
+                        var cellValue = row[columnName]?.ToString() ?? string.Empty;
+                        rowDict[columnName] = cellValue;
+                    }
+                    else
+                    {
+                        rowDict[columnName] = string.Empty;
+                    }
                 }
                 
                 dictList.Add(rowDict);
