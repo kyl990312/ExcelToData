@@ -1,0 +1,16 @@
+{
+  "review_rules": [
+    {
+      "name": "CrashCheck",
+      "description": "코드에서 크래시 발생 가능성이 있는 부분을 탐지하고 리뷰",
+      "check_for": ["null reference", "division by zero", "out of bounds"]
+    },
+    {
+      "name": "LogicCheck",
+      "description": "잘못된 로직이나 버그 가능성이 있는지 검토",
+      "check_for": ["incorrect condition", "wrong loop logic", "off-by-one"]
+    }
+  ],
+  "max_lines": 500,
+  "exclude_paths": ["bin/", "obj/"]
+}
