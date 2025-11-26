@@ -16,7 +16,11 @@ public class EGCommandInvoker : CommandInvoker
         if (!FileLoader.LoadAndConvertJson(fullPath, out EnumGeneratorConfig config))
             return list;
         
-        list.Add(new GenerateEnumCommand(config.EnumFilePath, config.DstDirectory, config.CodeExtension));
+        // Enum 코드 생성
+        list.Add(new GenerateEnumCodeCommand(config.EnumFilePath, config.DstDirectory, config.CodeExtension));
+        
+        // EnumDB 바이너리 생성
+        list.Add(new GenerateEnumDBCommand(config.EnumFilePath, config.EnumDBPath));
         
         return list;
     }
