@@ -1,0 +1,398 @@
+﻿using Common.Utils;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ExcelParser;
+
+/// <summary>
+/// Enum 데이터를 메모리에 저장하고 관리하는 캐시
+/// 
+/// 저장 구조:
+/// - _cache: {Enum 타입명: [(멤버명, 값)]} - Enum 데이터
+/// - _sheetEnumMap: {시트명: [Enum 타입명]} - 시트별 Enum 타입 매핑
+/// </summary>
+public class EnumCache
+{
+    // Enum 데이터 저장소: {Enum타입명: [(멤버명, 값)]}
+    private Dictionary<string, List<(string member, int value)>> _cache = new();
+    
+    // 시트-Enum 타입 매핑: {시트명: [Enum타입명]}
+    private Dictionary<string, List<string>> _sheetEnumMap = new();
+
+    // ============================================
+    // 외부 데이터 로드 메서드
+    // ============================================
+
+    /// <summary>
+    /// 외부에서 로드한 CustomDataTable로부터 Enum 데이터를 저장합니다.
+    /// 테이블의 Name 속성을 시트 이름으로 사용합니다.
+    /// </summary>
+    /// <param name="table">Enum 데이터를 포함하는 CustomDataTable</param>
+    /// <returns>로드 성공 여부</returns>
+    public bool LoadFromTable(CustomDataTable table)
+    {
+        // 1. 테이블 유효성 검사
+        if (!ValidateTable(table))
+        {
+            return false;
+        }
+
+        try
+        {
+            Logger.Instance.Log($"[EnumCache] 테이블에서 Enum 로드 시작: {table.Name}");
+
+            // 2. 테이블에서 Enum 데이터 추출
+            var extractedEnums = ExtractEnumsFromTable(table);
+            if (extractedEnums.Count == 0)
+            {
+                Logger.Instance.Warning($"[EnumCache] Enum 데이터가 없습니다: {table.Name}");
+                return false;
+            }
+
+            // 3. 중복 Enum 타입 검사
+            if (!ValidateDuplicateEnumTypes(table.Name, extractedEnums.Keys))
+            {
+                return false;
+            }
+
+            // 4. 검증 통과 시 캐시에 추가
+            foreach (var (enumType, members) in extractedEnums)
+            {
+                _cache[enumType] = members;
+            }
+            _sheetEnumMap[table.Name] = extractedEnums.Keys.ToList();
+
+            Logger.Instance.Log($"[EnumCache] 테이블 로드 완료: {table.Name} ({extractedEnums.Count}개의 Enum)");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[EnumCache] 테이블 로드 중 오류: {table.Name} - {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 여러 CustomDataTable을 한 번에 로드합니다.
+    /// 각 테이블의 Name 속성을 시트 이름으로 사용합니다.
+    /// </summary>
+    /// <param name="tables">로드할 CustomDataTable 컬렉션</param>
+    /// <returns>모든 테이블 로드 성공 여부</returns>
+    public bool LoadFromTables(IEnumerable<CustomDataTable> tables)
+    {
+        if (tables == null)
+        {
+            Logger.Instance.Error("[EnumCache] 테이블 컬렉션이 null입니다");
+            return false;
+        }
+
+        var tableList = tables.ToList();
+        Logger.Instance.Log($"[EnumCache] 다중 테이블 로드 시작: {tableList.Count}개");
+
+        bool allSuccess = true;
+        foreach (var table in tableList)
+        {
+            if (!LoadFromTable(table))
+            {
+                allSuccess = false;
+            }
+        }
+
+        Logger.Instance.Log($"[EnumCache] 다중 테이블 로드 완료: {_cache.Count}개 Enum 타입 처리됨");
+        return allSuccess;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public bool LoadFromBinary(string filePath)
+    {
+        // [TODO] Fill this method.
+        return true;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void SaveToBinary(string filePath)
+    {
+        // [TODO] Fill this method.
+    }
+
+    // ============================================
+    // 데이터 조회 메서드
+    // ============================================
+
+    /// <summary>
+    /// 특정 Enum 타입의 멤버 데이터를 반환합니다.
+    /// </summary>
+    public List<(string member, int value)> GetEnumMembers(string enumType)
+    {
+        if (string.IsNullOrEmpty(enumType))
+        {
+            Logger.Instance.Warning("[EnumCache] Enum 타입 이름이 비어있습니다");
+            return [];
+        }
+
+        if (_cache.TryGetValue(enumType, out var members))
+        {
+            return members;
+        }
+
+        Logger.Instance.Warning($"[EnumCache] Enum 타입을 찾을 수 없습니다: {enumType}");
+        return [];
+    }
+
+    /// <summary>
+    /// 특정 시트에서 정의된 Enum 타입 목록을 반환합니다.
+    /// </summary>
+    public List<string> GetEnumTypesBySheet(string sheetName)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+        {
+            Logger.Instance.Warning("[EnumCache] 시트 이름이 비어있습니다");
+            return [];
+        }
+
+        if (_sheetEnumMap.TryGetValue(sheetName, out var enumTypes))
+        {
+            return enumTypes;
+        }
+
+        Logger.Instance.Warning($"[EnumCache] 시트를 찾을 수 없습니다: {sheetName}");
+        return [];
+    }
+
+    /// <summary>
+    /// 모든 Enum 데이터를 반환합니다.
+    /// </summary>
+    public IReadOnlyDictionary<string, List<(string member, int value)>> GetAllEnums()
+    {
+        return _cache.AsReadOnly();
+    }
+
+    /// <summary>
+    /// 시트-Enum 타입 매핑 정보를 반환합니다.
+    /// </summary>
+    public IReadOnlyDictionary<string, List<string>> GetSheetEnumMap()
+    {
+        return _sheetEnumMap.AsReadOnly();
+    }
+
+    // ============================================
+    // 메모리 관리 메서드
+    // ============================================
+
+    /// <summary>
+    /// 전체 캐시를 초기화합니다.
+    /// </summary>
+    public void Clear()
+    {
+        Logger.Instance.Log($"[EnumCache] 캐시 초기화 ({_cache.Count}개 Enum 타입, {_sheetEnumMap.Count}개 시트 제거)");
+        _cache.Clear();
+        _sheetEnumMap.Clear();
+    }
+
+    /// <summary>
+    /// 특정 시트의 Enum 데이터를 제거합니다.
+    /// </summary>
+    public void ClearSheet(string sheetName)
+    {
+        if (_sheetEnumMap.TryGetValue(sheetName, out var enumTypes))
+        {
+            foreach (var enumType in enumTypes)
+            {
+                _cache.Remove(enumType);
+            }
+            _sheetEnumMap.Remove(sheetName);
+            
+            Logger.Instance.Log($"[EnumCache] 시트 제거: {sheetName} ({enumTypes.Count}개 Enum 타입)");
+        }
+        else
+        {
+            Logger.Instance.Warning($"[EnumCache] 제거할 시트를 찾을 수 없습니다: {sheetName}");
+        }
+    }
+
+    /// <summary>
+    /// 특정 Enum 타입만 제거합니다.
+    /// </summary>
+    public void RemoveEnum(string enumType)
+    {
+        if (_cache.Remove(enumType))
+        {
+            foreach (var sheetName in _sheetEnumMap.Keys.ToList())
+            {
+                _sheetEnumMap[sheetName].Remove(enumType);
+            }
+            
+            Logger.Instance.Log($"[EnumCache] Enum 타입 제거: {enumType}");
+        }
+        else
+        {
+            Logger.Instance.Warning($"[EnumCache] 제거할 Enum 타입을 찾을 수 없습니다: {enumType}");
+        }
+    }
+
+    // ============================================
+    // 상태 조회 메서드
+    // ============================================
+
+    public bool HasEnum(string enumType) => _cache.ContainsKey(enumType);
+    public bool HasSheet(string sheetName) => _sheetEnumMap.ContainsKey(sheetName);
+    public IEnumerable<string> EnumTypes => _cache.Keys;
+    public IEnumerable<string> SheetNames => _sheetEnumMap.Keys;
+    public int EnumCount => _cache.Count;
+    public int SheetCount => _sheetEnumMap.Count;
+    public bool IsEmpty => _cache.Count == 0;
+
+    // ============================================
+    // 검증 메서드
+    // ============================================
+
+    /// <summary>
+    /// 테이블의 유효성을 검증합니다.
+    /// </summary>
+    /// <param name="table">검증할 테이블</param>
+    /// <returns>유효하면 true, 아니면 false</returns>
+    private static bool ValidateTable(CustomDataTable table)
+    {
+        if (table == null)
+        {
+            Logger.Instance.Error("[EnumCache] 테이블이 null입니다");
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(table.Name))
+        {
+            Logger.Instance.Error("[EnumCache] 테이블 이름이 비어있습니다");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 추출된 Enum 타입 중 이미 캐시에 존재하는 중복 타입이 있는지 검증합니다.
+    /// </summary>
+    /// <param name="tableName">현재 로드 중인 테이블 이름</param>
+    /// <param name="enumTypes">추출된 Enum 타입 목록</param>
+    /// <returns>중복이 없으면 true, 있으면 false</returns>
+    private bool ValidateDuplicateEnumTypes(string tableName, IEnumerable<string> enumTypes)
+    {
+        var duplicateEnumTypes = enumTypes
+            .Where(enumType => _cache.ContainsKey(enumType))
+            .ToList();
+
+        if (duplicateEnumTypes.Count > 0)
+        {
+            Logger.Instance.Error($"[EnumCache] 시트 '{tableName}' 로드 실패: 다음 Enum 타입이 이미 정의되어 있습니다 - {string.Join(", ", duplicateEnumTypes)}");
+            return false;
+        }
+
+        return true;
+    }
+
+    // ============================================
+    // 내부 메서드
+    // ============================================
+
+    /// <summary>
+    /// CustomDataTable에서 Enum 데이터를 추출합니다.
+    /// 캐시에 직접 추가하지 않고 추출된 데이터만 반환합니다.
+    /// </summary>
+    /// <param name="table">Enum 데이터를 포함하는 CustomDataTable</param>
+    /// <returns>추출된 Enum 데이터 ({Enum타입명: [(멤버명, 값)]})</returns>
+    private Dictionary<string, List<(string member, int value)>> ExtractEnumsFromTable(CustomDataTable table)
+    {
+        const string enumTypeColumn = "type";
+        const string memberColumn = "member";
+        const string valueColumn = "value";
+
+        var extractedEnums = new Dictionary<string, List<(string member, int value)>>();
+
+        if (!table.HasColumn(enumTypeColumn) ||
+            !table.HasColumn(memberColumn) ||
+            !table.HasColumn(valueColumn))
+        {
+            Logger.Instance.Error($"[EnumCache] 필수 컬럼이 없습니다. 필요: {enumTypeColumn}, {memberColumn}, {valueColumn}");
+            return extractedEnums;
+        }
+
+        try
+        {
+            for (int i = 0; i < table.RowCount; i++)
+            {
+                try
+                {
+                    var enumType = table.GetValue<string>(enumTypeColumn, i);
+                    var member = table.GetValue<string>(memberColumn, i);
+                    var valueObj = table.GetValue(valueColumn, i);
+
+                    if (string.IsNullOrEmpty(enumType) || string.IsNullOrEmpty(member))
+                    {
+                        Logger.Instance.Warning($"[EnumCache] 행 {i}: enumType 또는 member가 비어있습니다");
+                        continue;
+                    }
+
+                    if (!int.TryParse(valueObj?.ToString(), out int value))
+                    {
+                        Logger.Instance.Warning($"[EnumCache] 행 {i}: value를 정수로 변환할 수 없습니다 ('{valueObj}')");
+                        value = 0;
+                    }
+
+                    if (!extractedEnums.ContainsKey(enumType))
+                    {
+                        extractedEnums[enumType] = [];
+                    }
+
+                    extractedEnums[enumType].Add((member, value));
+                    Logger.Instance.Log($"[EnumCache] Enum 추출: {enumType}.{member} = {value}");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error($"[EnumCache] 행 {i} 처리 중 오류: {ex.Message}");
+                    continue;
+                }
+            }
+
+            // 각 Enum의 멤버를 값으로 정렬
+            foreach (var enumType in extractedEnums.Keys.ToList())
+            {
+                extractedEnums[enumType] = [.. extractedEnums[enumType].OrderBy(x => x.value)];
+            }
+
+            Logger.Instance.Log($"[EnumCache] Enum 추출 완료: {extractedEnums.Count}개 타입");
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[EnumCache] Enum 데이터 추출 중 오류: {ex.Message}");
+        }
+
+        return extractedEnums;
+    }
+
+    /// <summary>
+    /// 디버그용: 현재 캐시 상태를 출력합니다.
+    /// </summary>
+    public void PrintCacheInfo()
+    {
+        Logger.Instance.Log($"[EnumCache] === 캐시 정보 ===");
+        Logger.Instance.Log($"[EnumCache] 총 시트: {SheetCount}, 총 Enum 타입: {EnumCount}");
+
+        foreach (var (sheetName, enumTypes) in _sheetEnumMap)
+        {
+            Logger.Instance.Log($"[EnumCache] 시트: {sheetName}");
+            foreach (var enumType in enumTypes)
+            {
+                var members = _cache[enumType];
+                Logger.Instance.Log($"[EnumCache]   - {enumType}: {members.Count}개 멤버");
+                foreach (var (member, value) in members)
+                {
+                    Logger.Instance.Log($"[EnumCache]     * {member} = {value}");
+                }
+            }
+        }
+        Logger.Instance.Log($"[EnumCache] ==================");
+    }
+}
