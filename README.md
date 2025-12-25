@@ -32,6 +32,61 @@ Excel 파일 → ExcelToData → Binary 파일 → CodeGenerator → C# 클래�
 EnumGenerator → Enum 파일
 ```
 
+## 파이프라인 아키텍처
+
+### 다이어그램 범례
+
+| 표기 | 의미 |
+|------|------|
+| 파란색 사각형 | Program (실행 프로그램) |
+| 점선 타원 | Data (데이터 저장소) |
+
+### 전체 흐름 다이어그램
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  EnumGenerator  │     │   ExcelToData   │     │  CodeGenerator  │
+│    (Program)    │     │    (Program)    │     │    (Program)    │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         │ Write                 │ Write/Read            │ Read/Write
+         ▼                       ▼                       │
+    ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐          │
+    │       EnumBinary (EnumInfo)           │◀─────────┤ Read
+    └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘          │
+                       │                                │
+                       ▼                                │
+    ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐          │
+    │            DataBinary                 │◀─────────┤ Read
+    └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘          │
+                       │                                │
+                       ▼                                │
+    ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐          │
+    │              Code                     │◀─────────┘ Write
+    └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+                       │
+                       ▼
+    ╔═══════════════════════════════════════╗
+    ║             External                  ║
+    ╚═══════════════════════════════════════╝
+```
+
+### 데이터 흐름 요약
+
+| Program | Read | Write |
+|---------|------|-------|
+| EnumGenerator | - | EnumBinary |
+| ExcelToData | EnumBinary | DataBinary |
+| CodeGenerator | EnumBinary, DataBinary | Code |
+
+### 공유 데이터 저장소
+
+| 저장소 | 목적 | Write | Read |
+|--------|------|-------|------|
+| **EnumBinary** | 사용자 정의 Enum 타입 정보 | EnumGenerator | ExcelToData, CodeGenerator |
+| **DataBinary** | 변환된 게임 데이터 | ExcelToData | CodeGenerator |
+| **Code** | 자동 생성된 C# 소스 코드 | CodeGenerator | External |
+
 ## 설치 및 환경 설정
 
 ### 1. 시스템 요구사항

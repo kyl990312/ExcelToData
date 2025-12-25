@@ -2,4 +2,4 @@
 
 ProjectDirectory:C:\PROJECT\TableAutomarionTool
 Git:https://github.com/kyl990312/ExcelToData
-DocumentDirectory:D:\Obsidian_Personal\YRKim\개발 문서\TableAutomation
+DocumentDirectory:C:\PROJECT\TableAutomarionTool\Documents
