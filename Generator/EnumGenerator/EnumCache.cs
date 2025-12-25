@@ -1,7 +1,5 @@
-﻿using Common.Utils;
-using System.Collections.Generic;
-using System.Linq;
-
+﻿using BinaryParser;
+using Common.Utils;
 namespace ExcelParser;
 
 /// <summary>
@@ -13,6 +11,11 @@ namespace ExcelParser;
 /// </summary>
 public class EnumCache
 {
+    private const string ColumnSheetName = "sheetName";
+    private const string ColumnEnumType = "type";
+    private const string ColumnMember = "member";
+    private const string ColumnValue = "value";
+
     // Enum 데이터 저장소: {Enum타입명: [(멤버명, 값)]}
     private Dictionary<string, List<(string member, int value)>> _cache = new();
     
@@ -103,20 +106,143 @@ public class EnumCache
     }
 
     /// <summary>
-    /// 
+    /// 바이너리 파일에서 EnumCache 데이터를 로드합니다.
     /// </summary>
+    /// <param name="filePath">로드할 바이너리 파일 경로</param>
+    /// <returns>로드 성공 여부</returns>
     public bool LoadFromBinary(string filePath)
     {
-        // [TODO] Fill this method.
-        return true;
+        if (string.IsNullOrEmpty(filePath))
+        {
+            Logger.Instance.Error("[EnumCache] 파일 경로가 비어있습니다");
+            return false;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            Logger.Instance.Error($"[EnumCache] 파일을 찾을 수 없습니다: {filePath}");
+            return false;
+        }
+
+        try
+        {
+            var data = BinaryHelper.LoadFromFile(filePath);
+            if (data == null || data.Count == 0)
+            {
+                Logger.Instance.Warning($"[EnumCache] 바이너리 파일이 비어있습니다: {filePath}");
+                return false;
+            }
+
+            Clear();
+            RestoreFromBinaryData(data);
+
+            Logger.Instance.Log($"[EnumCache] 바이너리 로드 완료: {filePath} ({_cache.Count}개 Enum 타입, {_sheetEnumMap.Count}개 시트)");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[EnumCache] 바이너리 로드 중 오류: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
-    /// 
+    /// 현재 캐시 데이터를 바이너리 파일로 저장합니다.
     /// </summary>
+    /// <param name="filePath">저장할 파일 경로</param>
     public void SaveToBinary(string filePath)
     {
-        // [TODO] Fill this method.
+        if (string.IsNullOrEmpty(filePath))
+        {
+            Logger.Instance.Error("[EnumCache] 파일 경로가 비어있습니다");
+            return;
+        }
+
+        try
+        {
+            var data = ConvertToSerializableData();
+            BinaryHelper.SaveToFile(data, filePath);
+
+            Logger.Instance.Log($"[EnumCache] 바이너리 저장 완료: {filePath} ({_cache.Count}개 Enum 타입, {_sheetEnumMap.Count}개 시트)");
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[EnumCache] 바이너리 저장 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 캐시 데이터를 BinaryHelper에서 사용하는 형식으로 변환합니다.
+    /// </summary>
+    private List<Dictionary<string, object>> ConvertToSerializableData()
+    {
+        var data = new List<Dictionary<string, object>>();
+
+        foreach (var (sheetName, enumTypes) in _sheetEnumMap)
+        {
+            foreach (var enumType in enumTypes)
+            {
+                if (!_cache.TryGetValue(enumType, out var members))
+                    continue;
+
+                foreach (var (member, value) in members)
+                {
+                    data.Add(new Dictionary<string, object>
+                    {
+                        [ColumnSheetName] = sheetName,
+                        [ColumnEnumType] = enumType,
+                        [ColumnMember] = member,
+                        [ColumnValue] = value
+                    });
+                }
+            }
+        }
+
+        return data;
+    }
+
+    /// <summary>
+    /// 바이너리 데이터를 캐시로 복원합니다.
+    /// </summary>
+    private void RestoreFromBinaryData(List<Dictionary<string, object>> data)
+    {
+        foreach (var row in data)
+        {
+            var sheetName = row.GetValueOrDefault(ColumnSheetName)?.ToString() ?? "Default";
+            var enumType = row.GetValueOrDefault(ColumnEnumType)?.ToString() ?? string.Empty;
+            var member = row.GetValueOrDefault(ColumnMember)?.ToString() ?? string.Empty;
+
+            if (!int.TryParse(row.GetValueOrDefault(ColumnValue)?.ToString(), out int value))
+            {
+                value = 0;
+            }
+
+            if (string.IsNullOrEmpty(enumType) || string.IsNullOrEmpty(member))
+                continue;
+
+            // _cache에 추가
+            if (!_cache.ContainsKey(enumType))
+            {
+                _cache[enumType] = [];
+            }
+            _cache[enumType].Add((member, value));
+
+            // _sheetEnumMap에 추가
+            if (!_sheetEnumMap.ContainsKey(sheetName))
+            {
+                _sheetEnumMap[sheetName] = [];
+            }
+            if (!_sheetEnumMap[sheetName].Contains(enumType))
+            {
+                _sheetEnumMap[sheetName].Add(enumType);
+            }
+        }
+
+        // 각 Enum의 멤버를 값으로 정렬
+        foreach (var enumType in _cache.Keys.ToList())
+        {
+            _cache[enumType] = [.. _cache[enumType].OrderBy(x => x.value)];
+        }
     }
 
     // ============================================
@@ -253,8 +379,6 @@ public class EnumCache
     /// <summary>
     /// 테이블의 유효성을 검증합니다.
     /// </summary>
-    /// <param name="table">검증할 테이블</param>
-    /// <returns>유효하면 true, 아니면 false</returns>
     private static bool ValidateTable(CustomDataTable table)
     {
         if (table == null)
@@ -275,9 +399,6 @@ public class EnumCache
     /// <summary>
     /// 추출된 Enum 타입 중 이미 캐시에 존재하는 중복 타입이 있는지 검증합니다.
     /// </summary>
-    /// <param name="tableName">현재 로드 중인 테이블 이름</param>
-    /// <param name="enumTypes">추출된 Enum 타입 목록</param>
-    /// <returns>중복이 없으면 true, 있으면 false</returns>
     private bool ValidateDuplicateEnumTypes(string tableName, IEnumerable<string> enumTypes)
     {
         var duplicateEnumTypes = enumTypes
@@ -299,23 +420,16 @@ public class EnumCache
 
     /// <summary>
     /// CustomDataTable에서 Enum 데이터를 추출합니다.
-    /// 캐시에 직접 추가하지 않고 추출된 데이터만 반환합니다.
     /// </summary>
-    /// <param name="table">Enum 데이터를 포함하는 CustomDataTable</param>
-    /// <returns>추출된 Enum 데이터 ({Enum타입명: [(멤버명, 값)]})</returns>
     private Dictionary<string, List<(string member, int value)>> ExtractEnumsFromTable(CustomDataTable table)
     {
-        const string enumTypeColumn = "type";
-        const string memberColumn = "member";
-        const string valueColumn = "value";
-
         var extractedEnums = new Dictionary<string, List<(string member, int value)>>();
 
-        if (!table.HasColumn(enumTypeColumn) ||
-            !table.HasColumn(memberColumn) ||
-            !table.HasColumn(valueColumn))
+        if (!table.HasColumn(ColumnEnumType) ||
+            !table.HasColumn(ColumnMember) ||
+            !table.HasColumn(ColumnValue))
         {
-            Logger.Instance.Error($"[EnumCache] 필수 컬럼이 없습니다. 필요: {enumTypeColumn}, {memberColumn}, {valueColumn}");
+            Logger.Instance.Error($"[EnumCache] 필수 컬럼이 없습니다. 필요: {ColumnEnumType}, {ColumnMember}, {ColumnValue}");
             return extractedEnums;
         }
 
@@ -325,9 +439,9 @@ public class EnumCache
             {
                 try
                 {
-                    var enumType = table.GetValue<string>(enumTypeColumn, i);
-                    var member = table.GetValue<string>(memberColumn, i);
-                    var valueObj = table.GetValue(valueColumn, i);
+                    var enumType = table.GetValue<string>(ColumnEnumType, i);
+                    var member = table.GetValue<string>(ColumnMember, i);
+                    var valueObj = table.GetValue(ColumnValue, i);
 
                     if (string.IsNullOrEmpty(enumType) || string.IsNullOrEmpty(member))
                     {
