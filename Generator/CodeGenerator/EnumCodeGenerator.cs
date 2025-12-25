@@ -3,7 +3,7 @@ using ExcelParser;
 using System.Text;
 using Common.Command;
 
-namespace Generator.EnumGenerator;
+namespace EnumGenerator.CodeGenerator;
 
 public interface IEnumCodeGenerator
 {
