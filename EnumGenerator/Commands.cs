@@ -150,7 +150,7 @@ public class EnumCacheGenerateFromGSheetCommand : Command
                 }
 
                 // TableHelper를 사용하여 CustomDataTable로 변환 (헤더 자동 처리)
-                var customTable = TableHelper.GetTable(dataTable);
+                var customTable = TableHelper.GetTable(dataTable.TableName, dataTable.Data);
                 if (customTable == null)
                 {
                     Logger.Instance.Warning($"[EnumCacheGenerateFromGSheetCommand] CustomDataTable 변환 실패: {dataTable.TableName}");
