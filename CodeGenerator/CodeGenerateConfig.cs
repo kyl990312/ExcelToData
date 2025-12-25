@@ -6,6 +6,10 @@ namespace CodeGenerator;
 /// </summary>
 public class CodeGenerateConfig
 {
+    // ============================================
+    // 클래스 코드 생성 설정
+    // ============================================
+    
     /// <summary>
     /// 바이너리 파일 디렉토리 경로
     /// </summary>
@@ -31,10 +35,34 @@ public class CodeGenerateConfig
     /// </summary>
     public string ManagerNamespace { get; set; } = "Generated.Managers";
 
+    /// <summary>
+    /// 바이너리 파일 확장자 패턴
+    /// </summary>
     public string ReadFileExtension { get; set; } = "*.bin";
+
+    // ============================================
+    // Enum 코드 생성 설정
+    // ============================================
     
-    public string EnumFilePath { get; set; } = "Generated/SystemEnum.xmsl";
-    public string EnumDriectory { get; set; } = "Generated/Enums";
+    /// <summary>
+    /// Enum 코드 생성 여부
+    /// </summary>
+    public bool IsGenerateEnumCode { get; set; } = true;
+
+    /// <summary>
+    /// Enum 바이너리 파일 경로 (EnumCache 로드용)
+    /// </summary>
+    public string EnumBinaryPath { get; set; } = "Binary/EnumDB.bin";
+    
+    /// <summary>
+    /// Enum 코드 출력 디렉토리
+    /// </summary>
+    public string EnumOutputDirectory { get; set; } = "Generated/Enums";
+    
+    /// <summary>
+    /// 코드 파일 확장자
+    /// </summary>
+    public string CodeExtension { get; set; } = ".cs";
 
     public static CodeGenerateConfig GetDefault()
     {
@@ -43,9 +71,13 @@ public class CodeGenerateConfig
             BinaryDirectory = "Binary",
             ClassOutputDirectory = "Generated/Classes",
             ManagerOutputDirectory = "Generated/Managers",
-            EnumFilePath = "Generated/Enums",
             ClassNamespace = "Generated.Data",
-            ManagerNamespace = "Generated.Managers"
+            ManagerNamespace = "Generated.Managers",
+            ReadFileExtension = "*.bin",
+            IsGenerateEnumCode = true,
+            EnumBinaryPath = "Binary/EnumDB.bin",
+            EnumOutputDirectory = "Generated/Enums",
+            CodeExtension = ".cs",
         };
     }
 }

@@ -31,7 +31,7 @@ public class ExtractJsonCommand : Command
             return;
         }
         
-        var files = SystemDefine.SearchPatternsBin
+        var files = ProjectDefine.SearchPatternsBin
             .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
             .Distinct()
             .ToArray();
@@ -86,7 +86,7 @@ public class ExtractBinaryCommand : Command
         
         try
         {
-            var files = SystemDefine.SearchPatterns
+            var files = ProjectDefine.SearchPatterns
                 .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
                 .Distinct()
                 .ToArray();

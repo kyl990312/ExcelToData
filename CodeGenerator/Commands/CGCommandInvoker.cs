@@ -1,3 +1,4 @@
+using Common;
 using Common.Command;
 using Generator.CodeGenerator;
 
@@ -9,7 +10,7 @@ public class CGCommandInvoker : CommandInvoker
     {
         var list = new List<ICommand>();
         var fullPath =
-            $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{ProjectDefine.CodeGenerateConfigPath}";
+            $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{SystemPath.CodeGeneratorConfigPath}";
         
         if(!File.Exists(fullPath))
         {

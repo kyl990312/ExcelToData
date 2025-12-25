@@ -1,14 +1,12 @@
+using Common;
+
 namespace ExcelToData;
 
 /// <summary>
 /// 시스템 전체에서 사용되는 상수 정의
 /// </summary>
-public static class SystemDefine
+public static class ProjectDefine
 {
-    // 기존 설정 파일 경로
-    public const string BinaryConfigPath = "Config/BinaryConfig.json";
-    public const string JsonConfigPath = "Config/JsonConfig.json";
-    
     // 새로운 구조화된 바이너리 설정 파일 경로
     public const string StructuredBinaryConfigPath = "Config/StructuredBinaryConfig.json";
     
