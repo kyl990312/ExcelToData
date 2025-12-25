@@ -16,7 +16,7 @@ public class BytesExtractorFromGSheet : StructuredBinaryExtractor
         List<CustomDataTable> result;
         try
         {
-            result = tables.Select(x => TableHelper.GetTable(x)).ToList();
+            result = tables.Select(x => TableHelper.GetTable(x.TableName, x.Data)).ToList();
         }
         catch (Exception e)
         {

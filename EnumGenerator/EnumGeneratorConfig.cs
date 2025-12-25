@@ -36,42 +36,9 @@ public class EnumGeneratorConfig
     public string[] EnumSheetPatterns { get; set; } = ["*Enum*", "*enum*"];
     
     // ============================================
-    // 코드 출력 설정
-    // ============================================
-    
-    /// <summary>
-    /// Enum 코드 출력 디렉토리
-    /// </summary>
-    public string DstDirectory { get; set; } = "Enums/";
-    
-    /// <summary>
-    /// 코드 파일 확장자
-    /// </summary>
-    public string CodeExtension { get; set; } = ".cs";
-    
-    // ============================================
     // 바이너리 출력 설정
     // ============================================
-    
-    /// <summary>
-    /// EnumDB 바이너리 생성 여부
-    /// </summary>
-    public bool IsGenerateEnumBinary { get; set; } = true;
-    
-    /// <summary>
-    /// EnumDB 바이너리 출력 디렉토리
-    /// </summary>
-    public string EnumBinaryDirectory { get; set; } = "Binary/";
-    
-    /// <summary>
-    /// EnumDB 바이너리 파일명
-    /// </summary>
-    public string EnumBinaryFileName { get; set; } = "EnumDB.bin";
-    
-    /// <summary>
-    /// EnumDB 바이너리 전체 경로 (디렉토리 + 파일명)
-    /// </summary>
-    public string EnumDBPath => Path.Combine(EnumBinaryDirectory, EnumBinaryFileName);
+   
 
     public static EnumGeneratorConfig GetDefault()
     {
@@ -82,11 +49,6 @@ public class EnumGeneratorConfig
             IsLoadFromGSheet = false,
             SrcGDriveLink = string.Empty,
             EnumSheetPatterns = ["*Enum*", "*enum*"],
-            DstDirectory = "Enums/",
-            CodeExtension = ".cs",
-            IsGenerateEnumBinary = true,
-            EnumBinaryDirectory = "Binary/",
-            EnumBinaryFileName = "EnumDB.bin",
         };
     }
 }

@@ -1,3 +1,4 @@
+using Common;
 using Common.Command;
 
 namespace ExcelToData;
@@ -24,7 +25,7 @@ public class ETDCommandInvoker : CommandInvoker
 
     private void AddJsonCommands(List<ICommand> commands, string baseDirectory)
     {
-        var jsonConfigPath = Path.Combine(baseDirectory, SystemDefine.JsonConfigPath);
+        var jsonConfigPath = Path.Combine(baseDirectory, SystemPath.JsonConfigPath);
         
         if (!File.Exists(jsonConfigPath))
         {
@@ -38,7 +39,7 @@ public class ETDCommandInvoker : CommandInvoker
 
     private void AddStructuredBinaryCommands(List<ICommand> commands, string baseDirectory)
     {
-        var jsonConfigPath = Path.Combine(baseDirectory, SystemDefine.StructuredBinaryConfigPath);
+        var jsonConfigPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
         
         if (!File.Exists(jsonConfigPath))
         {
@@ -63,9 +64,9 @@ public class ETDCommandTestInvoker : CommandInvoker
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
         
         // 모든 설정 파일 생성
-        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemDefine.BinaryConfigPath)));
-        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemDefine.JsonConfigPath)));
-        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemDefine.StructuredBinaryConfigPath)));
+        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.BinaryConfigPath)));
+        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.JsonConfigPath)));
+        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath)));
         
         return commands;
     }
@@ -80,7 +81,7 @@ public class StructuredBinaryOnlyInvoker : CommandInvoker
     {
         var commands = new List<ICommand>();
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
-        var configPath = Path.Combine(baseDirectory, SystemDefine.StructuredBinaryConfigPath);
+        var configPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
         
         if (!File.Exists(configPath))
         {

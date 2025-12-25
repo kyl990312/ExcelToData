@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Common;
 using Common.Command;
 using Common.Utils;
 using Generator.CodeGenerator;
@@ -87,6 +88,66 @@ public class GenerateCSharpCodeCommand : Command
         }
 
         return count;
+    }
+}
+
+/// <summary>
+/// Enum 코드(.cs)를 생성하는 커맨드
+/// 시스템 통일 경로(SystemPath.EnumBinaryPath)에서 EnumCache를 로드하여 코드를 생성합니다.
+/// </summary>
+public class GenerateEnumCodeCommand : Command
+{
+    private readonly string _outputDirectory;
+    private readonly string _codeExtension;
+
+    public GenerateEnumCodeCommand(string outputDirectory, string codeExtension)
+    {
+        _outputDirectory = outputDirectory;
+        _codeExtension = codeExtension;
+    }
+    
+    public override void Execute(out string result)
+    {
+        result = "";
+
+        // 시스템 통일 경로에서 EnumDB 로드
+        var enumBinaryPath = SystemPath.EnumBinaryPath;
+
+        if (!File.Exists(enumBinaryPath))
+        {
+            result = $"[GenerateEnumCodeCommand] Enum 바이너리 파일을 찾을 수 없습니다: {enumBinaryPath}";
+            Logger.Instance.Warning(result);
+            return;
+        }
+
+        try
+        {
+            var enumCache = new EnumCache();
+            if (!enumCache.LoadFromBinary(enumBinaryPath))
+            {
+                result = $"[GenerateEnumCodeCommand] EnumCache 로드 실패: {enumBinaryPath}";
+                Logger.Instance.Error(result);
+                return;
+            }
+
+            if (enumCache.IsEmpty)
+            {
+                result = "[GenerateEnumCodeCommand] EnumCache가 비어있습니다.";
+                Logger.Instance.Warning(result);
+                return;
+            }
+
+            var enumGenerator = new EnumCodeGenerator();
+            enumGenerator.Generate(enumCache, _outputDirectory, _codeExtension);
+            
+            result = $"[GenerateEnumCodeCommand] Enum 코드 생성 완료: {_outputDirectory} ({enumCache.EnumCount}개 Enum)";
+            Logger.Instance.Log(result);
+        }
+        catch (Exception e)
+        {
+            result = $"[GenerateEnumCodeCommand] 실행 실패: {e.Message}";
+            Logger.Instance.Error($"{result}\n{e.StackTrace}");
+        }
     }
 }
 

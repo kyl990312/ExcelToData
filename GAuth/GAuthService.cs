@@ -4,133 +4,146 @@ using GAuth.Core;
 
 namespace GAuth;
 
-public static class GAuthService
+public struct GSheetTable
 {
-/// <summary>
-/// 구글 드라이브 폴더 내의 모든 구글 시트를 읽어 데이터 테이블로 생성합니다.
-/// 하나의 시트에 여러 탭이 존재하는 경우 각각 하나의 테이블이 됩니다.
-/// 테이블의 이름(시트의 탭)이 #이나 //로 시작하는 경우 테이블 생성에서 제외됩니다.
-/// </summary>
-/// <param name="folderLink">구글 드라이브 폴더 경로</param>
-/// <returns>폴더 내에 존재하는 구글 시트 파일이 갖는 모든 테이블</returns>
-public static List<DataTable> GetTableFromGSheet(string folderLink)
-{
-    List<DataTable> tables = new();
-    
-    try
-    {
-        // 폴더 내의 모든 Google Sheets 파일 가져오기
-        var googleSheets = GetAllGoogleSheets(folderLink);
-        Logger.Instance.Log($"[GAuthService] Found {googleSheets.Count} Google Sheets");
-        
-        var sheetsService = GAuthAPIHandler.GetSheetsService();
-        
-        foreach (var sheetFile in googleSheets)
-        {
-            try
-            {
-                Logger.Instance.Log($"[GAuthService] Processing sheet: {sheetFile.Name}");
-                
-                // 시트의 모든 탭 정보 가져오기
-                var spreadsheet = sheetsService.Spreadsheets.Get(sheetFile.Id).Execute();
-                
-                foreach (var sheet in spreadsheet.Sheets)
-                {
-                    var sheetTitle = sheet.Properties.Title;
-                    Logger.Instance.Log($"[GAuthService] Converting sheet tab to DataTable: {sheetTitle}");
-                    
-                    // 시트 데이터 읽기
-                    var range = $"{sheetTitle}!A:Z"; // A부터 Z열까지 모든 행
-                    var request = sheetsService.Spreadsheets.Values.Get(sheetFile.Id, range);
-                    var response = request.Execute();
-                    
-                    if (response.Values != null && response.Values.Count > 0)
-                    {
-                        var table = ConvertToDataTable(response.Values, $"{sheetFile.Name}_{sheetTitle}");
-                        if (table != null && table.Rows.Count > 0)
-                        {
-                            tables.Add(table);
-                            Logger.Instance.Log($"[GAuthService] Successfully created DataTable: {table.TableName} ({table.Rows.Count} rows, {table.Columns.Count} columns)");
-                        }
-                    }
-                    else
-                    {
-                        Logger.Instance.Warning($"[GAuthService] No data found in sheet tab: {sheetTitle}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Error($"[GAuthService] Error processing sheet {sheetFile.Name}: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        Logger.Instance.Error($"[GAuthService] Error in GetTableFromGSheet: {ex.Message}\n{ex.StackTrace}");
-    }
-    
-    Logger.Instance.Log($"[GAuthService] Total DataTables created: {tables.Count}");
-    return tables;
+    public string TableName { get; set; }
+    public List<string[]> Data { get; set; }
 }
 
-/// <summary>
-/// Google Sheets의 값들을 DataTable로 변환합니다.
-/// 모든 데이터는 Text(string) 타입으로 처리됩니다.
-/// </summary>
-/// <param name="values">Google Sheets에서 읽어온 값들</param>
-/// <param name="tableName">생성할 DataTable의 이름</param>
-/// <returns>변환된 DataTable</returns>
-private static DataTable ConvertToDataTable(IList<IList<object>> values, string tableName)
+public static class GAuthService
 {
-    var table = new DataTable(tableName);
-    
-    if (values == null || values.Count == 0)
+    /// <summary>
+    /// 구글 드라이브 폴더 내의 모든 구글 시트를 읽어 GSheetTable로 생성합니다.
+    /// 하나의 시트에 여러 탭이 존재하는 경우 각각 하나의 테이블이 됩니다.
+    /// 테이블의 이름(시트의 탭)이 #이나 //로 시작하는 경우 테이블 생성에서 제외됩니다.
+    /// </summary>
+    /// <param name="folderLink">구글 드라이브 폴더 경로</param>
+    /// <returns>폴더 내에 존재하는 구글 시트 파일이 갖는 모든 테이블</returns>
+    public static List<GSheetTable> GetTableFromGSheet(string folderLink)
     {
-        Logger.Instance.Warning($"[GAuthService] No values to convert for table: {tableName}");
+        List<GSheetTable> tables = new();
+        
+        try
+        {
+            // 폴더 내의 모든 Google Sheets 파일 가져오기
+            var googleSheets = GetAllGoogleSheets(folderLink);
+            Logger.Instance.Log($"[GAuthService] Found {googleSheets.Count} Google Sheets");
+            
+            var sheetsService = GAuthAPIHandler.GetSheetsService();
+            
+            foreach (var sheetFile in googleSheets)
+            {
+                try
+                {
+                    Logger.Instance.Log($"[GAuthService] Processing sheet: {sheetFile.Name}");
+                    
+                    // 시트의 모든 탭 정보 가져오기
+                    var spreadsheet = sheetsService.Spreadsheets.Get(sheetFile.Id).Execute();
+                    
+                    foreach (var sheet in spreadsheet.Sheets)
+                    {
+                        var sheetTitle = sheet.Properties.Title;
+                        
+                        // 제외 탭 필터링 (# 또는 //로 시작하는 경우)
+                        if (sheetTitle.StartsWith("#") || sheetTitle.StartsWith("//"))
+                        {
+                            Logger.Instance.Log($"[GAuthService] Skipping excluded tab: {sheetTitle}");
+                            continue;
+                        }
+                        
+                        Logger.Instance.Log($"[GAuthService] Converting sheet tab to GSheetTable: {sheetTitle}");
+                        
+                        // 시트 데이터 읽기
+                        var range = $"{sheetTitle}!A:Z"; // A부터 Z열까지 모든 행
+                        var request = sheetsService.Spreadsheets.Values.Get(sheetFile.Id, range);
+                        var response = request.Execute();
+                        
+                        if (response.Values != null && response.Values.Count > 0)
+                        {
+                            var gSheetTable = ConvertToGSheetTable(response.Values, $"{sheetFile.Name}_{sheetTitle}");
+                            if (gSheetTable.Data != null && gSheetTable.Data.Count > 0)
+                            {
+                                tables.Add(gSheetTable);
+                                Logger.Instance.Log($"[GAuthService] Successfully created GSheetTable: {gSheetTable.TableName} ({gSheetTable.Data.Count} rows)");
+                            }
+                        }
+                        else
+                        {
+                            Logger.Instance.Warning($"[GAuthService] No data found in sheet tab: {sheetTitle}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error($"[GAuthService] Error processing sheet {sheetFile.Name}: {ex.Message}\n{ex.StackTrace}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[GAuthService] Error in GetTableFromGSheet: {ex.Message}\n{ex.StackTrace}");
+        }
+        
+        Logger.Instance.Log($"[GAuthService] Total GSheetTables created: {tables.Count}");
+        return tables;
+    }
+
+    /// <summary>
+    /// Google Sheets의 값들을 GSheetTable로 변환합니다.
+    /// </summary>
+    /// <param name="values">Google Sheets에서 읽어온 값들</param>
+    /// <param name="tableName">생성할 테이블의 이름</param>
+    /// <returns>변환된 GSheetTable</returns>
+    private static GSheetTable ConvertToGSheetTable(IList<IList<object>> values, string tableName)
+    {
+        var table = new GSheetTable
+        {
+            TableName = tableName,
+            Data = new List<string[]>()
+        };
+        
+        if (values == null || values.Count == 0)
+        {
+            Logger.Instance.Warning($"[GAuthService] No values to convert for table: {tableName}");
+            return table;
+        }
+        
+        try
+        {
+            // 모든 행을 string[]로 변환
+            foreach (var row in values)
+            {
+                // 빈 행 체크
+                if (row.All(cell => string.IsNullOrWhiteSpace(cell?.ToString())))
+                {
+                    continue;
+                }
+                
+                // EOF 마커 확인
+                if (row.Count > 0 && row[0]?.ToString()?.Equals("EOF", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    Logger.Instance.Log($"[GAuthService] Reached EOF marker in {tableName}");
+                    break;
+                }
+                
+                var rowData = new string[row.Count];
+                for (int i = 0; i < row.Count; i++)
+                {
+                    rowData[i] = row[i]?.ToString() ?? string.Empty;
+                }
+                
+                table.Data.Add(rowData);
+            }
+            
+            Logger.Instance.Log($"[GAuthService] GSheetTable created: {tableName} with {table.Data.Count} rows");
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error($"[GAuthService] Error converting to GSheetTable: {ex.Message}\n{ex.StackTrace}");
+        }
+        
         return table;
     }
-    
-    try
-    {
-        // 헤더 행 처리 (첫 번째 행)
-        var headerRow = values[0];
-        for (int i = 0; i < headerRow.Count; i++)
-        {
-            var columnName = headerRow[i]?.ToString() ?? $"Column{i + 1}";
-            table.Columns.Add(columnName, typeof(string));
-        }
-        
-        Logger.Instance.Log($"[GAuthService] Created {table.Columns.Count} columns for table: {tableName}");
-        
-        // 데이터 행 처리 (두 번째 행부터 시작하여 헤더 제외)
-        for (int rowIndex = 1; rowIndex < values.Count; rowIndex++)
-        {
-            var row = values[rowIndex];
-            var dataRow = table.NewRow();
-            
-            for (int cellIndex = 0; cellIndex < row.Count && cellIndex < table.Columns.Count; cellIndex++)
-            {
-                // 모든 데이터를 string으로 변환
-                dataRow[cellIndex] = row[cellIndex]?.ToString() ?? string.Empty;
-            }
-            
-            // 행이 비어있지 않으면 추가
-            if (dataRow.ItemArray.Any(item => !string.IsNullOrWhiteSpace(item?.ToString())))
-            {
-                table.Rows.Add(dataRow);
-            }
-        }
-        
-        Logger.Instance.Log($"[GAuthService] DataTable created: {tableName} with {table.Rows.Count} rows and {table.Columns.Count} columns");
-    }
-    catch (Exception ex)
-    {
-        Logger.Instance.Error($"[GAuthService] Error converting to DataTable: {ex.Message}\n{ex.StackTrace}");
-    }
-    
-    return table;
-}
 
     /// <summary>
     /// 구글 드라이브에 존재하는 파일을 읽어 리스트로 반환합니다.
@@ -208,7 +221,6 @@ private static DataTable ConvertToDataTable(IList<IList<object>> values, string 
         // 폴더 링크에서 폴더 ID 추출
         string folderId = ExtractFolderId(folderLink);
         Logger.Instance.Log($"[GAuthService] Get Google Sheets from : {folderLink} -> {folderId}");
-
 
         // 폴더 내의 Google Sheets 파일만 검색하는 올바른 쿼리
         var request = service.Files.List();

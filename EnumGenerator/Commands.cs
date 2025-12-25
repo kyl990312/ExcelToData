@@ -1,8 +1,10 @@
+using Common;
 using Common.Command;
 using Common.Utils;
 using ClosedXML.Excel;
 using ExcelParser;
 using GAuth;
+using System.Text;
 using Exception = System.Exception;
 
 namespace EnumGenerator;
@@ -148,7 +150,7 @@ public class EnumCacheGenerateFromGSheetCommand : Command
                 }
 
                 // TableHelper를 사용하여 CustomDataTable로 변환 (헤더 자동 처리)
-                var customTable = TableHelper.GetTable(dataTable);
+                var customTable = TableHelper.GetTable(dataTable.TableName, dataTable.Data);
                 if (customTable == null)
                 {
                     Logger.Instance.Warning($"[EnumCacheGenerateFromGSheetCommand] CustomDataTable 변환 실패: {dataTable.TableName}");
@@ -204,44 +206,128 @@ public class EnumCacheGenerateFromGSheetCommand : Command
 }
 
 /// <summary>
-/// Enum 코드(.cs)를 생성하는 커맨드
-/// EnumCacheGenerateCommand가 먼저 실행되어 SharedData.EnumCache가 채워져 있어야 합니다.
+/// EnumCache 테스트 커맨드 (Development 모드에서만 동작)
+/// EnumCache의 모든 데이터를 콘솔에 출력하고 txt 파일로 저장합니다.
 /// </summary>
-public class GenerateEnumCodeCommand : Command
+public class EnumCacheTestCommand : Command
 {
-    private readonly string _directoryPath;
-    private readonly string _codeExtension;
+    private readonly string _filePath;
 
-    public GenerateEnumCodeCommand(string directoryPath, string codeExtension)
+    public EnumCacheTestCommand(string filePath)
     {
-        _directoryPath = directoryPath;
-        _codeExtension = codeExtension;
+        _filePath = filePath;
     }
-    
+
     public override void Execute(out string result)
     {
         result = "";
-        
-        if (SharedData.Instance.EnumCache.IsEmpty)
+
+        try
         {
-            result = "[GenerateEnumCodeCommand] EnumCache가 비어있습니다. EnumCacheGenerateCommand를 먼저 실행하세요.";
+            var sb = new StringBuilder();
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            
+            sb.AppendLine("========================================");
+            sb.AppendLine($"[EnumCache Test Report]");
+            sb.AppendLine($"생성 시간: {timestamp}");
+            sb.AppendLine("========================================");
+            sb.AppendLine();
+
+            if (SharedData.Instance.EnumCache.IsEmpty)
+            {
+                sb.AppendLine("EnumCache가 비어있습니다.");
+            }
+            else
+            {
+                sb.AppendLine($"총 시트: {SharedData.Instance.EnumCache.SheetCount}개");
+                sb.AppendLine($"총 Enum 타입: {SharedData.Instance.EnumCache.EnumCount}개");
+                sb.AppendLine();
+
+                foreach (var sheetName in SharedData.Instance.EnumCache.SheetNames)
+                {
+                    sb.AppendLine($"[시트: {sheetName}]");
+                    var enumTypes = SharedData.Instance.EnumCache.GetEnumTypesBySheet(sheetName);
+                    
+                    foreach (var enumType in enumTypes)
+                    {
+                        sb.AppendLine($"  └─ {enumType}");
+                        var members = SharedData.Instance.EnumCache.GetEnumMembers(enumType);
+                        
+                        foreach (var (member, value) in members)
+                        {
+                            sb.AppendLine($"       {member} = {value}");
+                        }
+                    }
+                    sb.AppendLine();
+                }
+            }
+
+            sb.AppendLine("========================================");
+
+            var content = sb.ToString();
+
+            // 콘솔 출력
+            Console.WriteLine(content);
+
+            // 파일 저장
+            var directory = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllText(_filePath, content);
+
+            result = $"[EnumCacheTestCommand] - 테스트 완료. 저장 경로: {Path.GetFullPath(_filePath)}";
+            Logger.Instance.Log(result);
+        }
+        catch (Exception e)
+        {
+            result = $"[EnumCacheTestCommand] 실행 실패: {e.Message}";
+            Logger.Instance.Error($"{result}\n{e.StackTrace}");
+        }
+    }
+}
+
+/// <summary>
+/// EnumDB 바이너리 파일을 로드하는 커맨드 (Development 모드에서만 동작)
+/// 저장된 EnumDB.bin을 다시 로드하여 정상 저장 여부를 검증합니다.
+/// </summary>
+public class EnumDBLoadCommand : Command
+{
+    public override void Execute(out string result)
+    {
+        result = "";
+
+        var enumDBPath = SystemPath.EnumBinaryPath;
+
+        if (!File.Exists(enumDBPath))
+        {
+            result = $"[EnumDBLoadCommand] EnumDB 파일을 찾을 수 없습니다: {enumDBPath}";
             Logger.Instance.Error(result);
             return;
         }
 
         try
         {
-            var enumGenerator = new Generator.EnumGenerator.EnumCodeGenerator();
-            enumGenerator.Generate(SharedData.Instance.EnumCache, _directoryPath, _codeExtension);
+            // 기존 캐시 클리어 후 바이너리에서 로드
+            SharedData.Instance.EnumCache.Clear();
             
-            var enums = SharedData.Instance.EnumCache.EnumTypes.ToArray();
-            Logger.Instance.Log($"[GenerateEnumCodeCommand] 생성된 Enum 목록: {string.Join(", ", enums)}");
-            
-            result = $"[GenerateEnumCodeCommand] Enum 코드 생성 완료: {_directoryPath}";
+            if (!SharedData.Instance.EnumCache.LoadFromBinary(enumDBPath))
+            {
+                result = $"[EnumDBLoadCommand] EnumDB 로드 실패: {enumDBPath}";
+                Logger.Instance.Error(result);
+                return;
+            }
+
+            var enumCount = SharedData.Instance.EnumCache.EnumCount;
+            var sheetCount = SharedData.Instance.EnumCache.SheetCount;
+            result = $"[EnumDBLoadCommand] EnumDB 로드 완료: {enumDBPath} ({enumCount}개 Enum 타입, {sheetCount}개 시트)";
+            Logger.Instance.Log(result);
         }
         catch (Exception e)
         {
-            result = $"[GenerateEnumCodeCommand] 실행 실패: {e.Message}";
+            result = $"[EnumDBLoadCommand] 실행 실패: {e.Message}";
             Logger.Instance.Error($"{result}\n{e.StackTrace}");
         }
     }
@@ -249,32 +335,34 @@ public class GenerateEnumCodeCommand : Command
 
 /// <summary>
 /// EnumDB 바이너리 파일을 생성하는 커맨드
-/// EnumCacheGenerateCommand가 먼저 실행되어 SharedData.EnumCache가 채워져 있어야 합니다.
+/// 시스템 통일 경로(SystemPath.EnumBinaryPath)에 저장합니다.
 /// </summary>
 public class GenerateEnumBinaryCommand : Command
 {
-    private readonly string _enumDBPath;
-
-    public GenerateEnumBinaryCommand(string enumDBPath)
-    {
-        _enumDBPath = enumDBPath;
-    }
-    
     public override void Execute(out string result)
     {
         result = "";
         
         if (SharedData.Instance.EnumCache.IsEmpty)
         {
-            result = "[GenerateEnumBinaryCommand] EnumCache가 비어있습니다. EnumCacheGenerateCommand를 먼저 실행하세요.";
+            result = "[GenerateEnumBinaryCommand] EnumCache가 비어있습니다.";
             Logger.Instance.Error(result);
             return;
         }
 
         try
         {
-            SharedData.Instance.EnumCache.SaveToBinary(_enumDBPath);
-            result = $"[GenerateEnumBinaryCommand] EnumDB 생성 완료: {_enumDBPath} ({SharedData.Instance.EnumCache.EnumCount}개 Enum)";
+            var enumDBPath = SystemPath.EnumBinaryPath;
+            
+            // 디렉토리 생성
+            var directory = Path.GetDirectoryName(enumDBPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
+            SharedData.Instance.EnumCache.SaveToBinary(enumDBPath);
+            result = $"[GenerateEnumBinaryCommand] EnumDB 생성 완료: {enumDBPath} ({SharedData.Instance.EnumCache.EnumCount}개 Enum)";
             Logger.Instance.Log(result);
         }
         catch (Exception e)

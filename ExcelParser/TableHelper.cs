@@ -58,117 +58,111 @@ public static class TableHelper
     /// <summary>
     /// DataTable을 CustomDataTable로 변환합니다.
     /// Google Sheets에서 읽어온 데이터를 Excel과 동일한 방식으로 처리합니다.
-    /// 1행: 컬럼명, 2행부터: 데이터 (Google Sheets용)
+    /// 1행: 컬럼명, 2행: 데이터 타입, 3행부터: 데이터 (Google Sheets용)
     /// </summary>
     /// <param name="table">변환할 DataTable</param>
     /// <returns>변환된 CustomDataTable</returns>
-    public static CustomDataTable GetTable(DataTable table)
+    public static CustomDataTable GetTable(string tableName, List<string[]> table)
     {
         if (table == null)
         {
-            Logger.Instance.Error("[TableHelper] Input DataTable is null");
+            Logger.Instance.Error("[TableHelper] Input table is null");
             return null;
         }
 
-        if (table.Rows.Count == 0)
+        if (table.Count == 0)
         {
-            Logger.Instance.Warning($"[TableHelper] DataTable is empty: {table.TableName}");
-            return new CustomDataTable(new List<Dictionary<string, object>>(), table.TableName);
+            Logger.Instance.Warning($"[TableHelper] Table is empty: {tableName}");
+            return new CustomDataTable(new List<Dictionary<string, object>>(), tableName);
         }
 
         try
         {
-            Logger.Instance.Log($"[TableHelper] Converting Google Sheets DataTable to CustomDataTable: {table.TableName}");
+            Logger.Instance.Log($"[TableHelper] Converting Google Sheets data to CustomDataTable: {tableName}");
             
-            // Google Sheets DataTable의 컬럼명을 그대로 사용하고 모든 데이터를 string 타입으로 처리
-            var columnTypes = new Dictionary<string, Type>();
+            // table[0]: 컬럼명 행
+            var columnNames = table[0];
             
-            // DataTable의 컬럼명과 타입 정보 추출
-            foreach (DataColumn column in table.Columns)
+            // 유효한 컬럼 인덱스와 이름 매핑
+            var validColumns = new Dictionary<int, string>();
+            for (int i = 0; i < columnNames.Length; i++)
             {
-                var columnName = column.ColumnName;
+                var columnName = columnNames[i];
                 
-                // 제외 컬럼 필터링 (TableDefine 상수 사용)
+                // 빈 컬럼명 스킵
+                if (string.IsNullOrEmpty(columnName))
+                    continue;
+                
+                // 제외 컬럼 필터링 (# 접두사)
                 if (columnName.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
                 {
                     Logger.Instance.Log($"[TableHelper] Skipping column: {columnName} (excluded by prefix)");
                     continue;
                 }
                 
-                if (string.IsNullOrEmpty(columnName))
-                {
-                    Logger.Instance.Error($"[TableHelper] Column name is empty at index: {column.Ordinal}");
-                    continue;
-                }
-                
-                // Google Sheets에서는 모든 데이터가 string으로 처리됨
-                columnTypes[columnName] = typeof(string);
-                Logger.Instance.Log($"[TableHelper] Added column: {columnName} (String)");
+                validColumns[i] = columnName;
+                Logger.Instance.Log($"[TableHelper] Added column: {columnName}");
             }
             
-            if (columnTypes.Count == 0)
+            if (validColumns.Count == 0)
             {
                 Logger.Instance.Warning("[TableHelper] No valid columns found");
-                return new CustomDataTable(new List<Dictionary<string, object>>(), table.TableName);
+                return new CustomDataTable(new List<Dictionary<string, object>>(), tableName);
             }
             
+            Logger.Instance.Log($"[TableHelper] Found {validColumns.Count} valid columns");
+            
             // 데이터 행들을 Dictionary 리스트로 변환
+            // table[0]: 컬럼명, table[1]: 타입 정의 -> table[2]부터 실제 데이터
             var dictList = new List<Dictionary<string, object>>();
             
-            foreach (DataRow row in table.Rows)
+            for (int rowIndex = 2; rowIndex < table.Count; rowIndex++)
             {
+                var row = table[rowIndex];
+                
                 // 빈 행 체크
-                if (row.ItemArray.All(field => string.IsNullOrWhiteSpace(field?.ToString())))
+                if (row.All(cell => string.IsNullOrWhiteSpace(cell)))
                 {
                     continue;
                 }
                 
-                // 제외 행 필터링 (TableDefine 상수 사용)
-                if (row.ItemArray.Length > 0 && 
-                    row.ItemArray[0]?.ToString().StartsWith(TableDefine.REGEX_START_EXCEPT_ROW) == true)
+                // 제외 행 필터링 (// 접두사)
+                if (row.Length > 0 && row[0]?.StartsWith(TableDefine.REGEX_START_EXCEPT_ROW) == true)
                 {
-                    Logger.Instance.Log($"[TableHelper] Skipping row (comment row)");
+                    Logger.Instance.Log($"[TableHelper] Skipping row {rowIndex} (comment row)");
                     continue;
                 }
 
                 // EOF 마커 확인
-                if (row.ItemArray.Length > 0 && 
-                    row.ItemArray[0]?.ToString().Equals("EOF", StringComparison.OrdinalIgnoreCase) == true)
+                if (row.Length > 0 && row[0]?.Equals("EOF", StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    Logger.Instance.Log($"[TableHelper] Reached EOF marker");
+                    Logger.Instance.Log($"[TableHelper] Reached EOF marker at row {rowIndex}");
                     break;
                 }
 
                 var rowDict = new Dictionary<string, object>();
                 
                 // 유효한 컬럼들에 대해서만 데이터 추출
-                foreach (var columnName in columnTypes.Keys)
+                foreach (var (colIndex, colName) in validColumns)
                 {
-                    if (table.Columns.Contains(columnName))
-                    {
-                        var cellValue = row[columnName]?.ToString() ?? string.Empty;
-                        rowDict[columnName] = cellValue;
-                    }
-                    else
-                    {
-                        rowDict[columnName] = string.Empty;
-                    }
+                    var cellValue = colIndex < row.Length ? row[colIndex] : string.Empty;
+                    rowDict[colName] = cellValue ?? string.Empty;
                 }
                 
                 dictList.Add(rowDict);
             }
             
-            Logger.Instance.Log($"[TableHelper] Extracted {dictList.Count} valid data rows");
+            Logger.Instance.Log($"[TableHelper] Extracted {dictList.Count} valid data rows (skipped header and type rows)");
             
-            // CustomDataTable 생성 (Dictionary 리스트 생성자 사용)
-            var customTable = new CustomDataTable(dictList, table.TableName);
+            // CustomDataTable 생성
+            var customTable = new CustomDataTable(dictList, tableName);
             
             Logger.Instance.Log($"[TableHelper] CustomDataTable created: {customTable.Name} with {customTable.RowCount} rows and {customTable.ColumnCount} columns");
             return customTable;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[TableHelper] Error converting DataTable to CustomDataTable: {ex.Message}");
+            Logger.Instance.Error($"[TableHelper] Error converting table to CustomDataTable: {ex.Message}");
             return null;
         }
     }

@@ -1,3 +1,4 @@
+using Common;
 using Common.Command;
 
 namespace EnumGenerator;
@@ -9,7 +10,7 @@ public class EGCommandInvoker : CommandInvoker
         var list = new List<ICommand>();
         
         var fullPath =
-            $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{ProjectDefine.ConfigPath}";
+            $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{SystemPath.EnumGeneratorConfigPath}";
         if(!File.Exists(fullPath))
             list.Add(new CreateEnumGenerateConfigCommand(fullPath));
 
@@ -27,16 +28,29 @@ public class EGCommandInvoker : CommandInvoker
             // 로컬 파일에서 로드
             list.Add(new EnumCacheGenerateCommand(config.EnumFilePath));
         }
-        
-        // 2. Enum 코드 생성 (EnumCache 기반)
-        list.Add(new GenerateEnumCodeCommand(config.DstDirectory, config.CodeExtension));
+
+        // 2. [Dev] EnumCache 테스트 (바이너리 저장 전)
+        {
+            var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
+            if (SystemDefine.DevelopmentMode)
+                list.Add(new EnumCacheTestCommand(SystemPath.EnumBinaryPath.Replace(enumFileName, $"EnumDB_BeforeSave.txt")));
+        }
+
         
         // 3. EnumDB 바이너리 생성
-        if (config.IsGenerateEnumBinary)
+        list.Add(new GenerateEnumBinaryCommand());
+
+        // 4. [Dev] EnumDB 로드 (저장된 바이너리 검증)
+        if (SystemDefine.DevelopmentMode)
+            list.Add(new EnumDBLoadCommand());
+
+        // 5. [Dev] EnumCache 테스트 (바이너리 로드 후)
         {
-            list.Add(new GenerateEnumBinaryCommand(config.EnumDBPath));
+            var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
+            if (SystemDefine.DevelopmentMode)
+                list.Add(new EnumCacheTestCommand(SystemPath.EnumBinaryPath.Replace(enumFileName, $"EnumDB_AftereSave.txt")));
         }
-        
+
         return list;
     }
 }
