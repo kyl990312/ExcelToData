@@ -28,10 +28,14 @@ public class EGCommandInvoker : CommandInvoker
             // 로컬 파일에서 로드
             list.Add(new EnumCacheGenerateCommand(config.EnumFilePath));
         }
-        
+
         // 2. [Dev] EnumCache 테스트 (바이너리 저장 전)
-        if(SystemDefine.DevelopmentMode)
-            list.Add(new EnumCacheTestCommand("Before Save"));
+        {
+            var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
+            if (SystemDefine.DevelopmentMode)
+                list.Add(new EnumCacheTestCommand(SystemPath.EnumBinaryPath.Replace(enumFileName, $"EnumDB_BeforeSave.txt")));
+        }
+
         
         // 3. EnumDB 바이너리 생성
         list.Add(new GenerateEnumBinaryCommand());
@@ -41,9 +45,12 @@ public class EGCommandInvoker : CommandInvoker
             list.Add(new EnumDBLoadCommand());
 
         // 5. [Dev] EnumCache 테스트 (바이너리 로드 후)
-        if (SystemDefine.DevelopmentMode)
-            list.Add(new EnumCacheTestCommand("After Load"));
-        
+        {
+            var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
+            if (SystemDefine.DevelopmentMode)
+                list.Add(new EnumCacheTestCommand(SystemPath.EnumBinaryPath.Replace(enumFileName, $"EnumDB_AftereSave.txt")));
+        }
+
         return list;
     }
 }
