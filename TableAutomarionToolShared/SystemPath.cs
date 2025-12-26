@@ -1,4 +1,4 @@
-namespace Common;
+namespace TableAutomarionToolShared;
 
 /// <summary>
 /// 시스템 전역에서 공유하는 경로 정의

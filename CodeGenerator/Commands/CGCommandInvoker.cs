@@ -1,6 +1,6 @@
 using Common;
 using Common.Command;
-using Generator.CodeGenerator;
+using TableAutomarionToolShared;
 
 namespace CodeGenerator;
 
@@ -22,7 +22,9 @@ public class CGCommandInvoker : CommandInvoker
         {
             return list;
         }
-        
+
+        list.Add(new LoadEnumDBCommand());
+
         if (ProjectDefine.CodeExtension.EndsWith("cs"))
         {
             list.Add(new GenerateCSharpCodeCommand(config));

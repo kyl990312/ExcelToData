@@ -6,6 +6,7 @@ using ExcelParser;
 using GAuth;
 using System.Text;
 using Exception = System.Exception;
+using TableAutomarionToolShared;
 
 namespace EnumGenerator;
 
@@ -64,7 +65,7 @@ public class EnumCacheGenerateCommand : Command
 
         try
         {
-            SharedData.Instance.EnumCache.Clear();
+            EnumDB.Instance.Clear();
 
             using var workbook = new XLWorkbook(_enumFilePath);
             foreach (var worksheet in workbook.Worksheets)
@@ -76,7 +77,7 @@ public class EnumCacheGenerateCommand : Command
                     continue;
                 }
 
-                if (!SharedData.Instance.EnumCache.LoadFromTable(table))
+                if (!EnumDB.Instance.Cache.LoadFromTable(table))
                 {
                     Logger.Instance.Warning($"[EnumCacheGenerateCommand] EnumCache 로드 실패: {worksheet.Name}");
                     continue;
@@ -85,8 +86,8 @@ public class EnumCacheGenerateCommand : Command
                 Logger.Instance.Log($"[EnumCacheGenerateCommand] EnumCache 로드 완료: {worksheet.Name}");
             }
 
-            var enumCount = SharedData.Instance.EnumCache.EnumCount;
-            var sheetCount = SharedData.Instance.EnumCache.SheetCount;
+            var enumCount = EnumDB.Instance.EnumCount;
+            var sheetCount = EnumDB.Instance.Cache.SheetCount;
             result = $"[EnumCacheGenerateCommand] EnumCache 생성 완료: {enumCount}개 Enum 타입, {sheetCount}개 시트";
             Logger.Instance.Log(result);
         }
@@ -127,7 +128,7 @@ public class EnumCacheGenerateFromGSheetCommand : Command
         {
             Logger.Instance.Log($"[EnumCacheGenerateFromGSheetCommand] 구글 시트에서 Enum 로드 시작: {_gDriveLink}");
 
-            SharedData.Instance.EnumCache.Clear();
+            EnumDB.Instance.Clear();
 
             // 구글 시트에서 DataTable 목록 가져오기
             var dataTables = GAuthService.GetTableFromGSheet(_gDriveLink);
@@ -164,7 +165,7 @@ public class EnumCacheGenerateFromGSheetCommand : Command
                     customTable.Name = customTable.Name.Replace(nameStrs[0] + "_", "");
                 }
 
-                if (!SharedData.Instance.EnumCache.LoadFromTable(customTable))
+                if (!EnumDB.Instance.Cache.LoadFromTable(customTable))
                 {
                     Logger.Instance.Warning($"[EnumCacheGenerateFromGSheetCommand] EnumCache 로드 실패: {customTable.Name}");
                     continue;
@@ -174,8 +175,8 @@ public class EnumCacheGenerateFromGSheetCommand : Command
                 Logger.Instance.Log($"[EnumCacheGenerateFromGSheetCommand] EnumCache 로드 완료: {customTable.Name}");
             }
 
-            var enumCount = SharedData.Instance.EnumCache.EnumCount;
-            var sheetCount = SharedData.Instance.EnumCache.SheetCount;
+            var enumCount = EnumDB.Instance.EnumCount;
+            var sheetCount = EnumDB.Instance.Cache.SheetCount;
             result = $"[EnumCacheGenerateFromGSheetCommand] 구글 시트에서 EnumCache 생성 완료: {enumCount}개 Enum 타입, {sheetCount}개 시트 (총 {loadedCount}개 시트 처리)";
             Logger.Instance.Log(result);
         }
@@ -206,14 +207,14 @@ public class EnumCacheGenerateFromGSheetCommand : Command
 }
 
 /// <summary>
-/// EnumCache 테스트 커맨드 (Development 모드에서만 동작)
-/// EnumCache의 모든 데이터를 콘솔에 출력하고 txt 파일로 저장합니다.
+/// EnumDB 테스트 커맨드 (Development 모드에서만 동작)
+/// EnumDB의 모든 데이터를 콘솔에 출력하고 txt 파일로 저장합니다.
 /// </summary>
-public class EnumCacheTestCommand : Command
+public class EnumDBTestCommand : Command
 {
     private readonly string _filePath;
 
-    public EnumCacheTestCommand(string filePath)
+    public EnumDBTestCommand(string filePath)
     {
         _filePath = filePath;
     }
@@ -228,30 +229,30 @@ public class EnumCacheTestCommand : Command
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             
             sb.AppendLine("========================================");
-            sb.AppendLine($"[EnumCache Test Report]");
+            sb.AppendLine($"[EnumDB Test Report]");
             sb.AppendLine($"생성 시간: {timestamp}");
             sb.AppendLine("========================================");
             sb.AppendLine();
 
-            if (SharedData.Instance.EnumCache.IsEmpty)
+            if (EnumDB.Instance.IsEmpty)
             {
-                sb.AppendLine("EnumCache가 비어있습니다.");
+                sb.AppendLine("EnumDB가 비어있습니다.");
             }
             else
             {
-                sb.AppendLine($"총 시트: {SharedData.Instance.EnumCache.SheetCount}개");
-                sb.AppendLine($"총 Enum 타입: {SharedData.Instance.EnumCache.EnumCount}개");
+                sb.AppendLine($"총 시트: {EnumDB.Instance.Cache.SheetCount}개");
+                sb.AppendLine($"총 Enum 타입: {EnumDB.Instance.EnumCount}개");
                 sb.AppendLine();
 
-                foreach (var sheetName in SharedData.Instance.EnumCache.SheetNames)
+                foreach (var sheetName in EnumDB.Instance.Cache.SheetNames)
                 {
                     sb.AppendLine($"[시트: {sheetName}]");
-                    var enumTypes = SharedData.Instance.EnumCache.GetEnumTypesBySheet(sheetName);
+                    var enumTypes = EnumDB.Instance.GetEnumTypesBySheet(sheetName);
                     
                     foreach (var enumType in enumTypes)
                     {
                         sb.AppendLine($"  └─ {enumType}");
-                        var members = SharedData.Instance.EnumCache.GetEnumMembers(enumType);
+                        var members = EnumDB.Instance.GetEnumMembers(enumType);
                         
                         foreach (var (member, value) in members)
                         {
@@ -278,12 +279,12 @@ public class EnumCacheTestCommand : Command
 
             File.WriteAllText(_filePath, content);
 
-            result = $"[EnumCacheTestCommand] - 테스트 완료. 저장 경로: {Path.GetFullPath(_filePath)}";
+            result = $"[EnumDBTestCommand] - 테스트 완료. 저장 경로: {Path.GetFullPath(_filePath)}";
             Logger.Instance.Log(result);
         }
         catch (Exception e)
         {
-            result = $"[EnumCacheTestCommand] 실행 실패: {e.Message}";
+            result = $"[EnumDBTestCommand] 실행 실패: {e.Message}";
             Logger.Instance.Error($"{result}\n{e.StackTrace}");
         }
     }
@@ -311,17 +312,17 @@ public class EnumDBLoadCommand : Command
         try
         {
             // 기존 캐시 클리어 후 바이너리에서 로드
-            SharedData.Instance.EnumCache.Clear();
+            EnumDB.Instance.Clear();
             
-            if (!SharedData.Instance.EnumCache.LoadFromBinary(enumDBPath))
+            if (!EnumDB.Instance.LoadFromBinary(enumDBPath))
             {
                 result = $"[EnumDBLoadCommand] EnumDB 로드 실패: {enumDBPath}";
                 Logger.Instance.Error(result);
                 return;
             }
 
-            var enumCount = SharedData.Instance.EnumCache.EnumCount;
-            var sheetCount = SharedData.Instance.EnumCache.SheetCount;
+            var enumCount = EnumDB.Instance.EnumCount;
+            var sheetCount = EnumDB.Instance.Cache.SheetCount;
             result = $"[EnumDBLoadCommand] EnumDB 로드 완료: {enumDBPath} ({enumCount}개 Enum 타입, {sheetCount}개 시트)";
             Logger.Instance.Log(result);
         }
@@ -343,9 +344,9 @@ public class GenerateEnumBinaryCommand : Command
     {
         result = "";
         
-        if (SharedData.Instance.EnumCache.IsEmpty)
+        if (EnumDB.Instance.IsEmpty)
         {
-            result = "[GenerateEnumBinaryCommand] EnumCache가 비어있습니다.";
+            result = "[GenerateEnumBinaryCommand] EnumDB가 비어있습니다.";
             Logger.Instance.Error(result);
             return;
         }
@@ -361,8 +362,8 @@ public class GenerateEnumBinaryCommand : Command
                 Directory.CreateDirectory(directory);
             }
             
-            SharedData.Instance.EnumCache.SaveToBinary(enumDBPath);
-            result = $"[GenerateEnumBinaryCommand] EnumDB 생성 완료: {enumDBPath} ({SharedData.Instance.EnumCache.EnumCount}개 Enum)";
+            EnumDB.Instance.SaveToBinary(enumDBPath);
+            result = $"[GenerateEnumBinaryCommand] EnumDB 생성 완료: {enumDBPath} ({EnumDB.Instance.EnumCount}개 Enum)";
             Logger.Instance.Log(result);
         }
         catch (Exception e)
