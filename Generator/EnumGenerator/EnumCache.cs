@@ -1,6 +1,7 @@
-﻿using BinaryParser;
-using Common.Utils;
-namespace ExcelParser;
+﻿using Common.Utils;
+using ExcelParser;
+
+namespace EnumGenerator;
 
 /// <summary>
 /// Enum 데이터를 메모리에 저장하고 관리하는 캐시
@@ -105,76 +106,14 @@ public class EnumCache
         return allSuccess;
     }
 
-    /// <summary>
-    /// 바이너리 파일에서 EnumCache 데이터를 로드합니다.
-    /// </summary>
-    /// <param name="filePath">로드할 바이너리 파일 경로</param>
-    /// <returns>로드 성공 여부</returns>
-    public bool LoadFromBinary(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-        {
-            Logger.Instance.Error("[EnumCache] 파일 경로가 비어있습니다");
-            return false;
-        }
-
-        if (!File.Exists(filePath))
-        {
-            Logger.Instance.Error($"[EnumCache] 파일을 찾을 수 없습니다: {filePath}");
-            return false;
-        }
-
-        try
-        {
-            var data = BinaryHelper.LoadFromFile(filePath);
-            if (data == null || data.Count == 0)
-            {
-                Logger.Instance.Warning($"[EnumCache] 바이너리 파일이 비어있습니다: {filePath}");
-                return false;
-            }
-
-            Clear();
-            RestoreFromBinaryData(data);
-
-            Logger.Instance.Log($"[EnumCache] 바이너리 로드 완료: {filePath} ({_cache.Count}개 Enum 타입, {_sheetEnumMap.Count}개 시트)");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Logger.Instance.Error($"[EnumCache] 바이너리 로드 중 오류: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 현재 캐시 데이터를 바이너리 파일로 저장합니다.
-    /// </summary>
-    /// <param name="filePath">저장할 파일 경로</param>
-    public void SaveToBinary(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-        {
-            Logger.Instance.Error("[EnumCache] 파일 경로가 비어있습니다");
-            return;
-        }
-
-        try
-        {
-            var data = ConvertToSerializableData();
-            BinaryHelper.SaveToFile(data, filePath);
-
-            Logger.Instance.Log($"[EnumCache] 바이너리 저장 완료: {filePath} ({_cache.Count}개 Enum 타입, {_sheetEnumMap.Count}개 시트)");
-        }
-        catch (Exception ex)
-        {
-            Logger.Instance.Error($"[EnumCache] 바이너리 저장 중 오류: {ex.Message}");
-        }
-    }
+    // ============================================
+    // 직렬화 지원 메서드 (EnumDB에서 사용)
+    // ============================================
 
     /// <summary>
     /// 캐시 데이터를 BinaryHelper에서 사용하는 형식으로 변환합니다.
     /// </summary>
-    private List<Dictionary<string, object>> ConvertToSerializableData()
+    public List<Dictionary<string, object>> ConvertToSerializableData()
     {
         var data = new List<Dictionary<string, object>>();
 
@@ -204,7 +143,7 @@ public class EnumCache
     /// <summary>
     /// 바이너리 데이터를 캐시로 복원합니다.
     /// </summary>
-    private void RestoreFromBinaryData(List<Dictionary<string, object>> data)
+    public void RestoreFromBinaryData(List<Dictionary<string, object>> data)
     {
         foreach (var row in data)
         {
@@ -508,5 +447,39 @@ public class EnumCache
             }
         }
         Logger.Instance.Log($"[EnumCache] ==================");
+    }
+
+    // ============================================
+    // IPC용 직접 로드 메서드
+    // ============================================
+    
+    /// <summary>
+    /// IPC 공유 메모리에서 직접 Enum 데이터를 로드합니다.
+    /// SharedEnumMemoryHandler에서 내부적으로 사용됩니다.
+    /// </summary>
+    /// <param name="enumType">Enum 타입명</param>
+    /// <param name="members">멤버 리스트</param>
+    internal void LoadEnumDirectly(string enumType, List<(string member, int value)> members)
+    {
+        if (string.IsNullOrEmpty(enumType) || members == null || members.Count == 0)
+        {
+            Logger.Instance.Warning($"[EnumCache] LoadEnumDirectly: 유효하지 않은 데이터 - {enumType}");
+            return;
+        }
+        
+        _cache[enumType] = [.. members.OrderBy(x => x.value)];
+        
+        // IPC 로드 시에는 시트 매핑이 없으므로 "_IPC_" 시트로 등록
+        const string ipcSheetName = "_IPC_";
+        if (!_sheetEnumMap.ContainsKey(ipcSheetName))
+        {
+            _sheetEnumMap[ipcSheetName] = [];
+        }
+        if (!_sheetEnumMap[ipcSheetName].Contains(enumType))
+        {
+            _sheetEnumMap[ipcSheetName].Add(enumType);
+        }
+        
+        Logger.Instance.Log($"[EnumCache] IPC 직접 로드: {enumType} ({members.Count}개 멤버)");
     }
 }

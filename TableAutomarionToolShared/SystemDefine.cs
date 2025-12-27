@@ -1,4 +1,4 @@
-namespace Common;
+namespace TableAutomarionToolShared;
 
 /// <summary>
 /// 시스템 전역 설정

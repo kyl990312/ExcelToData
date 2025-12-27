@@ -1,9 +1,10 @@
 using Common.Utils;
 using ExcelParser;
 using System.Text;
+using EnumGenerator;
 using Common.Command;
 
-namespace Generator.EnumGenerator;
+namespace CodeGenerator;
 
 public interface IEnumCodeGenerator
 {

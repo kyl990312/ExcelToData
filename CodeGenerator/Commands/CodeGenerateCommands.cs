@@ -3,8 +3,10 @@ using Common;
 using Common.Command;
 using Common.Utils;
 using Generator.CodeGenerator;
-using Generator.EnumGenerator;
 using ExcelParser;
+using TableAutomarionToolShared;
+using EnumGenerator;
+using CodeGenerator;
 
 namespace CodeGenerator;
 
@@ -123,7 +125,7 @@ public class GenerateEnumCodeCommand : Command
         try
         {
             var enumCache = new EnumCache();
-            if (!enumCache.LoadFromBinary(enumBinaryPath))
+            if (!EnumDB.Instance.LoadFromBinary(enumBinaryPath))
             {
                 result = $"[GenerateEnumCodeCommand] EnumCache 로드 실패: {enumBinaryPath}";
                 Logger.Instance.Error(result);

@@ -1,5 +1,6 @@
 using Common;
 using Common.Command;
+using TableAutomarionToolShared;
 
 namespace ExcelToData;
 
@@ -16,14 +17,20 @@ public class ETDCommandInvoker : CommandInvoker
     {
         var commands = new List<ICommand>();
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
-        
-        AddStructuredBinaryCommands(commands, baseDirectory);
-        AddJsonCommands(commands, baseDirectory);
+
+        AddEnumDBCommand(ref commands);
+        AddStructuredBinaryCommands(ref commands, baseDirectory);
+        AddJsonCommands(ref commands, baseDirectory);
         
         return commands;
     }
 
-    private void AddJsonCommands(List<ICommand> commands, string baseDirectory)
+    private void AddEnumDBCommand(ref List<ICommand> commands)
+    {
+        commands.Add(new LoadEnumDBCommand());
+    }   
+
+    private void AddJsonCommands(ref List<ICommand> commands, string baseDirectory)
     {
         var jsonConfigPath = Path.Combine(baseDirectory, SystemPath.JsonConfigPath);
         
@@ -37,7 +44,7 @@ public class ETDCommandInvoker : CommandInvoker
         }
     }
 
-    private void AddStructuredBinaryCommands(List<ICommand> commands, string baseDirectory)
+    private void AddStructuredBinaryCommands(ref List<ICommand> commands, string baseDirectory)
     {
         var jsonConfigPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
         

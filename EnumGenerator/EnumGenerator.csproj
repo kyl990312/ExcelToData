@@ -10,6 +10,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Generator\Generator.csproj" />
+      <ProjectReference Include="..\TableAutomarionToolShared\TableAutomarionToolShared.csproj" />
     </ItemGroup>
 
 </Project>
