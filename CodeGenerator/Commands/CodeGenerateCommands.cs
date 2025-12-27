@@ -1,12 +1,10 @@
-using ClosedXML.Excel;
 using Common;
 using Common.Command;
 using Common.Utils;
 using Generator.CodeGenerator;
 using ExcelParser;
 using TableAutomarionToolShared;
-using EnumGenerator;
-using CodeGenerator;
+using UserEnum;
 
 namespace CodeGenerator;
 
@@ -124,7 +122,6 @@ public class GenerateEnumCodeCommand : Command
 
         try
         {
-            var enumCache = new EnumCache();
             if (!EnumDB.Instance.LoadFromBinary(enumBinaryPath))
             {
                 result = $"[GenerateEnumCodeCommand] EnumCache 로드 실패: {enumBinaryPath}";
@@ -132,7 +129,7 @@ public class GenerateEnumCodeCommand : Command
                 return;
             }
 
-            if (enumCache.IsEmpty)
+            if (EnumDB.Instance.IsEmpty)
             {
                 result = "[GenerateEnumCodeCommand] EnumCache가 비어있습니다.";
                 Logger.Instance.Warning(result);
@@ -140,9 +137,9 @@ public class GenerateEnumCodeCommand : Command
             }
 
             var enumGenerator = new EnumCodeGenerator();
-            enumGenerator.Generate(enumCache, _outputDirectory, _codeExtension);
+            enumGenerator.Generate(EnumDB.Instance.Cache, _outputDirectory, _codeExtension);
             
-            result = $"[GenerateEnumCodeCommand] Enum 코드 생성 완료: {_outputDirectory} ({enumCache.EnumCount}개 Enum)";
+            result = $"[GenerateEnumCodeCommand] Enum 코드 생성 완료: {_outputDirectory} ({EnumDB.Instance.EnumCount}개 Enum)";
             Logger.Instance.Log(result);
         }
         catch (Exception e)

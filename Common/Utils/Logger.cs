@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Microsoft.VisualBasic;
 using System.IO;
 
 namespace Common.Utils;
@@ -29,28 +28,28 @@ public class Logger : IDisposable
     public void Error(string msg)
     {
         var log = $"[Error][{DateTime.Now}] {msg}";
-        Console.Error.WriteLine(log);
+        WriteColoredLine(log, ConsoleColor.Red);
         _log += '\n'+log;
     }
 
     public void Error(string msg, StackTrace stackTrace)
     {
         var log = $"[Error][{DateTime.Now}] {msg}\n{stackTrace}";
-        Console.Error.WriteLine(log);
+        WriteColoredLine(log, ConsoleColor.Red);
         _log += '\n'+log;
     }
 
     public void Warning(string msg)
     {
         var log = $"[Warning][{DateTime.Now}] {msg}";
-        Console.WriteLine(log);
+        WriteColoredLine(log, ConsoleColor.Yellow);
         _log += '\n'+log;
     }
     
     public void Warning(string msg, StackTrace stackTrace)
     {
         var log = $"[Warning][{DateTime.Now}] {msg}/\n{stackTrace}";
-        Console.WriteLine(log);
+        WriteColoredLine(log, ConsoleColor.Yellow);
         _log += '\n'+log;
     }
 
@@ -59,6 +58,17 @@ public class Logger : IDisposable
         var log = $"[{DateTime.Now}] {msg}";
         Console.WriteLine(log);
         _log += '\n'+log;
+    }
+    
+    /// <summary>
+    /// 지정된 색상으로 콘솔에 출력합니다.
+    /// </summary>
+    private void WriteColoredLine(string message, ConsoleColor color)
+    {
+        var previousColor = Console.ForegroundColor;
+        Console.ForegroundColor = color;
+        Console.WriteLine(message);
+        Console.ForegroundColor = previousColor;
     }
     
     private void CreateLogFile()

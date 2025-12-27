@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Common.Utils;
 
-namespace EnumGenerator;
+namespace UserEnum;
 
 /// <summary>
 /// 프로세스 간 Enum 데이터 공유를 위한 Memory-Mapped File 기반 IPC 핸들러

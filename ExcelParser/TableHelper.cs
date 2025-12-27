@@ -1,6 +1,6 @@
 using ClosedXML.Excel;
-using System.Data;
 using Common.Utils;
+using ExcelParser.Core;
 
 namespace ExcelParser;
 
@@ -12,19 +12,19 @@ public static class TableHelper
     public static List<IXLRow> GetRows(IXLWorksheet sheet, out int startIdx, out int endIdx)
     {
         var result = new List<IXLRow>();
-        int idx = startIdx = endIdx= 0;
+        int idx = startIdx = endIdx = 0;
         foreach (var row in sheet.Rows())
         {
             idx++;
             var first = row.Cells().FirstOrDefault();
-            if(first == null)
+            if (first == null)
                 continue;
             if (first.Value.ToString().ToLower().Equals("eof"))
             {
                 endIdx = idx;
                 break;
             }
-            if(IsSkip(row))
+            if (IsSkip(row))
                 continue;
             result.Add(row);
         }
@@ -32,21 +32,20 @@ public static class TableHelper
         startIdx = idx;
         return result;
     }
-    
+
     public static bool IsSkip(IXLRow row)
     {
-        if(row.CellCount() == 0)
+        if (row.CellCount() == 0)
             return true;
-        // 주석 제외
         var firstCell = row.Cells().FirstOrDefault();
         if (firstCell != null)
         {
-            if(firstCell.Value.ToString().StartsWith(TableDefine.REGEX_START_EXCEPT_ROW))
+            if (firstCell.Value.ToString().StartsWith(TableDefine.REGEX_START_EXCEPT_ROW))
                 return true;
         }
         return false;
     }
-    
+
     /// <summary>
     /// CustomDataTable을 생성하여 반환합니다.
     /// </summary>
@@ -56,12 +55,8 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// DataTable을 CustomDataTable로 변환합니다.
-    /// Google Sheets에서 읽어온 데이터를 Excel과 동일한 방식으로 처리합니다.
-    /// 1행: 컬럼명, 2행: 데이터 타입, 3행부터: 데이터 (Google Sheets용)
+    /// Google Sheets 데이터를 CustomDataTable로 변환합니다.
     /// </summary>
-    /// <param name="table">변환할 DataTable</param>
-    /// <returns>변환된 CustomDataTable</returns>
     public static CustomDataTable GetTable(string tableName, List<string[]> table)
     {
         if (table == null)
@@ -79,166 +74,70 @@ public static class TableHelper
         try
         {
             Logger.Instance.Log($"[TableHelper] Converting Google Sheets data to CustomDataTable: {tableName}");
-            
-            // table[0]: 컬럼명 행
+
             var columnNames = table[0];
-            
-            // 유효한 컬럼 인덱스와 이름 매핑
-            var validColumns = new Dictionary<int, string>();
+            var columnTypes = table.Count > 1 ? table[1] : [];
+
+            // 유효한 컬럼 정보 수집
+            var validColumns = new Dictionary<int, (string name, EDataType dataType, string customTypeName, bool isArray)>();
             for (int i = 0; i < columnNames.Length; i++)
             {
                 var columnName = columnNames[i];
-                
-                // 빈 컬럼명 스킵
+
                 if (string.IsNullOrEmpty(columnName))
                     continue;
-                
-                // 제외 컬럼 필터링 (# 접두사)
+
                 if (columnName.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
-                {
-                    Logger.Instance.Log($"[TableHelper] Skipping column: {columnName} (excluded by prefix)");
                     continue;
-                }
-                
-                validColumns[i] = columnName;
-                Logger.Instance.Log($"[TableHelper] Added column: {columnName}");
+
+                var typeStr = i < columnTypes.Length ? columnTypes[i] : "String";
+                var (dataType, customTypeName, isArray) = DataTypeHelper.ParseDataType(typeStr);
+
+                validColumns[i] = (columnName, dataType, customTypeName, isArray);
             }
-            
+
             if (validColumns.Count == 0)
             {
                 Logger.Instance.Warning("[TableHelper] No valid columns found");
                 return new CustomDataTable(new List<Dictionary<string, object>>(), tableName);
             }
-            
-            Logger.Instance.Log($"[TableHelper] Found {validColumns.Count} valid columns");
-            
-            // 데이터 행들을 Dictionary 리스트로 변환
-            // table[0]: 컬럼명, table[1]: 타입 정의 -> table[2]부터 실제 데이터
+
+            // 데이터 행 변환
             var dictList = new List<Dictionary<string, object>>();
-            
+
             for (int rowIndex = 2; rowIndex < table.Count; rowIndex++)
             {
                 var row = table[rowIndex];
-                
-                // 빈 행 체크
-                if (row.All(cell => string.IsNullOrWhiteSpace(cell)))
-                {
-                    continue;
-                }
-                
-                // 제외 행 필터링 (// 접두사)
-                if (row.Length > 0 && row[0]?.StartsWith(TableDefine.REGEX_START_EXCEPT_ROW) == true)
-                {
-                    Logger.Instance.Log($"[TableHelper] Skipping row {rowIndex} (comment row)");
-                    continue;
-                }
 
-                // EOF 마커 확인
+                if (row.All(cell => string.IsNullOrWhiteSpace(cell)))
+                    continue;
+
+                if (row.Length > 0 && row[0]?.StartsWith(TableDefine.REGEX_START_EXCEPT_ROW) == true)
+                    continue;
+
                 if (row.Length > 0 && row[0]?.Equals("EOF", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    Logger.Instance.Log($"[TableHelper] Reached EOF marker at row {rowIndex}");
                     break;
-                }
 
                 var rowDict = new Dictionary<string, object>();
-                
-                // 유효한 컬럼들에 대해서만 데이터 추출
-                foreach (var (colIndex, colName) in validColumns)
+
+                foreach (var (colIndex, colInfo) in validColumns)
                 {
                     var cellValue = colIndex < row.Length ? row[colIndex] : string.Empty;
-                    rowDict[colName] = cellValue ?? string.Empty;
+                    var convertedValue = DataTypeHelper.ConvertValue(cellValue, colInfo.dataType, colInfo.customTypeName, colInfo.isArray);
+                    rowDict[colInfo.name] = convertedValue;
                 }
-                
+
                 dictList.Add(rowDict);
             }
-            
-            Logger.Instance.Log($"[TableHelper] Extracted {dictList.Count} valid data rows (skipped header and type rows)");
-            
-            // CustomDataTable 생성
+
             var customTable = new CustomDataTable(dictList, tableName);
-            
-            Logger.Instance.Log($"[TableHelper] CustomDataTable created: {customTable.Name} with {customTable.RowCount} rows and {customTable.ColumnCount} columns");
+            Logger.Instance.Log($"[TableHelper] CustomDataTable created: {customTable.Name} with {customTable.RowCount} rows");
             return customTable;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[TableHelper] Error converting table to CustomDataTable: {ex.Message}");
+            Logger.Instance.Error($"[TableHelper] Error converting table: {ex.Message}");
             return null;
-        }
-    }
-    
-    /// <summary>
-    /// 문자열을 지정된 타입으로 변환합니다. (TableHelper.GetConvertedCellValue의 문자열 버전)
-    /// </summary>
-    private static object ConvertStringToType(string value, Type type, string columnName, int rowNumber)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return GetDefaultValue(type);
-        }
-        
-        try
-        {
-            if (type == typeof(Int16) || type == typeof(Int32) || type == typeof(Int64) || 
-                type == typeof(Single) || type == typeof(Double))
-            {
-                if (!double.TryParse(value, out double number))
-                {
-                    Logger.Instance.Warning($"[TableHelper] Value '{value}' is not a number for column '{columnName}' at row {rowNumber}");
-                    return GetDefaultValue(type);
-                }
-
-                // 범위 체크 및 변환
-                if (type == typeof(Int16) && (number < Int16.MinValue || number > Int16.MaxValue))
-                {
-                    Logger.Instance.Warning($"[TableHelper] Value {number} is outside the range of Int16 for column '{columnName}' at row {rowNumber}");
-                    return GetDefaultValue(type);
-                }
-                else if (type == typeof(Int32) && (number < Int32.MinValue || number > Int32.MaxValue))
-                {
-                    Logger.Instance.Warning($"[TableHelper] Value {number} is outside the range of Int32 for column '{columnName}' at row {rowNumber}");
-                    return GetDefaultValue(type);
-                }
-                
-                return Convert.ChangeType(number, type);
-            }
-            else if (type == typeof(String))
-            {
-                return value;
-            }
-            else if (type.IsArray)
-            {
-                var elementType = type.GetElementType();
-                if (elementType == null)
-                {
-                    Logger.Instance.Warning($"[TableHelper] Cannot determine array element type for column '{columnName}' at row {rowNumber}");
-                    return GetDefaultValue(type);
-                }
-                
-                return ConvertTextToArray(value, elementType);
-            }
-            else if (type.IsEnum)
-            {
-                if (int.TryParse(value, out var iResult))
-                    return Convert.ChangeType(iResult, type);
-                else if (Enum.TryParse(type, value, out var eResult))
-                    return eResult;
-                else
-                {
-                    Logger.Instance.Warning($"[TableHelper] Cannot parse '{value}' as enum type {type} for column '{columnName}' at row {rowNumber}");
-                    return GetDefaultValue(type);
-                }
-            }
-            else
-            {
-                Logger.Instance.Warning($"[TableHelper] Unsupported type {type} for column '{columnName}' at row {rowNumber}");
-                return GetDefaultValue(type);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Instance.Warning($"[TableHelper] Error converting '{value}' to {type.Name} for column '{columnName}' at row {rowNumber}: {ex.Message}");
-            return GetDefaultValue(type);
         }
     }
 
@@ -253,9 +152,6 @@ public static class TableHelper
     /// <summary>
     /// Dictionary 리스트를 CustomDataTable로 변환합니다.
     /// </summary>
-    /// <param name="data">변환할 Dictionary 리스트</param>
-    /// <param name="tableName">테이블 이름 (선택사항)</param>
-    /// <returns>변환된 CustomDataTable</returns>
     public static CustomDataTable ConvertToCustomDataTable(List<Dictionary<string, object>> data, string tableName = "DataTable")
     {
         if (data == null || data.Count == 0)
@@ -271,95 +167,107 @@ public static class TableHelper
     /// <summary>
     /// 여러 Dictionary 리스트를 각각 CustomDataTable로 변환합니다.
     /// </summary>
-    /// <param name="dataList">변환할 Dictionary 리스트들</param>
-    /// <param name="tableNames">각 테이블의 이름들 (선택사항)</param>
-    /// <returns>변환된 CustomDataTable 리스트</returns>
     public static List<CustomDataTable> ConvertToCustomDataTableList(List<List<Dictionary<string, object>>> dataList, List<string> tableNames = null)
     {
         var result = new List<CustomDataTable>();
-        
+
         for (int i = 0; i < dataList.Count; i++)
         {
             var tableName = tableNames != null && i < tableNames.Count ? tableNames[i] : $"DataTable{i}";
             var customTable = ConvertToCustomDataTable(dataList[i], tableName);
             result.Add(customTable);
         }
-        
+
         Logger.Instance.Log($"Converted {dataList.Count} data lists to CustomDataTable list");
         return result;
     }
 
+    /// <summary>
+    /// Excel 셀 값을 지정된 타입으로 변환합니다.
+    /// </summary>
     public static object GetConvertedCellValue(IXLCell cell, Type type)
     {
-        if (CheckValue(cell, type) == false)
-            return GetDefaultValue(type);
+        return GetConvertedCellValue(cell, type, EDataType.String, string.Empty, false);
+    }
 
-        object result = 0;
-        if(type == typeof(DateTime))
+    /// <summary>
+    /// Excel 셀 값을 EDataType 기반으로 변환합니다.
+    /// </summary>
+    public static object GetConvertedCellValue(IXLCell cell, Type type, EDataType dataType, string customTypeName, bool isArray)
+    {
+        var cellText = cell.Value.IsText ? cell.Value.GetText() : cell.Value.ToString();
+
+        // 사용자 정의 Enum인 경우 DataTypeHelper 사용
+        if (dataType == EDataType.UserDefinedEnum)
         {
-            result = Convert.ToDateTime(cell.Value);   
+            return DataTypeHelper.ConvertValue(cellText, dataType, customTypeName, isArray);
         }
-        else if (type == typeof(Int16) ||
-            type == typeof(Int32) ||
-            type == typeof(Int64) ||
-            type == typeof(Single) ||
-            type == typeof(Double))
+
+        // 기본 타입 변환
+        if (!CheckValue(cell, type))
+            return DataTypeHelper.GetDefaultValue(type);
+
+        object result = null;
+
+        if (type == typeof(DateTime))
+        {
+            result = Convert.ToDateTime(cell.Value);
+        }
+        else if (type == typeof(Int16) || type == typeof(Int32) || type == typeof(Int64) ||
+                 type == typeof(Single) || type == typeof(Double))
         {
             result = Convert.ChangeType(cell.Value.GetNumber(), type);
         }
         else if (type == typeof(String))
         {
-            if(cell.Value.IsNumber)
-                result = Convert.ChangeType(cell.Value.GetNumber(), type);
-            if(cell.Value.IsBoolean)
-                result = Convert.ChangeType(cell.Value.GetBoolean(), type);
-            if(cell.Value.IsDateTime)
-                result = Convert.ChangeType(cell.Value.GetDateTime(), type);
-            if(cell.Value.IsText)
-                result = Convert.ChangeType(cell.Value.GetText(), type);
+            if (cell.Value.IsNumber)
+                result = cell.Value.GetNumber().ToString();
+            else if (cell.Value.IsBoolean)
+                result = cell.Value.GetBoolean().ToString();
+            else if (cell.Value.IsDateTime)
+                result = cell.Value.GetDateTime().ToString();
+            else if (cell.Value.IsText)
+                result = cell.Value.GetText();
+            else
+                result = cell.Value.ToString();
         }
         else if (type.IsArray)
         {
-            var elementType = Type.GetType(type.ToString().Replace("[]", ""));
-            if (elementType == null)
+            var elementType = type.GetElementType();
+            if (elementType != null)
             {
-                Logger.Instance.Warning(
-                    $"Parsing Failed(Try to parse Array, but failed)(type : {type.ToString()}, value: {cell.Value.GetText()})");
-            }
-            else
-            {
-                result = ConvertTextToArray(cell.Value.GetText(), elementType);
+                result = ConvertTextToArray(cellText, elementType);
             }
         }
         else if (type.IsEnum)
         {
-            var value = cell.Value.GetText();
-            if (int.TryParse(value, out var iResult))
-                result = Convert.ChangeType(iResult, type);
-            else if (Enum.TryParse(type, value, out var eResult))
+            if (int.TryParse(cellText, out var iResult))
+                result = Enum.ToObject(type, iResult);
+            else if (Enum.TryParse(type, cellText, out var eResult))
                 result = eResult;
-            else
-            {
-                Logger.Instance.Warning(
-                    $"Parsing Failed(Try to parse Enum, but failed)(type : {type.ToString()}, value: {value})");
-            }
-        }
-        else
-        {
-            Logger.Instance.Warning(
-                $"Parsing Failed(Cannot find type)(type : {type.ToString()}, value: {cell.Value.ToString()})");
         }
 
-        return result;
+        return result ?? DataTypeHelper.GetDefaultValue(type);
     }
 
-    private static object ConvertTextToArray(string text, Type type)
+    private static object ConvertTextToArray(string text, Type elementType)
     {
-        var parts = text.Trim('[', ']').Replace(" ", "").Split(",");
-        var array = Array.CreateInstance(type, parts.Length);
-        for (int i = 0; i < array.Length; i++)
+        if (string.IsNullOrEmpty(text))
+            return Array.CreateInstance(elementType, 0);
+
+        var parts = text.Trim('[', ']').Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var array = Array.CreateInstance(elementType, parts.Length);
+
+        for (int i = 0; i < parts.Length; i++)
         {
-            array.SetValue(Convert.ChangeType(parts[i], type), i);
+            try
+            {
+                array.SetValue(Convert.ChangeType(parts[i].Trim(), elementType), i);
+            }
+            catch
+            {
+                array.SetValue(elementType.IsValueType ? Activator.CreateInstance(elementType) : null, i);
+            }
         }
 
         return array;
@@ -369,9 +277,8 @@ public static class TableHelper
     {
         try
         {
-            if (type == typeof(Int16) || type == typeof(Int32) ||
-                type == typeof(Int64) || type == typeof(Single) ||
-                type == typeof(Double))
+            if (type == typeof(Int16) || type == typeof(Int32) || type == typeof(Int64) ||
+                type == typeof(Single) || type == typeof(Double))
             {
                 if (!cell.Value.IsNumber)
                 {
@@ -382,103 +289,33 @@ public static class TableHelper
                 double number = cell.Value.GetNumber();
 
                 if (type == typeof(Int16) && (number < Int16.MinValue || number > Int16.MaxValue))
-                {
-                    Logger.Instance.Warning($"Value {number} at {cell.Address} is outside the range of Int16");
                     return false;
-                }
-                else if (type == typeof(Int32) && (number < Int32.MinValue || number > Int32.MaxValue))
-                {
-                    Logger.Instance.Warning($"Value {number} at {cell.Address} is outside the range of Int32");
+                if (type == typeof(Int32) && (number < Int32.MinValue || number > Int32.MaxValue))
                     return false;
-                }
-                else if (type == typeof(Int64) && (number < Int64.MinValue || number > Int64.MaxValue))
-                {
-                    Logger.Instance.Warning($"Value {number} at {cell.Address} is outside the range of Int64");
+                if (type == typeof(Int64) && (number < Int64.MinValue || number > Int64.MaxValue))
                     return false;
-                }
-                else if (type == typeof(Single) && (number < Single.MinValue || number > Single.MaxValue))
-                {
-                    Logger.Instance.Warning($"Value {number} at {cell.Address} is outside the range of Single");
-                    return false;
-                }
-                else if (type == typeof(Double) && (double.IsInfinity(number) || double.IsNaN(number)))
-                {
-                    Logger.Instance.Warning(
-                        $"Value {number} at {cell.Address} is not a valid Double (Infinity or NaN)");
-                    return false;
-                }
 
                 return true;
             }
-            else if (type == typeof(String))
-            {
-                return true; // 문자열은 항상 변환 가능
-            }
-            else if (type.IsArray)
-            {
-                string text = cell.Value.ToString();
-                if (string.IsNullOrEmpty(text))
-                {
-                    Logger.Instance.Warning(
-                        $"Cell at {cell.Address} is empty or null but trying to convert to array type {type}");
-                    return false;
-                }
 
+            if (type == typeof(String))
                 return true;
-            }
-            else if (type.IsEnum)
+
+            if (type.IsArray)
+                return !string.IsNullOrEmpty(cell.Value.ToString());
+
+            if (type.IsEnum)
             {
                 string text = cell.Value.ToString();
-                bool isValid = int.TryParse(text, out _) || Enum.GetNames(type).Contains(text);
-
-                if (!isValid)
-                {
-                    Logger.Instance.Warning($"Value '{text}' at {cell.Address} cannot be parsed as enum type {type}");
-                }
-
-                return isValid;
+                return int.TryParse(text, out _) || Enum.GetNames(type).Contains(text);
             }
 
-            Logger.Instance.Warning($"Unsupported type {type} for cell at {cell.Address}");
-            return false; // 지원하지 않는 타입
+            return false;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Warning(
-                $"Exception occurred while checking value at {cell.Address} for type {type}: {ex.Message}");
-            return false; // 예외 발생 시 유효하지 않음
+            Logger.Instance.Warning($"Exception at {cell.Address} for type {type}: {ex.Message}");
+            return false;
         }
-    }
-
-    private static object GetDefaultValue(Type type)
-    {
-        if (type == typeof(Int16))
-            return (Int16)0;
-        if (type == typeof(Int32))
-            return (Int32)0;
-        if (type == typeof(Int64))
-            return (Int64)0;
-        if (type == typeof(Single))
-            return (Single)0.0f;
-        if (type == typeof(Double))
-            return (Double)0.0;
-        if (type == typeof(String))
-            return string.Empty;
-        if (type.IsArray)
-        {
-            // 배열 타입의 기본값은 빈 배열
-            Type elementType = type.GetElementType();
-            return Array.CreateInstance(elementType, 0);
-        }
-
-        if (type.IsEnum)
-        {
-            // Enum의 기본값은 첫 번째 정의된 값 또는 0
-            Array values = Enum.GetValues(type);
-            return values.Length > 0 ? values.GetValue(0) : Enum.ToObject(type, 0);
-        }
-
-        // 그 외 타입은 기본값
-        return type.IsValueType ? Activator.CreateInstance(type) : null;
     }
 }

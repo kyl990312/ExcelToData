@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using Common.Utils;
+using ExcelParser.Core;
 
 namespace ExcelParser;
 
@@ -9,6 +10,9 @@ public class TableHeader
     {
         public string name;
         public Type type;
+        public EDataType dataType;
+        public string customTypeName;
+        public bool isArray;
     }
     
     private Dictionary<int, Group> _headers = new Dictionary<int, Group>();
@@ -37,10 +41,15 @@ public class TableHeader
         int index = 0;
         foreach (var kvp in columnTypes)
         {
+            var (dataType, customTypeName, isArray) = DataTypeHelper.ParseDataType(kvp.Value.Name);
+            
             _headers.Add(index, new Group()
             {
                 name = kvp.Key,
-                type = kvp.Value
+                type = kvp.Value,
+                dataType = dataType,
+                customTypeName = customTypeName,
+                isArray = isArray
             });
             index++;
         }
@@ -79,8 +88,7 @@ public class TableHeader
                 break;
                 
             var name = names[i]?.Value.ToString() ?? "";
-            var typeStr = "System." + (types[i]?.Value.ToString() ?? "");
-            var type = Type.GetType(typeStr);
+            var typeStr = types[i]?.Value.ToString() ?? "";
 
             if (name.StartsWith(TableDefine.REGEX_START_EXCEPT_COLUMN))
                 continue;
@@ -90,20 +98,29 @@ public class TableHeader
                 Logger.Instance.Error($"{sheet.Name} Name is empty. (column : {i})");
                 continue;
             }
-            
-            if (type == null)
-            {
-                Logger.Instance.Error($"{sheet.Name} Type is invalid. (column : {i}, type : {typeStr})");
-                continue;
-            }
 
-            if(Names.Contains(name))
+            if (Names.Contains(name))
                 continue;
+            
+            // DataTypeHelper를 사용하여 타입 파싱
+            var (dataType, customTypeName, isArray) = DataTypeHelper.ParseDataType(typeStr);
+            
+            // 사용자 정의 Enum 검증
+            if (dataType == EDataType.UserDefinedEnum && !DataTypeHelper.IsValidUserDefinedEnum(customTypeName))
+            {
+                Logger.Instance.Warning($"{sheet.Name} Unknown user-defined enum: {customTypeName} (column: {i}). Treating as int.");
+            }
+            
+            // System.Type 결정
+            var type = DataTypeHelper.GetSystemType(dataType, isArray);
             
             _headers.Add(i, new Group()
             {
                 name = name,
                 type = type,
+                dataType = dataType,
+                customTypeName = customTypeName,
+                isArray = isArray
             });
         }
     }
@@ -116,5 +133,20 @@ public class TableHeader
     public Type GetColumnType(string columnName)
     {
         return Headers.ToList().Find(x => columnName.Equals(x.name)).type;
+    }
+    
+    public EDataType GetColumnDataType(string columnName)
+    {
+        return Headers.ToList().Find(x => columnName.Equals(x.name)).dataType;
+    }
+    
+    public string GetColumnCustomTypeName(string columnName)
+    {
+        return Headers.ToList().Find(x => columnName.Equals(x.name)).customTypeName;
+    }
+    
+    public bool IsColumnArray(string columnName)
+    {
+        return Headers.ToList().Find(x => columnName.Equals(x.name)).isArray;
     }
 }

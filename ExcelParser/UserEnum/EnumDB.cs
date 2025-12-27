@@ -1,7 +1,7 @@
 using BinaryParser;
 using Common.Utils;
 
-namespace EnumGenerator;
+namespace UserEnum;
 
 /// <summary>
 /// EnumCache를 싱글톤으로 관리하는 전역 접근 클래스

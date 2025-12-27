@@ -1,7 +1,7 @@
 ﻿using Common;
 using Common.Command;
 using Common.Utils;
-using EnumGenerator;
+using UserEnum;
 using TableAutomarionToolShared;
 
 public class TestCommandInvoker : CommandInvoker
