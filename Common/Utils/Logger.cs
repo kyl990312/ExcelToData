@@ -53,10 +53,10 @@ public class Logger : IDisposable
         _log += '\n'+log;
     }
 
-    public void Log(string msg)
+    public void Log(string msg, ConsoleColor color = ConsoleColor.White)
     {
         var log = $"[{DateTime.Now}] {msg}";
-        Console.WriteLine(log);
+        WriteColoredLine(log, color);
         _log += '\n'+log;
     }
     

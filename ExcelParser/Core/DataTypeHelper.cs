@@ -50,6 +50,28 @@ public static class DataTypeHelper
     }
 
     /// <summary>
+    /// EDataType을 타입 문자열로 변환합니다.
+    /// UserDefinedEnum의 경우 customTypeName을 그대로 반환합니다.
+    /// </summary>
+    public static string GetSystemTypeString(EDataType dataType, string customTypeName = "", bool isArray = false)
+    {
+        string baseType = dataType switch
+        {
+            EDataType.Int16 => "System.Int16",
+            EDataType.Int32 => "System.Int32",
+            EDataType.Int64 => "System.Int64",
+            EDataType.Single => "System.Single",
+            EDataType.Double => "System.Double",
+            EDataType.String => "System.String",
+            EDataType.DateTime => "System.DateTime",
+            EDataType.UserDefinedEnum => customTypeName, // Enum 타입명 그대로 반환
+            _ => "System.Object"
+        };
+
+        return isArray ? baseType + "[]" : baseType;
+    }
+
+    /// <summary>
     /// EDataType을 System.Type으로 변환합니다.
     /// </summary>
     public static Type GetSystemType(EDataType dataType, bool isArray = false)
@@ -73,7 +95,7 @@ public static class DataTypeHelper
     /// <summary>
     /// EDataType의 기본값을 반환합니다.
     /// </summary>
-    public static object GetDefaultValue(EDataType dataType, bool isArray = false)
+    public static object GetDefaultValue(EDataType dataType, bool isArray = false, string customTypeName = "")
     {
         if (isArray)
         {
@@ -100,7 +122,7 @@ public static class DataTypeHelper
             EDataType.Double => 0.0,
             EDataType.String => string.Empty,
             EDataType.DateTime => DateTime.MinValue,
-            EDataType.UserDefinedEnum => string.Empty, // Enum 기본값도 빈 문자열
+            EDataType.UserDefinedEnum => EnumDB.Instance.HasEnum(customTypeName) ? "None" : string.Empty,
             _ => null
         };
     }
