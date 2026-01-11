@@ -1,7 +1,7 @@
 using Common.Utils;
 using ExcelParser;
 using System.Text;
-using EnumGenerator;
+using UserEnum;
 using Common.Command;
 
 namespace CodeGenerator;

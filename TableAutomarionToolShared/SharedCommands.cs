@@ -1,5 +1,6 @@
 ﻿using Common.Command;
-using EnumGenerator;
+using UserEnum;
+
 
 namespace TableAutomarionToolShared
 {

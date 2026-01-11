@@ -1,5 +1,6 @@
 using ExcelParser;
 using Common.Utils;
+using BinaryParser;
 
 using BinaryReader = BinaryParser.BinaryReader;
 
@@ -17,8 +18,21 @@ public class JsonExtractor : DataExtractorBase
     protected override List<CustomDataTable> GetDataTablesByFile(string filePath)
     {
         var tables = new List<CustomDataTable>();
+        
+        // 바이너리 파일 읽기
+        byte[] binaryData = File.ReadAllBytes(filePath);
+        
+        // 스키마 정보 읽기
+        var schema = BinarySchema.ReadFromBytes(binaryData);
+        
+        // 데이터 읽기
         var binaryReader = new BinaryReader();
-        var table = TableHelper.ConvertToCustomDataTable(binaryReader.ReadFromFile(filePath), Path.GetFileNameWithoutExtension(filePath));
+        var data = binaryReader.ReadFromFile(filePath);
+        
+        // CustomDataTable 생성
+        var tableName = Path.GetFileNameWithoutExtension(filePath);
+        var table = new CustomDataTable(tableName, schema.Columns, data);
+        
         tables.Add(table);
         return tables;
     }

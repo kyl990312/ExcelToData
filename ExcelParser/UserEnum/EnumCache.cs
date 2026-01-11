@@ -1,7 +1,7 @@
 ﻿using Common.Utils;
 using ExcelParser;
 
-namespace EnumGenerator;
+namespace UserEnum;
 
 /// <summary>
 /// Enum 데이터를 메모리에 저장하고 관리하는 캐시

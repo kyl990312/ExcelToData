@@ -1,3 +1,6 @@
+using Common.Utils;
+using UserEnum;
+
 namespace ExcelParser.Core;
 
 public enum EDataType
@@ -8,7 +11,8 @@ public enum EDataType
     Single,
     Double,
     String,
-    UserDefinedEnum,  // 사용자 정의 Enum
+    DateTime,
+    UserDefinedEnum,
     
     Max
 }
@@ -40,8 +44,31 @@ public static class DataTypeHelper
             "Single" => (EDataType.Single, string.Empty, isArray),
             "Double" => (EDataType.Double, string.Empty, isArray),
             "String" => (EDataType.String, string.Empty, isArray),
-            _ => (EDataType.UserDefinedEnum, baseType, isArray) // 사용자 정의 타입으로 처리
+            "DateTime" => (EDataType.DateTime, string.Empty, isArray),
+            _ => (EDataType.UserDefinedEnum, baseType, isArray)
         };
+    }
+
+    /// <summary>
+    /// EDataType을 타입 문자열로 변환합니다.
+    /// UserDefinedEnum의 경우 customTypeName을 그대로 반환합니다.
+    /// </summary>
+    public static string GetSystemTypeString(EDataType dataType, string customTypeName = "", bool isArray = false)
+    {
+        string baseType = dataType switch
+        {
+            EDataType.Int16 => "System.Int16",
+            EDataType.Int32 => "System.Int32",
+            EDataType.Int64 => "System.Int64",
+            EDataType.Single => "System.Single",
+            EDataType.Double => "System.Double",
+            EDataType.String => "System.String",
+            EDataType.DateTime => "System.DateTime",
+            EDataType.UserDefinedEnum => customTypeName, // Enum 타입명 그대로 반환
+            _ => "System.Object"
+        };
+
+        return isArray ? baseType + "[]" : baseType;
     }
 
     /// <summary>
@@ -57,7 +84,8 @@ public static class DataTypeHelper
             EDataType.Single => typeof(Single),
             EDataType.Double => typeof(Double),
             EDataType.String => typeof(String),
-            EDataType.UserDefinedEnum => typeof(int), // Enum은 기본적으로 int로 처리
+            EDataType.DateTime => typeof(DateTime),
+            EDataType.UserDefinedEnum => typeof(string), // Enum은 문자열로 저장
             _ => typeof(object)
         };
 
@@ -65,76 +93,167 @@ public static class DataTypeHelper
     }
 
     /// <summary>
-    /// 사용자 정의 Enum 타입을 실제 Type으로 변환합니다.
+    /// EDataType의 기본값을 반환합니다.
     /// </summary>
-    public static Type GetEnumType(string typeName)
-    {
-        // 현재 로드된 어셈블리에서 타입 검색
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            var type = assembly.GetType(typeName);
-            if (type != null && type.IsEnum)
-                return type;
-        }
-
-        // 타입을 찾을 수 없으면 int로 대체
-        return typeof(int);
-    }
-
-    /// <summary>
-    /// 문자열을 지정된 타입으로 변환합니다.
-    /// </summary>
-    public static object ConvertValue(string value, EDataType dataType, string customTypeName = "", bool isArray = false)
+    public static object GetDefaultValue(EDataType dataType, bool isArray = false, string customTypeName = "")
     {
         if (isArray)
         {
-            return ConvertToArray(value, dataType, customTypeName);
+            return dataType switch
+            {
+                EDataType.Int16 => Array.Empty<short>(),
+                EDataType.Int32 => Array.Empty<int>(),
+                EDataType.Int64 => Array.Empty<long>(),
+                EDataType.Single => Array.Empty<float>(),
+                EDataType.Double => Array.Empty<double>(),
+                EDataType.String => Array.Empty<string>(),
+                EDataType.DateTime => Array.Empty<DateTime>(),
+                EDataType.UserDefinedEnum => Array.Empty<string>(), // Enum 배열도 문자열
+                _ => Array.Empty<object>()
+            };
         }
 
         return dataType switch
         {
-            EDataType.Int16 => Convert.ToInt16(value),
-            EDataType.Int32 => Convert.ToInt32(value),
-            EDataType.Int64 => Convert.ToInt64(value),
-            EDataType.Single => Convert.ToSingle(value),
-            EDataType.Double => Convert.ToDouble(value),
-            EDataType.String => value,
-            EDataType.UserDefinedEnum => ConvertToEnum(value, customTypeName),
-            _ => value
+            EDataType.Int16 => (short)0,
+            EDataType.Int32 => 0,
+            EDataType.Int64 => 0L,
+            EDataType.Single => 0.0f,
+            EDataType.Double => 0.0,
+            EDataType.String => string.Empty,
+            EDataType.DateTime => DateTime.MinValue,
+            EDataType.UserDefinedEnum => EnumDB.Instance.HasEnum(customTypeName) ? "None" : string.Empty,
+            _ => null
         };
     }
 
+    /// <summary>
+    /// System.Type의 기본값을 반환합니다.
+    /// </summary>
+    public static object GetDefaultValue(Type type)
+    {
+        if (type == typeof(Int16)) return (short)0;
+        if (type == typeof(Int32)) return 0;
+        if (type == typeof(Int64)) return 0L;
+        if (type == typeof(Single)) return 0.0f;
+        if (type == typeof(Double)) return 0.0;
+        if (type == typeof(String)) return string.Empty;
+        if (type == typeof(DateTime)) return DateTime.MinValue;
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType() ?? typeof(object);
+            return Array.CreateInstance(elementType, 0);
+        }
+        if (type.IsEnum)
+        {
+            var values = Enum.GetValues(type);
+            return values.Length > 0 ? values.GetValue(0) : Enum.ToObject(type, 0);
+        }
+        return type.IsValueType ? Activator.CreateInstance(type) : null;
+    }
+
+    /// <summary>
+    /// 문자열을 EDataType에 맞게 변환합니다.
+    /// </summary>
+    public static object ConvertValue(string value, EDataType dataType, string customTypeName = "", bool isArray = false)
+    {
+        if (string.IsNullOrEmpty(value))
+            return GetDefaultValue(dataType, isArray);
+
+        try
+        {
+            if (isArray)
+                return ConvertToArray(value, dataType, customTypeName);
+
+            return dataType switch
+            {
+                EDataType.Int16 => short.TryParse(value, out var s) ? s : (short)0,
+                EDataType.Int32 => int.TryParse(value, out var i) ? i : 0,
+                EDataType.Int64 => long.TryParse(value, out var l) ? l : 0L,
+                EDataType.Single => float.TryParse(value, out var f) ? f : 0.0f,
+                EDataType.Double => double.TryParse(value, out var d) ? d : 0.0,
+                EDataType.String => value,
+                EDataType.DateTime => DateTime.TryParse(value, out var dt) ? dt : DateTime.MinValue,
+                EDataType.UserDefinedEnum => ConvertToUserEnumString(value, customTypeName),
+                _ => value
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Warning($"[DataTypeHelper] Error converting '{value}' to {dataType}: {ex.Message}");
+            return GetDefaultValue(dataType, isArray);
+        }
+    }
+
+    /// <summary>
+    /// 문자열을 배열로 변환합니다.
+    /// </summary>
     private static object ConvertToArray(string arrayStr, EDataType elementType, string customTypeName)
     {
-        var elements = arrayStr.Trim('[', ']').Split(',').Select(s => s.Trim()).ToArray();
-        
+        var elements = arrayStr.Trim('[', ']')
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .ToArray();
+
+        if (elements.Length == 0)
+            return GetDefaultValue(elementType, isArray: true);
+
         return elementType switch
         {
-            EDataType.Int16 => elements.Select(x=>Int16.Parse(x)).ToArray(),
-            EDataType.Int32 => elements.Select(x=>Int32.Parse(x)).ToArray(),
-            EDataType.Int64 => elements.Select(x=>Int64.Parse(x)).ToArray(),
-            EDataType.Single => elements.Select(Convert.ToSingle).ToArray(),
-            EDataType.Double => elements.Select(Convert.ToDouble).ToArray(),
+            EDataType.Int16 => elements.Select(x => short.TryParse(x, out var v) ? v : (short)0).ToArray(),
+            EDataType.Int32 => elements.Select(x => int.TryParse(x, out var v) ? v : 0).ToArray(),
+            EDataType.Int64 => elements.Select(x => long.TryParse(x, out var v) ? v : 0L).ToArray(),
+            EDataType.Single => elements.Select(x => float.TryParse(x, out var v) ? v : 0.0f).ToArray(),
+            EDataType.Double => elements.Select(x => double.TryParse(x, out var v) ? v : 0.0).ToArray(),
             EDataType.String => elements,
-            EDataType.UserDefinedEnum => elements.Select(e => ConvertToEnum(e, customTypeName)).ToArray(),
+            EDataType.DateTime => elements.Select(x => DateTime.TryParse(x, out var v) ? v : DateTime.MinValue).ToArray(),
+            EDataType.UserDefinedEnum => elements.Select(e => ConvertToUserEnumString(e, customTypeName)).ToArray(),
             _ => elements
         };
     }
 
-    private static object ConvertToEnum(string value, string enumTypeName)
+    /// <summary>
+    /// 사용자 정의 Enum 값을 문자열(멤버명)로 변환합니다.
+    /// 입력이 숫자면 EnumDB에서 멤버명을 조회하고, 문자열이면 유효성 검증 후 그대로 반환합니다.
+    /// </summary>
+    private static string ConvertToUserEnumString(string value, string enumTypeName)
     {
+        // 숫자로 입력된 경우 → 멤버명으로 변환
         if (int.TryParse(value, out int intValue))
         {
-            return intValue; // Enum 값을 int로 반환
+            var memberName = EnumDB.Instance.GetEnumMemberName(enumTypeName, intValue);
+            if (!string.IsNullOrEmpty(memberName))
+                return memberName;
+            
+            Logger.Instance.Warning($"[DataTypeHelper] Unknown enum value '{intValue}' for type '{enumTypeName}'. Using empty string.");
+            return string.Empty;
         }
 
-        // Enum 이름으로 변환 (실제 Enum 타입이 있다면)
-        var enumType = GetEnumType(enumTypeName);
-        if (enumType != typeof(int) && Enum.TryParse(enumType, value, out var enumValue))
-        {
-            return enumValue;
-        }
+        // 문자열로 입력된 경우 → 유효성 검증 후 그대로 반환
+        var enumValue = EnumDB.Instance.GetEnumValue(enumTypeName, value);
+        if (enumValue.HasValue)
+            return value; // 유효한 멤버명이면 그대로 반환
 
-        return 0; // 기본값
+        Logger.Instance.Warning($"[DataTypeHelper] Unknown enum member '{value}' for type '{enumTypeName}'. Using as-is.");
+        return value; // 검증 실패해도 입력값 그대로 반환 (유연성)
+    }
+
+    /// <summary>
+    /// 사용자 정의 Enum 타입인지 EnumDB에서 검증합니다.
+    /// </summary>
+    public static bool IsValidUserDefinedEnum(string typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+            return false;
+        return EnumDB.Instance.HasEnum(typeName);
+    }
+    
+    /// <summary>
+    /// Enum 멤버명을 int 값으로 변환합니다. (런타임에서 사용)
+    /// </summary>
+    public static int GetEnumValueFromString(string enumTypeName, string memberName)
+    {
+        var value = EnumDB.Instance.GetEnumValue(enumTypeName, memberName);
+        return value ?? 0;
     }
 }

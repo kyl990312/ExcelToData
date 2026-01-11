@@ -1,4 +1,3 @@
-using System.Data;
 using ClosedXML.Excel;
 using ExcelParser;
 using Common.Utils;
@@ -38,7 +37,17 @@ public class StructuredBinaryExtractor : DataExtractorBase
                 
                 // CustomDataTable 사용
                 var table = TableHelper.GetTable(workSheet);
-                tables.Add(TableHelper.GetTable(workSheet));
+                
+#if DEBUG
+                // 헤더 정보 로그 출력
+                Logger.Instance.Log($"[StructuredBinaryExtractor] Table: {table.Name}, ColumnCount: {table.ColumnCount}, RowCount: {table.RowCount}", ConsoleColor.Cyan);
+                foreach (var header in table.Header.Headers)
+                {
+                    Logger.Instance.Log($"[StructuredBinaryExtractor]   - {header.name}: {header.typeString} (DataType: {header.dataType}, IsArray: {header.isArray})", ConsoleColor.Cyan);
+                }
+#endif
+                
+                tables.Add(table);
                 Logger.Instance.Log($"Finish Convert Worksheet to DataTable({workSheet.Name})");
             }
         }
@@ -49,8 +58,8 @@ public class StructuredBinaryExtractor : DataExtractorBase
     {
         try
         {
-            // 구조화된 바이너리 형식으로 저장
-            _binaryWriter.WriteToFile(table.GetAllRowsData(), path);
+            // 칼럼 타입 정보와 데이터를 함께 전달하여 저장
+            _binaryWriter.WriteToFile(table.GetColumnTypes(), table.GetAllRowsData(), path);
             Logger.Instance.Log($"[StructuredBinaryExtractor] Save File StructuredBinary {path}");
         }
         catch (Exception ex)

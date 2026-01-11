@@ -1,7 +1,7 @@
 using BinaryParser;
 using Common.Utils;
 
-namespace EnumGenerator;
+namespace UserEnum;
 
 /// <summary>
 /// EnumCache를 싱글톤으로 관리하는 전역 접근 클래스
@@ -26,6 +26,9 @@ public sealed class EnumDB : IDisposable
     /// IPC 공유 메모리 핸들러
     /// </summary>
     private SharedEnumMemoryHandler? _sharedMemoryHandler;
+    
+    private readonly BinaryParser.BinaryReader _binaryReader = new();
+    private readonly BinaryParser.BinaryWriter _binaryWriter = new();
     
     private bool _disposed;
     
@@ -59,7 +62,7 @@ public sealed class EnumDB : IDisposable
 
         try
         {
-            var data = BinaryHelper.LoadFromFile(filePath);
+            var data = _binaryReader.ReadFromFile(filePath);
             if (data == null || data.Count == 0)
             {
                 Logger.Instance.Warning($"[EnumDB] 바이너리 파일이 비어있습니다: {filePath}");
@@ -95,7 +98,14 @@ public sealed class EnumDB : IDisposable
         try
         {
             var data = Cache.ConvertToSerializableData();
-            BinaryHelper.SaveToFile(data, filePath);
+            var columnTypes = new Dictionary<string, string>
+            {
+                ["sheetName"] = "String",
+                ["type"] = "String",
+                ["member"] = "String",
+                ["value"] = "Int32"
+            };
+            _binaryWriter.WriteToFile(columnTypes, data, filePath);
 
             Logger.Instance.Log($"[EnumDB] 바이너리 저장 완료: {filePath} ({Cache.EnumCount}개 Enum 타입, {Cache.SheetCount}개 시트)");
             return true;

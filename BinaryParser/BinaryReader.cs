@@ -183,17 +183,8 @@ public class BinaryReader
             }
             else
             {
-                // 기타 타입은 문자열에서 변환
-                var stringValue = reader.ReadString();
-                try
-                {
-                    return Convert.ChangeType(stringValue, type);
-                }
-                catch
-                {
-                    Logger.Instance.Warning($"[BinaryReader] Could not convert '{stringValue}' to {type}");
-                    return GetDefaultValue(type);
-                }
+                // 기타 타입은 문자열로 읽기
+                return reader.ReadString();
             }
         }
         catch (Exception ex)
@@ -241,23 +232,19 @@ public class BinaryReader
     {
         try
         {
+            // 기본 타입들 직접 매핑 (우선 처리)
+            var mappedType = MapBasicType(typeString);
+            if (mappedType != null)
+                return mappedType;
+            
             // AssemblyQualifiedName으로 시도
             var type = Type.GetType(typeString);
             if (type != null)
                 return type;
             
-            // 기본 타입들 직접 매핑
-            return typeString switch
-            {
-                "System.Int16" => typeof(Int16),
-                "System.Int32" => typeof(Int32),
-                "System.Int64" => typeof(Int64),
-                "System.Single" => typeof(Single),
-                "System.Double" => typeof(Double),
-                "System.String" => typeof(String),
-                "System.Boolean" => typeof(Boolean),
-                _ => typeof(String) // 기본값
-            };
+            // 타입을 찾을 수 없으면 string으로 기본 처리
+            Logger.Instance.Warning($"[BinaryReader] Unknown type '{typeString}', defaulting to String");
+            return typeof(String);
         }
         catch (Exception ex)
         {
@@ -265,9 +252,38 @@ public class BinaryReader
             return typeof(String);
         }
     }
+    
+    private Type? MapBasicType(string typeString)
+    {
+        // FullName 또는 단순 이름으로 매핑
+        var normalizedType = typeString.Contains(",") 
+            ? typeString.Split(',')[0].Trim()  // AssemblyQualifiedName에서 타입명만 추출
+            : typeString;
+        
+        return normalizedType switch
+        {
+            "System.Int16" or "Int16" or "short" => typeof(Int16),
+            "System.Int32" or "Int32" or "int" => typeof(Int32),
+            "System.Int64" or "Int64" or "long" => typeof(Int64),
+            "System.Single" or "Single" or "float" => typeof(Single),
+            "System.Double" or "Double" or "double" => typeof(Double),
+            "System.String" or "String" or "string" => typeof(String),
+            "System.Boolean" or "Boolean" or "bool" => typeof(Boolean),
+            "System.DateTime" or "DateTime" => typeof(DateTime),
+            "System.Int16[]" or "Int16[]" or "short[]" => typeof(Int16[]),
+            "System.Int32[]" or "Int32[]" or "int[]" => typeof(Int32[]),
+            "System.Int64[]" or "Int64[]" or "long[]" => typeof(Int64[]),
+            "System.Single[]" or "Single[]" or "float[]" => typeof(Single[]),
+            "System.Double[]" or "Double[]" or "double[]" => typeof(Double[]),
+            "System.String[]" or "String[]" or "string[]" => typeof(String[]),
+            _ => null  // 매핑되지 않음
+        };
+    }
 
     private object GetDefaultValue(Type type)
     {
+        if (type == typeof(String))
+            return string.Empty;
         if (type.IsValueType)
             return Activator.CreateInstance(type) ?? 0;
         return null;
