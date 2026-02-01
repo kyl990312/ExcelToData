@@ -18,33 +18,33 @@ public class EGCommandInvoker : CommandInvoker
         if (!FileLoader.LoadAndConvertJson(fullPath, out EnumGeneratorConfig config))
             return list;
         
-        // 1. EnumCache ?ì„± (ìµœìš°???¤í–‰)
+        // 1. EnumCache »ı¼º (ÃÖ¿ì¼± ½ÇÇà)
         if (config.IsLoadFromGSheet && !string.IsNullOrEmpty(config.SrcGDriveLink))
         {
-            // êµ¬ê? ?œíŠ¸?ì„œ ë¡œë“œ
+            // ±¸±Û ½ÃÆ®¿¡¼­ ·Îµå
             list.Add(new EnumCacheGenerateFromGSheetCommand(config.SrcGDriveLink, config.EnumSheetPatterns));
         }
         else if (config.IsLoadFromLocal && !string.IsNullOrEmpty(config.EnumFilePath))
         {
-            // ë¡œì»¬ ?Œì¼?ì„œ ë¡œë“œ
+            // ·ÎÄÃ ÆÄÀÏ¿¡¼­ ·Îµå
             list.Add(new EnumCacheGenerateCommand(config.EnumFilePath));
         }
 
-        // 2. [Dev] EnumDB ?ŒìŠ¤??(ë°”ì´?ˆë¦¬ ?€????
+        // 2. [Dev] EnumDB Å×½ºÆ® (¹ÙÀÌ³Ê¸® ÀúÀå Àü)
         {
             var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
             if (SystemDefine.DevelopmentMode)
                 list.Add(new EnumDBTestCommand(SystemPath.EnumBinaryPath.Replace(enumFileName, $"EnumDB_BeforeSave.txt")));
         }
 
-        // 3. EnumDB ë°”ì´?ˆë¦¬ ?ì„±
+        // 3. EnumDB ¹ÙÀÌ³Ê¸® »ı¼º
         list.Add(new GenerateEnumBinaryCommand());
 
-        // 4. [Dev] EnumDB ë¡œë“œ (?€?¥ëœ ë°”ì´?ˆë¦¬ ê²€ì¦?
+        // 4. [Dev] EnumDB ·Îµå (ÀúÀåµÈ ¹ÙÀÌ³Ê¸® °ËÁõ)
         if (SystemDefine.DevelopmentMode)
             list.Add(new EnumDBLoadCommand());
 
-        // 5. [Dev] EnumDB ?ŒìŠ¤??(ë°”ì´?ˆë¦¬ ë¡œë“œ ??
+        // 5. [Dev] EnumDB Å×½ºÆ® (¹ÙÀÌ³Ê¸® ·Îµå ÈÄ)
         {
             var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
             if (SystemDefine.DevelopmentMode)

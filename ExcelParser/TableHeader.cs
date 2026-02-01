@@ -4,7 +4,8 @@ using ExcelParser.Core;
 namespace ExcelParser;
 
 /// <summary>
-/// ?Œì´ë¸??¤ë” ?•ë³´ë¥?ê´€ë¦¬í•˜???´ë˜??/// </summary>
+/// Å×ÀÌºí Çì´õ Á¤º¸¸¦ °ü¸®ÇÏ´Â Å¬·¡½º
+/// </summary>
 public class TableHeader
 {
     public struct Group
@@ -28,10 +29,10 @@ public class TableHeader
     public string TableName { get; set; }
 
     /// <summary>
-    /// ì¹¼ëŸ¼ ?€???•ì…”?ˆë¦¬ë¡œë???TableHeaderë¥??ì„±?©ë‹ˆ??
+    /// Ä®·³ Å¸ÀÔ µñ¼Å³Ê¸®·ÎºÎÅÍ TableHeader¸¦ »ı¼ºÇÕ´Ï´Ù
     /// </summary>
-    /// <param name="tableName">?Œì´ë¸”ëª…</param>
-    /// <param name="columnTypes">ì¹¼ëŸ¼ëª…ê³¼ ?€??ë¬¸ì???•ì…”?ˆë¦¬</param>
+    /// <param name="tableName">Å×ÀÌºí¸í</param>
+    /// <param name="columnTypes">Ä®·³¸í°ú Å¸ÀÔ ¹®ÀÚ¿­ µñ¼Å³Ê¸®</param>
     public TableHeader(string tableName, Dictionary<string, string> columnTypes)
     {
         TableName = tableName;

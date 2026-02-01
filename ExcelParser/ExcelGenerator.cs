@@ -18,7 +18,7 @@ public class ExcelGenerator
     public XLWorkbook Workbook => _workbook;
     
     /// <summary>
-    /// ì£¼ì–´ì§??°ì´?°ì— ë§žëŠ” ?‘ì????ì„±?©ë‹ˆ??
+    /// ÁÖ¾îÁø µ¥ÀÌÅÍ¿¡ ¸Â´Â ¿¢¼¿À» »ý¼ºÇÕ´Ï´Ù
     /// </summary>
     public ExcelGenerator(List<SheetData> sheetList, string path)
     {
@@ -26,8 +26,8 @@ public class ExcelGenerator
         _workbook = new();
         _workbook.Worksheets.Add("temp");
         
-        // ?œíŠ¸ ?ì„± ?„ì— ë¹??Œì¼ ?€?¥ë???
-        // ?œíŠ¸ ?ì„± ?œì— ?„ì‹œë¡??Œì¼???€?¥í•˜??ê²½ìš°ê°€ ë°œìƒ?˜ëŠ”?? ?´ë•Œ ?Œì¼ëª…ì´ ?†ìœ¼ë©??•ìž¥???ë‹¨???´ë ¤??exception????
+        // ½ÃÆ® »ý¼º Àü¿¡ ÇÑ ÆÄÀÏ ÀúÀåÇØµÒ
+        // ½ÃÆ® »ý¼º Àü¿¡ ÀÓ½Ã·Î ÆÄÀÏÀ» ÀúÀåÇÏÁö ¾ÊÀ» °æ¿ì°¡ ¹ß»ýÇÏ´Âµ¥, ÀÌ¶§ ÆÄÀÏ¸íÀÌ ¾øÀ¸¸é ÀúÀåÀ» ½ÃµµÇÏ´Ù°¡ ¿À·ù°¡ ¹ß»ýÇÔ
         SaveFile();
         
         ClearWorkbook();
@@ -38,9 +38,9 @@ public class ExcelGenerator
     }
 
     /// <summary>
-    /// ì§€?•ëœ ê²½ë¡œë¡??€?¥í•©?ˆë‹¤.
+    /// ÁöÁ¤µÈ °æ·Î·Î ÀúÀåÇÕ´Ï´Ù.
     /// </summary>
-    /// <param name="path">Full Pathë¡??˜ê²¨ì£¼ì„¸??</param>
+    /// <param name="path">Full Path¸¦ ³Ñ°ÜÁÖ¼¼¿ä</param>
     public void SaveFile(string path)
     {
         _workbook.SaveAs(path);   
@@ -57,21 +57,21 @@ public class ExcelGenerator
             _workbook.Worksheets.Delete(data.SheetName);
         var worksheet = _workbook.Worksheets.Add(data.SheetName);
         
-        // ì»¬ëŸ¼ ?´ë¦„ ???‘ì„± (1??
+        // ÄÃ·³ ÀÌ¸§ Çà »ý¼º (1Çà)
         for (int i = 0; i < data.ColumnNames.Length; i++)
         {
             var cell = worksheet.Cell(1, i + 1);
             cell.SetValue(data.ColumnNames[i]);
         }
     
-        // ì»¬ëŸ¼ ?€?????‘ì„± (2??
+        // ÄÃ·³ Å¸ÀÔ Çà »ý¼º (2Çà)
         for (int i = 0; i < data.ColumnTypes.Length; i++)
         {
             var cell = worksheet.Cell(2, i + 1);
             cell.SetValue(data.ColumnTypes[i].FullName);
         }
     
-        // ?°ì´????ì±„ìš°ê¸?(3?‰ë???
+        // µ¥ÀÌÅÍ Çà Ã¤¿ì±â (3ÇàºÎÅÍ)
         for (int row = 0; row < data.DataList.Count; row++)
         {
             var rowData = data.DataList[row];
@@ -126,10 +126,10 @@ public class ExcelGenerator
 
     private void ClearWorkbook()
     {
-        // ?Œí¬?œíŠ¸ ì»¬ë ‰?˜ì˜ ë³µì‚¬ë³¸ì„ ë§Œë“­?ˆë‹¤ (?? œ ì¤‘ì— ì»¬ë ‰?˜ì´ ë³€ê²½ë˜??ê²ƒì„ ë°©ì?)
+        // ¿öÅ©½ÃÆ® ÄÃ·º¼ÇÀÇ º¹»çº»À» ¸¸µì´Ï´Ù (¿­°Å Áß¿¡ ÄÃ·º¼ÇÀÌ º¯°æµÇ´Â °ÍÀ» ¹æÁö)
         var worksheets = _workbook.Worksheets.ToList();
     
-        // ê°??Œí¬?œíŠ¸ë¥??œê±°?©ë‹ˆ??
+        // °¢ ¿öÅ©½ÃÆ®¸¦ »èÁ¦ÇÕ´Ï´Ù
         foreach (var worksheet in worksheets)
         {
             worksheet.Delete();

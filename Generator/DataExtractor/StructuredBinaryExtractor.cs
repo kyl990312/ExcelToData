@@ -6,7 +6,10 @@ using BinaryWriter = BinaryParser.BinaryWriter;
 namespace Generator.DataExtractor;
 
 /// <summary>
-/// Excel ?°ì´?°ë? êµ¬ì¡°?”ëœ ë°”ì´?ˆë¦¬ ?•ì‹?¼ë¡œ ì¶”ì¶œ?˜ëŠ” ?´ë˜??/// Header: ì¹¼ëŸ¼ ê°?ˆ˜, ?°ì´??ê°?ˆ˜, ì¹¼ëŸ¼ ë©”í??°ì´??/// Data: ì¹¼ëŸ¼ë³„ë¡œ ?°ì´???€??/// </summary>
+/// Excel ÆÄÀÏÀ» ±¸Á¶È­µÈ ¹ÙÀÌ³Ê¸® Çü½ÄÀ¸·Î ÃßÃâÇÏ´Â Å¬·¡½º
+/// Header: Ä®·³ °³¼ö, µ¥ÀÌÅÍ °³¼ö, Ä®·³ ¸ŞÅ¸µ¥ÀÌÅÍ
+/// Data: Ä®·³º°·Î µ¥ÀÌÅÍ ÀúÀå
+/// </summary>
 public class StructuredBinaryExtractor : DataExtractorBase
 {
     private readonly BinaryWriter _binaryWriter;
@@ -32,11 +35,11 @@ public class StructuredBinaryExtractor : DataExtractorBase
             {
                 Logger.Instance.Log($"Start Convert Worksheet to DataTable({workSheet.Name})");
                 
-                // CustomDataTable ?¬ìš©
+                // CustomDataTable »ç¿ë
                 var table = TableHelper.GetTable(workSheet);
                 
 #if DEBUG
-                // ?¤ë” ?•ë³´ ë¡œê·¸ ì¶œë ¥
+                // Çì´õ Á¤º¸ ·Î±× Ãâ·Â
                 Logger.Instance.Log($"[StructuredBinaryExtractor] Table: {table.Name}, ColumnCount: {table.ColumnCount}, RowCount: {table.RowCount}", ConsoleColor.Cyan);
                 foreach (var header in table.Header.Headers)
                 {
@@ -55,7 +58,8 @@ public class StructuredBinaryExtractor : DataExtractorBase
     {
         try
         {
-            // ì¹¼ëŸ¼ ?€???•ë³´?€ ?°ì´?°ë? ?¨ê»˜ ?„ë‹¬?˜ì—¬ ?€??            _binaryWriter.WriteToFile(table.GetColumnTypes(), table.GetAllRowsData(), path);
+            // Ä®·³ Å¸ÀÔ Á¤º¸¿Í µ¥ÀÌÅÍ¸¦ ÇÔ²² Àü´ŞÇÏ¿© ÀúÀå
+            _binaryWriter.WriteToFile(table.GetColumnTypes(), table.GetAllRowsData(), path);
             Logger.Instance.Log($"[StructuredBinaryExtractor] Save File StructuredBinary {path}");
         }
         catch (Exception ex)

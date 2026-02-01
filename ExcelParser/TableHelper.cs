@@ -4,11 +4,12 @@ using TableAutomation.Common.Utils;
 namespace ExcelParser;
 
 /// <summary>
-/// ?Œì´ë¸?ê´€??? í‹¸ë¦¬í‹° ë©”ì„œ?œë? ?œê³µ?˜ëŠ” ?¬í¼ ?´ë˜??/// </summary>
+/// Å×ÀÌºí °ü·Ã À¯Æ¿¸®Æ¼ ¸Ş¼­µå¸¦ Á¦°øÇÏ´Â ÇïÆÛ Å¬·¡½º
+/// </summary>
 public static class TableHelper
 {
     /// <summary>
-    /// Excel ?Œí¬?œíŠ¸ë¡œë???CustomDataTable???ì„±?©ë‹ˆ??
+    /// Excel ¿öÅ©½ÃÆ®·ÎºÎÅÍ CustomDataTableÀ» »ı¼ºÇÕ´Ï´Ù
     /// </summary>
     public static CustomDataTable GetTable(IXLWorksheet sheet)
     {
@@ -17,7 +18,7 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// Google Sheets ?°ì´?°ë¡œë¶€??CustomDataTable???ì„±?©ë‹ˆ??
+    /// Google Sheets µ¥ÀÌÅÍ·ÎºÎÅÍ CustomDataTableÀ» »ı¼ºÇÕ´Ï´Ù
     /// </summary>
     public static CustomDataTable GetTable(string tableName, List<string[]> table)
     {
@@ -38,7 +39,7 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// Dictionary ë¦¬ìŠ¤?¸ë¡œë¶€??CustomDataTable???ì„±?©ë‹ˆ??
+    /// Dictionary ¸®½ºÆ®·ÎºÎÅÍ CustomDataTableÀ» »ı¼ºÇÕ´Ï´Ù
     /// </summary>
     public static CustomDataTable GetTable(string tableName, Dictionary<string, string> columnTypes, List<Dictionary<string, object>> data)
     {
@@ -46,7 +47,7 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// CustomDataTable??JSON ë¬¸ì?´ë¡œ ë³€?˜í•©?ˆë‹¤.
+    /// CustomDataTableÀ» JSON ¹®ÀÚ¿­·Î º¯È¯ÇÕ´Ï´Ù.
     /// </summary>
     public static string ConvertDataTableToJSON(CustomDataTable table)
     {

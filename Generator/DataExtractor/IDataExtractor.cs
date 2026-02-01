@@ -33,7 +33,8 @@ public abstract class DataExtractorBase : IDataExtractor
     protected abstract List<CustomDataTable> GetDataTablesByFile(string filePath);
     
     /// <summary>
-    /// CustomDataTable???€?¥í•˜??ì¶”ìƒ ë©”ì„œ??    /// </summary>
+    /// CustomDataTableÀ» ÀúÀåÇÏ´Â Ãß»ó ¸Ş¼­µå
+    /// </summary>
     protected abstract void SaveData(CustomDataTable table, string path);
     
     private string GetFilePath(string fileName, string extend, string middle = "")
