@@ -55,11 +55,10 @@ public class GenerateCSharpCodeCommand : Command
         // 모든 바이너리 파일 검색
         var files = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories);
 
-        // 클래스 생성기 생성 (향상된 파라미터)
+        // 클래스 생성기 생성
         var param = new CSharpClassParam()
         {
             @namespace = config.ClassNamespace,
-            generateToString = true,
             generateEquals = true,
             generateGetHashCode = true
         };

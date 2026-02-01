@@ -49,7 +49,7 @@ public class ExtractJsonCommand : Command
 }
 
 /// <summary>
-/// Excel ?뚯씪??援ъ“?붾맂 諛붿씠?덈━ ?뺤떇?쇰줈 異붿텧?섎뒗 紐낅졊??
+/// Excel 파일을 구조화된 바이너리 형식으로 추출하는 명령어
 /// </summary>
 public class ExtractBinaryCommand : Command
 {
@@ -177,7 +177,7 @@ public class GenerateConfigCommand : Command
         };
         var options = new JsonSerializerOptions
         {
-            IncludeFields = true // ?꾨뱶瑜?吏곷젹?붿뿉 ?ы븿
+            IncludeFields = true // 필드를 직렬화에 포함
         };
         var json = JsonSerializer.Serialize(config, options);
         File.WriteAllText(_filePath,json);

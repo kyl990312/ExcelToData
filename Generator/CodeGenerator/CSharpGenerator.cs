@@ -6,7 +6,6 @@ namespace Generator.CodeGenerator
     public struct CSharpClassParam
     {
         public string @namespace;
-        public bool generateToString;
         public bool generateEquals;
         public bool generateGetHashCode;
     }
@@ -31,9 +30,6 @@ namespace Generator.CodeGenerator
             GenerateClassHeader(sb, className);
             GenerateConstructors(sb, className, schema.Columns);
             GenerateProperties(sb, schema.Columns);
-            
-            if (_param.generateToString)
-                GenerateToStringMethod(sb, schema.Columns);
             
             if (_param.generateEquals)
                 GenerateEqualsMethod(sb, className, schema.Columns);
@@ -120,18 +116,6 @@ namespace Generator.CodeGenerator
                 sb.AppendLine($"        public {propertyType} {item.Key} {{ get; private set; }}");
                 sb.AppendLine();
             }
-        }
-        
-        private void GenerateToStringMethod(StringBuilder sb, Dictionary<string, string> columns)
-        {
-            sb.AppendLine($"        /// <summary>");
-            sb.AppendLine($"        /// 문자열 표현을 반환합니다.");
-            sb.AppendLine($"        /// </summary>");
-            sb.AppendLine($"        public override string ToString()");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            return $\"{{{string.Join(", ", columns.Keys.Select(k => $"{k}={{{k}}}"))}\";");
-            sb.AppendLine("        }");
-            sb.AppendLine();
         }
         
         private void GenerateEqualsMethod(StringBuilder sb, string className, Dictionary<string, string> columns)

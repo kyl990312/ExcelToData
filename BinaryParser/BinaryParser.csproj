@@ -9,7 +9,14 @@
         <OutputPath>$(SolutionDir)Output\$(Configuration)\</OutputPath>
     </PropertyGroup>
 
-    <ItemGroup>
+    <!-- Unity용 빌드 설정 -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Unity'">
+        <DefineConstants>$(DefineConstants);UNITY_BUILD</DefineConstants>
+        <OutputPath>$(SolutionDir)Output\Unity\</OutputPath>
+    </PropertyGroup>
+
+    <!-- Unity 빌드가 아닐 때만 Common 참조 -->
+    <ItemGroup Condition="'$(Configuration)' != 'Unity'">
       <ProjectReference Include="..\Common\Common.csproj" />
     </ItemGroup>
 

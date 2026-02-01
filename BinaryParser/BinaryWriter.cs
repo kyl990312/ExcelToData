@@ -1,5 +1,7 @@
 using System.Text;
+#if !UNITY_BUILD
 using TableAutomation.Common.Utils;
+#endif
 
 namespace BinaryParser;
 
@@ -29,11 +31,15 @@ public class BinaryWriter
 
             WriteDataToBinary(columnTypes, data, writer);
             
+#if !UNITY_BUILD
             Logger.Instance.Log($"[BinaryWriter] Successfully wrote binary file: {filePath}");
+#endif
         }
         catch (Exception ex)
         {
+#if !UNITY_BUILD
             Logger.Instance.Error($"[BinaryWriter] Error writing binary file {filePath}: {ex.Message}");
+#endif
             throw;
         }
     }
@@ -178,7 +184,9 @@ public class BinaryWriter
         }
         catch (Exception ex)
         {
+#if !UNITY_BUILD
             Logger.Instance.Warning($"[BinaryWriter] Error writing value '{value}' as type '{typeStr}': {ex.Message}");
+#endif
             writer.Write(value?.ToString() ?? string.Empty);
         }
     }

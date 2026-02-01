@@ -1,5 +1,7 @@
 using System.Text;
+#if !UNITY_BUILD
 using TableAutomation.Common.Utils;
+#endif
 
 namespace BinaryParser;
 
@@ -19,7 +21,9 @@ public class BinaryReader
         {
             if (!File.Exists(filePath))
             {
+#if !UNITY_BUILD
                 Logger.Instance.Error($"[BinaryReader] File not found: {filePath}");
+#endif
                 return new List<Dictionary<string, object>>();
             }
 
@@ -27,12 +31,16 @@ public class BinaryReader
             using var reader = new System.IO.BinaryReader(fileStream, Encoding.UTF8);
 
             var result = ReadDataFromBinary(reader);
+#if !UNITY_BUILD
             Logger.Instance.Log($"[BinaryReader] Successfully read binary file: {filePath}");
+#endif
             return result;
         }
         catch (Exception ex)
         {
+#if !UNITY_BUILD
             Logger.Instance.Error($"[BinaryReader] Error reading binary file {filePath}: {ex.Message}");
+#endif
             throw;
         }
     }
@@ -189,7 +197,9 @@ public class BinaryReader
         }
         catch (Exception ex)
         {
+#if !UNITY_BUILD
             Logger.Instance.Warning($"[BinaryReader] Error reading value as type {type}: {ex.Message}");
+#endif
             return GetDefaultValue(type);
         }
     }
@@ -203,7 +213,9 @@ public class BinaryReader
         var elementType = arrayType.GetElementType();
         if (elementType == null)
         {
+#if !UNITY_BUILD
             Logger.Instance.Warning($"[BinaryReader] Could not determine array element type for {arrayType}");
+#endif
             return Array.CreateInstance(typeof(object), 0);
         }
         
@@ -243,12 +255,16 @@ public class BinaryReader
                 return type;
             
             // 타입을 찾을 수 없으면 string으로 기본 처리
+#if !UNITY_BUILD
             Logger.Instance.Warning($"[BinaryReader] Unknown type '{typeString}', defaulting to String");
+#endif
             return typeof(String);
         }
         catch (Exception ex)
         {
+#if !UNITY_BUILD
             Logger.Instance.Warning($"[BinaryReader] Could not resolve type '{typeString}': {ex.Message}");
+#endif
             return typeof(String);
         }
     }

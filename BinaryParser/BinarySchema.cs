@@ -1,5 +1,7 @@
 using System.Text;
+#if !UNITY_BUILD
 using TableAutomation.Common.Utils;
+#endif
 
 namespace BinaryParser;
 
@@ -9,7 +11,7 @@ namespace BinaryParser;
 public class BinarySchema
 {
     /// <summary>
-    /// 칼럼 이름과 타입 정보를 담는 Dictionary
+    /// 칼럼 이름과 타입 정보를 담은 Dictionary
     /// Key: 칼럼 이름, Value: 타입 문자열
     /// </summary>
     public Dictionary<string, string> Columns { get; private set; } = new();
@@ -28,7 +30,7 @@ public class BinarySchema
     /// 바이트 배열에서 스키마 정보를 읽어옵니다
     /// </summary>
     /// <param name="binaryData">바이너리 데이터</param>
-    /// <returns>스키마 정보가 담긴 BinarySchema 인스턴스</returns>
+    /// <returns>스키마 정보를 담은 BinarySchema 인스턴스</returns>
     public static BinarySchema ReadFromBytes(byte[] binaryData)
     {
         var schema = new BinarySchema();
@@ -42,7 +44,9 @@ public class BinarySchema
         }
         catch (Exception ex)
         {
+#if !UNITY_BUILD
             Logger.Instance.Error($"[BinarySchema] Error reading schema from bytes: {ex.Message}");
+#endif
         }
 
         return schema;
@@ -50,10 +54,10 @@ public class BinarySchema
 
     private void ReadHeader(System.IO.BinaryReader reader)
     {
-        // 1. 칼럼 갯수
+        // 1. 칼럼 개수
         int columnCount = reader.ReadInt32();
 
-        // 2. 데이터 갯수 (행 갯수)
+        // 2. 데이터 개수 (행 개수)
         RowCount = reader.ReadInt32();
 
         // 3. 각 칼럼의 메타데이터
@@ -69,7 +73,7 @@ public class BinarySchema
             Columns[columnName] = columnType;
         }
 
-#if DEBUG
+#if DEBUG && !UNITY_BUILD
         // 스키마 정보 로그 출력
         Logger.Instance.Log($"[BinarySchema] ColumnCount: {columnCount}, RowCount: {RowCount}", ConsoleColor.Cyan);
         foreach (var column in Columns)
