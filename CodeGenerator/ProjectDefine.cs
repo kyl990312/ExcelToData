@@ -4,5 +4,5 @@ namespace CodeGenerator;
 
 public static class ProjectDefine
 {
-    public const string CodeExtension = ".cs";
+    public const string CodeExtension = ".cpp";
 }

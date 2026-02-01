@@ -29,7 +29,10 @@ public class CGCommandInvoker : CommandInvoker
         {
             list.Add(new GenerateCSharpCodeCommand(config));
         }
-        
+        else if(ProjectDefine.CodeExtension.EndsWith("cpp"))
+        {
+            list.Add(new GenerateCppCodeCommand(config));
+        }
         return list;
     }
 }

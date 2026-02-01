@@ -2,15 +2,16 @@
 
 ## 목차
 1. [시스템 개요](#시스템-개요)
-2. [설치 및 환경 설정](#설치-및-환경-설정)
-3. [Excel 파일 준비](#excel-파일-준비)
-4. [ExcelToData 사용법](#exceltodata-사용법)
-5. [CodeGenerator 사용법](#codegenerator-사용법)
-6. [EnumGenerator 사용법](#enumgenerator-사용법)
-7. [통합 워크플로우](#통합-워크플로우)
-8. [고급 설정](#고급-설정)
-9. [문제 해결](#문제-해결)
-10. [실전 예제](#실전-예제)
+2. [프로젝트 구조](#프로젝트-구조)
+3. [설치 및 환경 설정](#설치-및-환경-설정)
+4. [Excel 파일 준비](#excel-파일-준비)
+5. [ExcelToData 사용법](#exceltodata-사용법)
+6. [CodeGenerator 사용법](#codegenerator-사용법)
+7. [EnumGenerator 사용법](#enumgenerator-사용법)
+8. [통합 워크플로우](#통합-워크플로우)
+9. [고급 설정](#고급-설정)
+10. [문제 해결](#문제-해결)
+11. [실전 예제](#실전-예제)
 
 ## 시스템 개요
 
@@ -21,16 +22,82 @@ TableAutomationTool은 Excel 파일을 기반으로 다양한 형태의 코드�
 | 도구명 | 입력 | 출력 | 목적 |
 |--------|------|------|------|
 | **ExcelToData** | Excel 파일 (.xlsm) | Binary/JSON 파일 | 데이터 추출 및 변환 |
-| **CodeGenerator** | Binary 파일 (.bin) | C# 클래스 (.cs) | 코드 자동 생성 |
+| **CodeGenerator** | Binary 파일 (.bin) | C#/C++ 클래스 | 코드 자동 생성 |
 | **EnumGenerator** | Excel 파일 (.xlsm) | Enum 코드 (.cs) | 열거형 생성 |
 
 ### 데이터 플로우
 
 ```
-Excel 파일 → ExcelToData → Binary 파일 → CodeGenerator → C# 클래스
+Excel 파일 → ExcelToData → Binary 파일 → CodeGenerator → C#/C++ 클래스
      ↓
 EnumGenerator → Enum 파일
 ```
+
+## 프로젝트 구조
+
+```
+TableAutomationTool/
+├── BinaryParser/               # 바이너리 읽기/쓰기 라이브러리
+│   ├── BinaryReader.cs         # 바이너리 → Dictionary 변환
+│   ├── BinaryWriter.cs         # Dictionary → 바이너리 변환
+│   ├── BinarySchema.cs         # 바이너리 스키마 파싱
+│   └── Cpp/                    # C++ 바이너리 리더
+│       ├── BinaryReader.h
+│       └── BinaryReader.cpp
+├── ExcelParser/                # Excel 파싱 라이브러리
+│   ├── ExcelGenerator.cs       # Excel 파일 생성
+│   ├── TableConverter.cs       # 테이블 데이터 변환
+│   ├── TableHelper.cs          # 테이블 유틸리티
+│   ├── CustomDataTable.cs      # 커스텀 데이터 테이블
+│   ├── TableHeader.cs          # 테이블 헤더 정보
+│   └── UserEnum/               # 사용자 정의 Enum 관리
+│       ├── EnumDB.cs
+│       ├── EnumCache.cs
+│       └── SharedEnumMemoryHandler.cs
+├── Generator/                  # 코드/데이터 생성 코어
+│   ├── CodeGenerator/          # 코드 생성기
+│   │   ├── CodeGenerator.cs    # 기본 코드 생성기
+│   │   ├── CSharpGenerator.cs  # C# 클래스 생성기
+│   │   ├── CppGenerator.cs     # C++ 클래스 생성기
+│   │   └── EnumCodeGenerator.cs # Enum 코드 생성기
+│   └── DataExtractor/          # 데이터 추출기
+│       ├── StructuredBinaryExtractor.cs # 바이너리 추출기
+│       ├── JsonExtractor.cs    # JSON 추출기
+│       └── BytesExtractorFromGSheet.cs # Google Sheets 추출기
+├── CodeGenerator/              # 코드 생성 CLI 애플리케이션
+│   ├── Program.cs
+│   ├── CodeGenerateConfig.cs
+│   └── Commands/
+├── ExcelToData/                # 데이터 추출 CLI 애플리케이션
+│   ├── Program.cs
+│   ├── DataExtractConfig.cs
+│   └── Commands/
+├── EnumGenerator/              # Enum 생성 CLI 애플리케이션
+│   ├── Program.cs
+│   ├── EnumGeneratorConfig.cs
+│   └── Commands.cs
+├── GAuth/                      # Google API 인증 라이브러리
+│   ├── GAuthService.cs
+│   └── GSheetHandler.cs
+├── Common/                     # 공통 유틸리티
+│   ├── Command/                # 커맨드 패턴
+│   └── Utils/                  # 유틸리티 클래스
+├── TableAutomationToolShared/  # 공유 설정 및 경로
+│   ├── SystemDefine.cs
+│   ├── SystemPath.cs
+│   └── SharedCommands.cs
+└── Tester/                     # 테스트 프로젝트
+```
+
+### 핵심 라이브러리
+
+| 프로젝트 | 설명 |
+|----------|------|
+| **BinaryParser** | 구조화된 바이너리 형식 읽기/쓰기, C++ 호환 리더 포함 |
+| **ExcelParser** | ClosedXML 기반 Excel 파싱 및 테ーブル 변환 |
+| **Generator** | 코드 생성기 및 데이터 추출기 핵심 로직 |
+| **GAuth** | Google Sheets API 연동 |
+| **Common** | 로거, 커맨드 패턴 등 공통 유틸리티 |
 
 ## 파이프라인 아키텍처
 
@@ -538,405 +605,3 @@ pause
 #!/bin/bash
 echo "Starting TableAutomationTool Pipeline..."
 
-echo "Step 1: Converting Excel to Binary..."
-./ExcelToData
-if [ $? -ne 0 ]; then
-    echo "Error in ExcelToData"
-    exit 1
-fi
-
-echo "Step 2: Generating Enums..."
-./EnumGenerator
-if [ $? -ne 0 ]; then
-    echo "Error in EnumGenerator"
-    exit 1
-fi
-
-echo "Step 3: Generating C# Classes..."
-./CodeGenerator
-if [ $? -ne 0 ]; then
-    echo "Error in CodeGenerator"
-    exit 1
-fi
-
-echo "Pipeline completed successfully!"
-```
-
-### 3. CI/CD 통합
-
-**GitHub Actions 예시 (.github/workflows/data-pipeline.yml)**
-```yaml
-name: Data Pipeline
-
-on:
-  push:
-    paths:
-      - 'Data/Excel/**'
-
-jobs:
-  generate-code:
-    runs-on: windows-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '9.0.x'
-        
-    - name: Build Tools
-      run: dotnet build TableAutomationTool.sln --configuration Release
-      
-    - name: Run ExcelToData
-      run: ./Tools/ExcelToData.exe
-      
-    - name: Run EnumGenerator  
-      run: ./Tools/EnumGenerator.exe
-      
-    - name: Run CodeGenerator
-      run: ./Tools/CodeGenerator.exe
-      
-    - name: Commit Generated Files
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add Generated/
-        git commit -m "Auto-generated code from Excel data" || exit 0
-        git push
-```
-
-## 고급 설정
-
-### 1. 커스텀 네임스페이스
-
-**CodeGenerateConfig.json**
-```json
-{
-  "ClassNamespace": "MyGame.Data.Tables",
-  "ManagerNamespace": "MyGame.Data.Managers"
-}
-```
-
-### 2. 디렉토리 구조 커스터마이징
-
-```json
-{
-  "BinaryDirectory": "Assets/Data/Binary",
-  "ClassOutputDirectory": "Scripts/Generated/Data",
-  "ManagerOutputDirectory": "Scripts/Generated/Managers"
-}
-```
-
-### 3. 파일 확장자 필터링
-
-```json
-{
-  "ReadFileExtension": "*.bin"  // Binary 파일만 처리
-}
-```
-
-### 4. 다중 설정 관리
-
-프로젝트별로 다른 설정을 사용할 수 있습니다:
-
-```
-Config/
-├── Development/
-│   ├── BinaryConfig.json
-│   └── CodeGenerateConfig.json
-├── Production/
-│   ├── BinaryConfig.json
-│   └── CodeGenerateConfig.json
-└── Testing/
-    ├── BinaryConfig.json
-    └── CodeGenerateConfig.json
-```
-
-## 문제 해결
-
-### 1. 일반적인 오류와 해결법
-
-**파일을 찾을 수 없음**
-```
-Error: Fail to load. (file path : path/to/file.xlsm)
-```
-- 해결법: SrcDirectory 경로가 올바른지 확인
-- 확인사항: 파일 존재 여부, 접근 권한, 파일 확장자
-
-**타입 변환 오류**
-```
-Warning: Parsing Failed (Cannot find type)
-```
-- 해결법: Excel 2행의 타입 정의 확인
-- 확인사항: System. 접두사, 지원하는 타입인지 여부
-
-**메모리 부족**
-```
-OutOfMemoryException
-```
-- 해결법: 대용량 파일을 여러 개로 분할
-- 확인사항: 불필요한 컬럼 제외 (#마커 사용)
-
-**권한 오류**
-```
-UnauthorizedAccessException
-```
-- 해결법: 관리자 권한으로 실행
-- 확인사항: 출력 디렉토리 쓰기 권한
-
-### 2. 로그 분석
-
-**로그 파일 위치**: `Logs.txt`
-
-**로그 레벨**
-- `[Error]`: 치명적 오류
-- `[Warning]`: 경고 (처리 계속)
-- `[DateTime]`: 일반 정보
-
-**주요 로그 패턴**
-```
-[2024-04-05 10:30:15] Success to load. (file path : ...)     # 파일 로드 성공
-[2024-04-05 10:30:15] Start Convert Worksheet (...)         # 워크시트 변환 시작
-[2024-04-05 10:30:15] Save File Byte ...                    # 파일 저장 완료
-[Warning] Cell at A3 is not a number but trying to convert  # 타입 불일치 경고
-[Error] Name is empty. (column : 2)                        # 빈 컬럼명 오류
-```
-
-### 3. 디버깅 팁
-
-**Excel 파일 검증**
-1. 1행에 빈 셀이 없는지 확인
-2. 2행에 올바른 타입이 지정되었는지 확인
-3. EOF 마커가 있는지 확인
-4. 배열 형식이 올바른지 확인
-
-**설정 파일 검증**
-1. JSON 문법이 올바른지 확인
-2. 경로가 절대경로인지 확인
-3. 디렉토리가 존재하는지 확인
-
-**단계별 테스트**
-1. 단일 Excel 파일로 테스트
-2. 작은 데이터셋으로 시작
-3. 단계별로 각 도구 개별 실행
-
-## 실전 예제
-
-### 1. 게임 데이터 관리 시스템
-
-**프로젝트 구조**
-```
-MyGame/
-├── GameData/
-│   ├── Excel/
-│   │   ├── CharacterData.xlsm    # 캐릭터 정보
-│   │   ├── ItemData.xlsm         # 아이템 정보
-│   │   ├── SkillData.xlsm        # 스킬 정보
-│   │   ├── QuestData.xlsm        # 퀘스트 정보
-│   │   └── GameEnum.xlsm         # 게임 열거형
-│   └── Binary/                   # 변환된 데이터
-├── Scripts/
-│   └── Generated/                # 생성된 코드
-└── Tools/                        # 변환 도구들
-```
-
-**CharacterData.xlsm 예시**
-```
-| Id   | Name     | Class    | BaseHp | BaseMp | Skills              | Rarity    |
-| Int32| String   | CharClass| Int32  | Int32  | String[]           | CharRarity|
-| 1001 | Warrior  | Fighter  | 120    | 30     | [Slash,Block]      | Common    |
-| 1002 | Mage     | Wizard   | 70     | 150    | [Fireball,Heal]    | Rare      |
-| 1003 | Paladin  | Fighter  | 140    | 80     | [Heal,Shield]      | Epic      |
-| EOF  |          |          |        |        |                    |           |
-```
-
-**ItemData.xlsm 예시**
-```
-| Id   | Name         | Type     | Rarity    | Price | Stats           |
-| Int32| String       | ItemType | ItemRarity| Int32 | String[]        |
-| 2001 | Iron Sword   | Weapon   | Common    | 100   | [Attack:10]     |
-| 2002 | Magic Staff  | Weapon   | Rare      | 500   | [Magic:15]      |
-| 3001 | Health Potion| Consumable| Common   | 50    | [Heal:50]       |
-| EOF  |              |          |           |       |                 |
-```
-
-**GameEnum.xlsm 예시**
-```
-| enumType   | member     | value |
-| CharClass  | Fighter    | 1     |
-| CharClass  | Wizard     | 2     |
-| CharClass  | Archer     | 3     |
-| CharRarity | Common     | 0     |
-| CharRarity | Rare       | 1     |
-| CharRarity | Epic       | 2     |
-| ItemType   | Weapon     | 1     |
-| ItemType   | Armor      | 2     |
-| ItemType   | Consumable | 3     |
-| ItemRarity | Common     | 0     |
-| ItemRarity | Rare       | 1     |
-| ItemRarity | Epic       | 2     |
-| EOF        |            |       |
-```
-
-**설정 파일들**
-
-**Config/BinaryConfig.json**
-```json
-{
-  "SrcDirectory": "C:/MyGame/GameData/Excel",
-  "DstDirectory": "C:/MyGame/GameData/Binary"
-}
-```
-
-**Config/CodeGenerateConfig.json**
-```json
-{
-  "BinaryDirectory": "C:/MyGame/GameData/Binary",
-  "ClassOutputDirectory": "C:/MyGame/Scripts/Generated/Data",
-  "ManagerOutputDirectory": "C:/MyGame/Scripts/Generated/Managers",
-  "ClassNamespace": "MyGame.Data",
-  "ManagerNamespace": "MyGame.Managers",
-  "ReadFileExtension": "*.bin"
-}
-```
-
-**Config/EnumGeneratorConfig.json**
-```json
-{
-  "EnumFilePath": "C:/MyGame/GameData/Excel/GameEnum.xlsm",
-  "DstDirectory": "C:/MyGame/Scripts/Generated/Enums/",
-  "CodeExtension": ".cs"
-}
-```
-
-**실행 순서**
-```bash
-# 1. Enum 먼저 생성 (다른 클래스에서 참조할 수 있도록)
-./EnumGenerator.exe
-
-# 2. Excel 데이터를 Binary로 변환
-./ExcelToData.exe
-
-# 3. Binary에서 C# 클래스 생성
-./CodeGenerator.exe
-```
-
-**생성되는 파일들**
-```
-Scripts/Generated/
-├── Enums/
-│   └── GameEnum.cs           # 모든 열거형
-├── Data/
-│   ├── CharacterData.cs      # 캐릭터 데이터 클래스
-│   ├── ItemData.cs           # 아이템 데이터 클래스
-│   ├── SkillData.cs          # 스킬 데이터 클래스
-│   └── QuestData.cs          # 퀘스트 데이터 클래스
-└── Managers/                 # (미래 확장용)
-```
-
-### 2. 배치 처리 스크립트
-
-**build_data.bat**
-```batch
-@echo off
-setlocal
-
-echo ========================================
-echo  MyGame Data Build Pipeline
-echo ========================================
-
-set TOOL_DIR=C:\MyGame\Tools
-set CONFIG_DIR=C:\MyGame\Config
-
-echo [1/3] Generating Enums...
-cd %TOOL_DIR%
-EnumGenerator.exe
-if errorlevel 1 (
-    echo ERROR: Enum generation failed!
-    pause
-    exit /b 1
-)
-
-echo [2/3] Converting Excel to Binary...
-ExcelToData.exe
-if errorlevel 1 (
-    echo ERROR: Excel conversion failed!
-    pause
-    exit /b 1
-)
-
-echo [3/3] Generating C# Classes...
-CodeGenerator.exe
-if errorlevel 1 (
-    echo ERROR: Code generation failed!
-    pause
-    exit /b 1
-)
-
-echo ========================================
-echo  Build completed successfully!
-echo ========================================
-echo Generated files:
-dir C:\MyGame\Scripts\Generated /s /b
-
-pause
-```
-
-### 3. Unity 프로젝트 통합
-
-**Unity용 후처리 스크립트 (PostProcess.cs)**
-```csharp
-#if UNITY_EDITOR
-using UnityEditor;
-using UnityEngine;
-using System.IO;
-
-public class DataPostProcessor : AssetPostprocessor
-{
-    static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, 
-        string[] movedAssets, string[] movedFromAssetPaths)
-    {
-        foreach (string asset in importedAssets)
-        {
-            if (asset.Contains("GameData/Excel") && asset.EndsWith(".xlsm"))
-            {
-                Debug.Log($"Excel file changed: {asset}");
-                RegenerateData();
-                break;
-            }
-        }
-    }
-    
-    [MenuItem("MyGame/Regenerate Data")]
-    static void RegenerateData()
-    {
-        string toolPath = Path.Combine(Application.dataPath, "../Tools");
-        
-        // Enum 생성
-        ExecuteTool(Path.Combine(toolPath, "EnumGenerator.exe"));
-        
-        // Binary 변환
-        ExecuteTool(Path.Combine(toolPath, "ExcelToData.exe"));
-        
-        // 클래스 생성
-        ExecuteTool(Path.Combine(toolPath, "CodeGenerator.exe"));
-        
-        AssetDatabase.Refresh();
-        Debug.Log("Data regeneration completed!");
-    }
-    
-    static void ExecuteTool(string toolPath)
-    {
-        var process = new System.Diagnostics.Process();
-        process.StartInfo.FileName = toolPath;
-        process.StartInfo.UseShellExecute = false;
-        process.StartInfo.CreateNoWindow = true;
-        process.Start();
-        process.WaitForExit();
-    }
-}
-#endif
-```
-
-이 가이드를 통해 TableAutomationTool의 모든 기능을 효과적으로 활용할 수 있습니다. 각 도구의 설정과 실행 방법을 숙지하고, 프로젝트의 요구사항에 맞게 워크플로우를 구성하시기 바랍니다.

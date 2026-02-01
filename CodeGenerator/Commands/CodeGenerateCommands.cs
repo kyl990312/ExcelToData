@@ -92,6 +92,87 @@ public class GenerateCSharpCodeCommand : Command
 }
 
 /// <summary>
+/// C++ 코드 생성 명령어 클래스
+/// </summary>
+public class GenerateCppCodeCommand : Command
+{
+    private readonly CodeGenerateConfig _config;
+
+    public GenerateCppCodeCommand(CodeGenerateConfig config)
+    {
+        _config = config;
+    }
+
+    public override void Execute(out string result)
+    {
+        if (!Directory.Exists(_config.BinaryDirectory))
+        {
+            result = $"[GenerateCppCodeCommand] Binary directory not found: {_config.BinaryDirectory}";
+            return;
+        }
+
+        try
+        {
+            // directory 준비
+            if (!Directory.Exists(_config.ClassOutputDirectory))
+                Directory.CreateDirectory(_config.ClassOutputDirectory);
+
+            // 클래스 생성
+            int classCount = GenerateClasses(_config);
+            result = $"[GenerateCppCodeCommand] Generated {classCount} C++ classes.";
+        }
+        catch (Exception ex)
+        {
+            result = $"[GenerateCppCodeCommand] Error: {ex.Message}";
+            Logger.Instance.Error($"[GenerateCppCodeCommand] Exception: {ex}");
+        }
+    }
+
+    private int GenerateClasses(CodeGenerateConfig config)
+    {
+        int count = 0;
+
+        // 모든 바이너리 파일 검색
+        var files = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories);
+
+        // C++ 클래스 생성기 생성
+        var param = new CppClassParam()
+        {
+            headerGuardPrefix = config.ClassNamespace.Replace(".", "_").ToUpperInvariant(),
+            generateToString = true,
+            generateEquals = true,
+            generateOperators = true,
+            useStdString = true
+        };
+        var generator = new CppClassGenerator(param);
+
+        foreach (var file in files)
+        {
+            try
+            {
+                // 출력 파일 경로 (.h와 .cpp가 함께 생성됨)
+                string relativePath = Path.GetRelativePath(config.BinaryDirectory, file);
+                string outputPath = Path.Combine(
+                    config.ClassOutputDirectory,
+                    Path.ChangeExtension(relativePath, ".h")
+                );
+
+                // 코드 생성
+                generator.Generate(file, outputPath);
+                Logger.Instance.Log($"[GenerateCppCodeCommand] Generated {relativePath}");
+                count++;
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"[GenerateCppCodeCommand] Error generating class for {file}: {ex.Message}");
+            }
+        }
+
+        return count;
+    }
+}
+
+/// <summary>
 /// Enum 코드(.cs)를 생성하는 커맨드
 /// 시스템 통일 경로(SystemPath.EnumBinaryPath)에서 EnumCache를 로드하여 코드를 생성합니다.
 /// </summary>
