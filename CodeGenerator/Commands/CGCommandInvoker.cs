@@ -23,8 +23,10 @@ public class CGCommandInvoker : CommandInvoker
             return list;
         }
 
+        // EnumDB 로드
         list.Add(new LoadEnumDBCommand());
 
+        // 클래스 코드 생성
         if (ProjectDefine.CodeExtension.EndsWith("cs"))
         {
             list.Add(new GenerateCSharpCodeCommand(config));
@@ -33,6 +35,13 @@ public class CGCommandInvoker : CommandInvoker
         {
             list.Add(new GenerateCppCodeCommand(config));
         }
+        
+        // Enum 코드 생성
+        if (config.IsGenerateEnumCode)
+        {
+            list.Add(new GenerateEnumCodeCommand(config.EnumOutputDirectory, config.CodeExtension));
+        }
+        
         return list;
     }
 }
