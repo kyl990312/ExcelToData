@@ -1,6 +1,6 @@
-using Common.Utils;
+using TableAutomation.Common.Utils;
 
-namespace Common.Command;
+namespace TableAutomation.Common.Command;
 
 public interface ICommand
 {

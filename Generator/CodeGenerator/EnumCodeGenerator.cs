@@ -1,8 +1,8 @@
-using Common.Utils;
+using TableAutomation.Common.Utils;
 using ExcelParser;
 using System.Text;
 using UserEnum;
-using Common.Command;
+using TableAutomation.Common.Command;
 
 namespace CodeGenerator;
 

@@ -1,11 +1,11 @@
-using Common;
-using Common.Command;
+using TableAutomation.Common;
+using TableAutomation.Common.Command;
 using TableAutomarionToolShared;
 
 namespace ExcelToData;
 
 /// <summary>
-/// ExcelToData 명령어 실행기 - 구조화된 바이너리 지원 추가
+/// ExcelToData 명령???�행�?- 구조?�된 바이?�리 지??추�?
 /// </summary>
 public class ETDCommandInvoker : CommandInvoker
 {
@@ -61,7 +61,7 @@ public class ETDCommandInvoker : CommandInvoker
 }
 
 /// <summary>
-/// 테스트용 명령어 실행기 - 모든 설정 파일 생성만 수행
+/// ?�스?�용 명령???�행�?- 모든 ?�정 ?�일 ?�성�??�행
 /// </summary>
 public class ETDCommandTestInvoker : CommandInvoker
 {
@@ -70,7 +70,7 @@ public class ETDCommandTestInvoker : CommandInvoker
         var commands = new List<ICommand>();
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
         
-        // 모든 설정 파일 생성
+        // 모든 ?�정 ?�일 ?�성
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.BinaryConfigPath)));
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.JsonConfigPath)));
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath)));
@@ -80,8 +80,7 @@ public class ETDCommandTestInvoker : CommandInvoker
 }
 
 /// <summary>
-/// 구조화된 바이너리만 처리하는 명령어 실행기
-/// </summary>
+/// 구조?�된 바이?�리�?처리?�는 명령???�행�?/// </summary>
 public class StructuredBinaryOnlyInvoker : CommandInvoker
 {
     protected override List<ICommand> CreateCommands()

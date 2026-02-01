@@ -1,22 +1,22 @@
-using Common.Utils;
+using TableAutomation.Common.Utils;
 using BinaryParser;
 using ExcelParser;
 
 namespace Generator.CodeGenerator
 {
-    // 코드 생성기 인터페이스
+    // 코드 ?�성�??�터?�이??
     public interface ICodeGenerator
     {
         void Generate(string binaryFilePath, string outputPath);
     }
 
-    // CustomDataTable 기반 코드 생성기 인터페이스
+    // CustomDataTable 기반 코드 ?�성�??�터?�이??
     public interface ITableCodeGenerator
     {
         void Generate(CustomDataTable table, string outputPath);
     }
 
-    // 코드 생성기 기본 클래스
+    // 코드 ?�성�?기본 ?�래??
     public abstract class CodeGeneratorBase : ICodeGenerator
     {
         public void Generate(string binaryFilePath, string outputPath)
@@ -29,10 +29,10 @@ namespace Generator.CodeGenerator
 
             try
             {
-                // 바이너리 파일 로드
+                // 바이?�리 ?�일 로드
                 byte[] binaryData = File.ReadAllBytes(binaryFilePath);
 
-                // BinarySchema를 사용하여 스키마 정보 읽기
+                // BinarySchema�??�용?�여 ?�키�??�보 ?�기
                 var schema = BinarySchema.ReadFromBytes(binaryData);
 
                 if (schema.ColumnCount == 0)
@@ -41,14 +41,14 @@ namespace Generator.CodeGenerator
                     return;
                 }
 
-                // 디렉토리 확인 및 생성
+                // ?�렉?�리 ?�인 �??�성
                 string directory = Path.GetDirectoryName(outputPath) ?? string.Empty;
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                // 실제 코드 생성 (자식 클래스에서 구현)
+                // ?�제 코드 ?�성 (?�식 ?�래?�에??구현)
                 GenerateCode(schema, outputPath);
 
                 Logger.Instance.Log($"[CodeGenerator] Generated code: {outputPath}");

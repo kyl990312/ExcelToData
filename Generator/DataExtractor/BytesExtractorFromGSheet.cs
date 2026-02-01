@@ -1,7 +1,7 @@
 using ExcelParser;
 using Generator.DataExtractor;
 using GAuth;
-using Common.Utils;
+using TableAutomation.Common.Utils;
 
 namespace EnumGenerator.DataExtractor;
 

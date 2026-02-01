@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using Common.Utils;
+using TableAutomation.Common.Utils;
 
-namespace Common.Command;
+namespace TableAutomation.Common.Command;
 
 public static class FileLoader
 {

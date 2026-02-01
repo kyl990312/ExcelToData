@@ -1,15 +1,14 @@
 using ClosedXML.Excel;
-using Common.Utils;
+using TableAutomation.Common.Utils;
 
 namespace ExcelParser;
 
 /// <summary>
-/// 테이블 관련 유틸리티 메서드를 제공하는 헬퍼 클래스
-/// </summary>
+/// ?�이�?관???�틸리티 메서?��? ?�공?�는 ?�퍼 ?�래??/// </summary>
 public static class TableHelper
 {
     /// <summary>
-    /// Excel 워크시트로부터 CustomDataTable을 생성합니다.
+    /// Excel ?�크?�트로�???CustomDataTable???�성?�니??
     /// </summary>
     public static CustomDataTable GetTable(IXLWorksheet sheet)
     {
@@ -18,7 +17,7 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// Google Sheets 데이터로부터 CustomDataTable을 생성합니다.
+    /// Google Sheets ?�이?�로부??CustomDataTable???�성?�니??
     /// </summary>
     public static CustomDataTable GetTable(string tableName, List<string[]> table)
     {
@@ -39,7 +38,7 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// Dictionary 리스트로부터 CustomDataTable을 생성합니다.
+    /// Dictionary 리스?�로부??CustomDataTable???�성?�니??
     /// </summary>
     public static CustomDataTable GetTable(string tableName, Dictionary<string, string> columnTypes, List<Dictionary<string, object>> data)
     {
@@ -47,7 +46,7 @@ public static class TableHelper
     }
 
     /// <summary>
-    /// CustomDataTable을 JSON 문자열로 변환합니다.
+    /// CustomDataTable??JSON 문자?�로 변?�합?�다.
     /// </summary>
     public static string ConvertDataTableToJSON(CustomDataTable table)
     {

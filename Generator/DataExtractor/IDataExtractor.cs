@@ -1,4 +1,4 @@
-using Common.Utils;
+using TableAutomation.Common.Utils;
 using ExcelParser;
 
 namespace Generator.DataExtractor;
@@ -33,8 +33,7 @@ public abstract class DataExtractorBase : IDataExtractor
     protected abstract List<CustomDataTable> GetDataTablesByFile(string filePath);
     
     /// <summary>
-    /// CustomDataTable을 저장하는 추상 메서드
-    /// </summary>
+    /// CustomDataTable???�?�하??추상 메서??    /// </summary>
     protected abstract void SaveData(CustomDataTable table, string path);
     
     private string GetFilePath(string fileName, string extend, string middle = "")

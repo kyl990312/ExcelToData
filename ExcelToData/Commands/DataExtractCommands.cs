@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using Common;
-using Common.Command;
+using TableAutomation.Common;
+using TableAutomation.Common.Command;
 using EnumGenerator.DataExtractor;
 using ExcelParser;
 using Generator.DataExtractor;
@@ -49,7 +49,7 @@ public class ExtractJsonCommand : Command
 }
 
 /// <summary>
-/// Excel 파일을 구조화된 바이너리 형식으로 추출하는 명령어
+/// Excel ?�일??구조?�된 바이?�리 ?�식?�로 추출?�는 명령??
 /// </summary>
 public class ExtractBinaryCommand : Command
 {
@@ -177,7 +177,7 @@ public class GenerateConfigCommand : Command
         };
         var options = new JsonSerializerOptions
         {
-            IncludeFields = true // 필드를 직렬화에 포함
+            IncludeFields = true // ?�드�?직렬?�에 ?�함
         };
         var json = JsonSerializer.Serialize(config, options);
         File.WriteAllText(_filePath,json);

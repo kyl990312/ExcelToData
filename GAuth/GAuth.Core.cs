@@ -1,4 +1,4 @@
-ï»¿using System.Diagnostics;
+using System.Diagnostics;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
@@ -6,7 +6,7 @@ using Google.Apis.Drive.v3;
 using Google.Apis.Sheets.v4;
 using System.IO;
 using System.Threading;
-using Common.Command;
+using TableAutomation.Common.Command;
 using Newtonsoft.Json;
 
 namespace GAuth.Core;
@@ -75,7 +75,7 @@ internal static class GAuthAPIHandler
             Console.WriteLine($"[GAuth] Token error: {tokenEx.Error.Error} - {tokenEx.Error.ErrorDescription}");
             Console.WriteLine("[GAuth] Attempting to refresh credentials...");
             
-            // í† í° íŒŒì¼ ì‚­ì œí•˜ê³  ì¬ì¸ì¦ ì‹œë„
+            // ÅäÅ« ÆÄÀÏ »èÁ¦ÇÏ°í ÀçÀÎÁõ ½Ãµµ
             string credPath = "token.json";
             if (Directory.Exists(credPath))
             {
@@ -83,7 +83,7 @@ internal static class GAuthAPIHandler
                 Console.WriteLine("[GAuth] Deleted old token. Please re-authenticate.");
             }
             
-            // ì¬ì‹œë„
+            // Àç½Ãµµ
             using var stream = new FileStream(_config.ClientSceret, FileMode.Open, FileAccess.Read);
             return GoogleWebAuthorizationBroker.AuthorizeAsync(
                 GoogleClientSecrets.FromStream(stream).Secrets,

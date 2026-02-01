@@ -1,6 +1,6 @@
-ï»¿using Common;
-using Common.Command;
-using Common.Utils;
+using TableAutomation.Common;
+using TableAutomation.Common.Command;
+using TableAutomation.Common.Utils;
 using UserEnum;
 using TableAutomarionToolShared;
 
@@ -15,12 +15,12 @@ public class TestCommandInvoker : CommandInvoker
 }
 
 /// <summary>
-/// EnumDB ê³µìœ  ë©”ëª¨ë¦¬ ê¸°ëŠ¥ í…ŒìŠ¤íŠ¸ ì»¤ë§¨ë“œ
-/// 1. ê¸°ì¡´ EnumDB ë°”ì´ë„ˆë¦¬ íŒŒì¼ ë¡œë“œ
-/// 2. ê³µìœ  ë©”ëª¨ë¦¬ì— ì“°ê¸°
-/// 3. ìºì‹œ í´ë¦¬ì–´
-/// 4. ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ì½ê¸°
-/// 5. ë°ì´í„° ê²€ì¦
+/// EnumDB °øÀ¯ ¸Ş¸ğ¸® ±â´É Å×½ºÆ® Ä¿¸Çµå
+/// 1. ±âÁ¸ EnumDB ¹ÙÀÌ³Ê¸® ÆÄÀÏ ·Îµå
+/// 2. °øÀ¯ ¸Ş¸ğ¸®¿¡ ¾²±â
+/// 3. Ä³½Ã Å¬¸®¾î
+/// 4. °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ÀĞ±â
+/// 5. µ¥ÀÌÅÍ °ËÁõ
 /// </summary>
 public class TestEnumDBSharedMemoryCommand : Command
 {
@@ -31,17 +31,17 @@ public class TestEnumDBSharedMemoryCommand : Command
         try
         {
             Logger.Instance.Log("========================================");
-            Logger.Instance.Log("[TestEnumDBSharedMemory] í…ŒìŠ¤íŠ¸ ì‹œì‘");
+            Logger.Instance.Log("[TestEnumDBSharedMemory] Å×½ºÆ® ½ÃÀÛ");
             Logger.Instance.Log("========================================");
             
             var enumDBPath = SystemPath.EnumBinaryPath;
             
-            // 1. ê¸°ì¡´ EnumDB ë°”ì´ë„ˆë¦¬ íŒŒì¼ ë¡œë“œ
-            Logger.Instance.Log("[Step 1] EnumDB ë°”ì´ë„ˆë¦¬ íŒŒì¼ ë¡œë“œ");
+            // 1. ±âÁ¸ EnumDB ¹ÙÀÌ³Ê¸® ÆÄÀÏ ·Îµå
+            Logger.Instance.Log("[Step 1] EnumDB ¹ÙÀÌ³Ê¸® ÆÄÀÏ ·Îµå");
             
             if (!File.Exists(enumDBPath))
             {
-                result = $"[TestEnumDBSharedMemory] EnumDB íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {enumDBPath}";
+                result = $"[TestEnumDBSharedMemory] EnumDB ÆÄÀÏÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {enumDBPath}";
                 Logger.Instance.Error(result);
                 return;
             }
@@ -49,7 +49,7 @@ public class TestEnumDBSharedMemoryCommand : Command
             EnumDB.Instance.Clear();
             if (!EnumDB.Instance.LoadFromBinary(enumDBPath))
             {
-                result = $"[TestEnumDBSharedMemory] EnumDB ë¡œë“œ ì‹¤íŒ¨: {enumDBPath}";
+                result = $"[TestEnumDBSharedMemory] EnumDB ·Îµå ½ÇÆĞ: {enumDBPath}";
                 Logger.Instance.Error(result);
                 return;
             }
@@ -58,74 +58,74 @@ public class TestEnumDBSharedMemoryCommand : Command
             var originalEnumTypes = EnumDB.Instance.EnumTypes.ToList();
             var originalData = CaptureEnumData();
             
-            Logger.Instance.Log($"  - ë¡œë“œëœ Enum íƒ€ì…: {originalEnumCount}ê°œ");
+            Logger.Instance.Log($"  - ·ÎµåµÈ Enum Å¸ÀÔ: {originalEnumCount}°³");
             foreach (var enumType in originalEnumTypes)
             {
                 var members = EnumDB.Instance.GetEnumMembers(enumType);
-                Logger.Instance.Log($"    * {enumType}: {members.Count}ê°œ ë©¤ë²„");
+                Logger.Instance.Log($"    * {enumType}: {members.Count}°³ ¸â¹ö");
             }
             
-            // 2. ê³µìœ  ë©”ëª¨ë¦¬ì— ì“°ê¸°
-            Logger.Instance.Log("[Step 2] ê³µìœ  ë©”ëª¨ë¦¬ì— ì“°ê¸°");
+            // 2. °øÀ¯ ¸Ş¸ğ¸®¿¡ ¾²±â
+            Logger.Instance.Log("[Step 2] °øÀ¯ ¸Ş¸ğ¸®¿¡ ¾²±â");
             if (!EnumDB.Instance.WriteToSharedMemory())
             {
-                result = "[TestEnumDBSharedMemory] ê³µìœ  ë©”ëª¨ë¦¬ ì“°ê¸° ì‹¤íŒ¨";
+                result = "[TestEnumDBSharedMemory] °øÀ¯ ¸Ş¸ğ¸® ¾²±â ½ÇÆĞ";
                 Logger.Instance.Error(result);
                 return;
             }
-            Logger.Instance.Log("  - ê³µìœ  ë©”ëª¨ë¦¬ ì“°ê¸° ì„±ê³µ");
+            Logger.Instance.Log("  - °øÀ¯ ¸Ş¸ğ¸® ¾²±â ¼º°ø");
             
-            // 3. ê³µìœ  ë©”ëª¨ë¦¬ ì¡´ì¬ í™•ì¸
-            Logger.Instance.Log("[Step 3] ê³µìœ  ë©”ëª¨ë¦¬ ì¡´ì¬ í™•ì¸");
+            // 3. °øÀ¯ ¸Ş¸ğ¸® Á¸Àç È®ÀÎ
+            Logger.Instance.Log("[Step 3] °øÀ¯ ¸Ş¸ğ¸® Á¸Àç È®ÀÎ");
             if (!EnumDB.Instance.SharedMemoryExists())
             {
-                result = "[TestEnumDBSharedMemory] ê³µìœ  ë©”ëª¨ë¦¬ê°€ ì¡´ì¬í•˜ì§€ ì•ŠìŒ";
+                result = "[TestEnumDBSharedMemory] °øÀ¯ ¸Ş¸ğ¸®°¡ Á¸ÀçÇÏÁö ¾ÊÀ½";
                 Logger.Instance.Error(result);
                 return;
             }
-            Logger.Instance.Log("  - ê³µìœ  ë©”ëª¨ë¦¬ ì¡´ì¬ í™•ì¸ë¨");
+            Logger.Instance.Log("  - °øÀ¯ ¸Ş¸ğ¸® Á¸Àç È®ÀÎµÊ");
             
-            // 4. ìºì‹œ í´ë¦¬ì–´
-            Logger.Instance.Log("[Step 4] EnumDB ìºì‹œ í´ë¦¬ì–´");
+            // 4. Ä³½Ã Å¬¸®¾î
+            Logger.Instance.Log("[Step 4] EnumDB Ä³½Ã Å¬¸®¾î");
             EnumDB.Instance.Clear();
             
             if (!EnumDB.Instance.IsEmpty)
             {
-                result = "[TestEnumDBSharedMemory] ìºì‹œ í´ë¦¬ì–´ ì‹¤íŒ¨";
+                result = "[TestEnumDBSharedMemory] Ä³½Ã Å¬¸®¾î ½ÇÆĞ";
                 Logger.Instance.Error(result);
                 return;
             }
-            Logger.Instance.Log("  - ìºì‹œ í´ë¦¬ì–´ ì™„ë£Œ");
+            Logger.Instance.Log("  - Ä³½Ã Å¬¸®¾î ¿Ï·á");
             
-            // 5. ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ì½ê¸°
-            Logger.Instance.Log("[Step 5] ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ì½ê¸°");
+            // 5. °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ÀĞ±â
+            Logger.Instance.Log("[Step 5] °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ÀĞ±â");
             if (!EnumDB.Instance.ReadFromSharedMemory())
             {
-                result = "[TestEnumDBSharedMemory] ê³µìœ  ë©”ëª¨ë¦¬ ì½ê¸° ì‹¤íŒ¨";
+                result = "[TestEnumDBSharedMemory] °øÀ¯ ¸Ş¸ğ¸® ÀĞ±â ½ÇÆĞ";
                 Logger.Instance.Error(result);
                 return;
             }
-            Logger.Instance.Log("  - ê³µìœ  ë©”ëª¨ë¦¬ ì½ê¸° ì„±ê³µ");
+            Logger.Instance.Log("  - °øÀ¯ ¸Ş¸ğ¸® ÀĞ±â ¼º°ø");
             
-            // 6. ë°ì´í„° ê²€ì¦
-            Logger.Instance.Log("[Step 6] ë°ì´í„° ê²€ì¦");
+            // 6. µ¥ÀÌÅÍ °ËÁõ
+            Logger.Instance.Log("[Step 6] µ¥ÀÌÅÍ °ËÁõ");
             var loadedEnumCount = EnumDB.Instance.EnumCount;
             
             if (loadedEnumCount != originalEnumCount)
             {
-                result = $"[TestEnumDBSharedMemory] Enum ê°œìˆ˜ ë¶ˆì¼ì¹˜: ì›ë³¸={originalEnumCount}, ë¡œë“œ={loadedEnumCount}";
+                result = $"[TestEnumDBSharedMemory] Enum °³¼ö ºÒÀÏÄ¡: ¿øº»={originalEnumCount}, ·Îµå={loadedEnumCount}";
                 Logger.Instance.Error(result);
                 return;
             }
-            Logger.Instance.Log($"  - Enum íƒ€ì… ê°œìˆ˜ ì¼ì¹˜: {loadedEnumCount}ê°œ");
+            Logger.Instance.Log($"  - Enum Å¸ÀÔ °³¼ö ÀÏÄ¡: {loadedEnumCount}°³");
             
-            // ê° Enum íƒ€ì…ë³„ ë©¤ë²„ ê²€ì¦
+            // °¢ Enum Å¸ÀÔº° ¸â¹ö °ËÁõ
             bool allMatch = true;
             foreach (var (enumType, originalMembers) in originalData)
             {
                 if (!EnumDB.Instance.HasEnum(enumType))
                 {
-                    Logger.Instance.Error($"  - Enum íƒ€ì… ëˆ„ë½: {enumType}");
+                    Logger.Instance.Error($"  - Enum Å¸ÀÔ ´©¶ô: {enumType}");
                     allMatch = false;
                     continue;
                 }
@@ -134,60 +134,60 @@ public class TestEnumDBSharedMemoryCommand : Command
                 
                 if (loadedMembers.Count != originalMembers.Count)
                 {
-                    Logger.Instance.Error($"  - {enumType} ë©¤ë²„ ê°œìˆ˜ ë¶ˆì¼ì¹˜: ì›ë³¸={originalMembers.Count}, ë¡œë“œ={loadedMembers.Count}");
+                    Logger.Instance.Error($"  - {enumType} ¸â¹ö °³¼ö ºÒÀÏÄ¡: ¿øº»={originalMembers.Count}, ·Îµå={loadedMembers.Count}");
                     allMatch = false;
                     continue;
                 }
                 
-                // ë©¤ë²„ë³„ ê°’ ê²€ì¦
+                // ¸â¹öº° °ª °ËÁõ
                 foreach (var (member, value) in originalMembers)
                 {
                     var loadedMember = loadedMembers.Find(m => m.member == member);
                     if (loadedMember.member == null || loadedMember.value != value)
                     {
-                        Logger.Instance.Error($"  - {enumType}.{member} ê°’ ë¶ˆì¼ì¹˜: ì›ë³¸={value}, ë¡œë“œ={loadedMember.value}");
+                        Logger.Instance.Error($"  - {enumType}.{member} °ª ºÒÀÏÄ¡: ¿øº»={value}, ·Îµå={loadedMember.value}");
                         allMatch = false;
                     }
                 }
                 
-                Logger.Instance.Log($"  - {enumType}: {loadedMembers.Count}ê°œ ë©¤ë²„ ê²€ì¦ ì™„ë£Œ");
+                Logger.Instance.Log($"  - {enumType}: {loadedMembers.Count}°³ ¸â¹ö °ËÁõ ¿Ï·á");
             }
             
             if (!allMatch)
             {
-                result = "[TestEnumDBSharedMemory] ë°ì´í„° ê²€ì¦ ì‹¤íŒ¨";
+                result = "[TestEnumDBSharedMemory] µ¥ÀÌÅÍ °ËÁõ ½ÇÆĞ";
                 Logger.Instance.Error(result);
                 return;
             }
             
-            // 7. LoadWithFallback í…ŒìŠ¤íŠ¸
-            Logger.Instance.Log("[Step 7] LoadWithFallback í…ŒìŠ¤íŠ¸");
+            // 7. LoadWithFallback Å×½ºÆ®
+            Logger.Instance.Log("[Step 7] LoadWithFallback Å×½ºÆ®");
             EnumDB.Instance.Clear();
             
-            // ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ë¡œë“œ (ì´ë¯¸ ì¡´ì¬í•˜ë¯€ë¡œ ì„±ê³µí•´ì•¼ í•¨)
+            // °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ·Îµå (ÀÌ¹Ì Á¸ÀçÇÏ¹Ç·Î ¼º°øÇØ¾ß ÇÔ)
             if (!EnumDB.Instance.LoadWithFallback(enumDBPath))
             {
-                result = "[TestEnumDBSharedMemory] LoadWithFallback ì‹¤íŒ¨";
+                result = "[TestEnumDBSharedMemory] LoadWithFallback ½ÇÆĞ";
                 Logger.Instance.Error(result);
                 return;
             }
-            Logger.Instance.Log($"  - LoadWithFallback ì„±ê³µ: {EnumDB.Instance.EnumCount}ê°œ Enum ë¡œë“œë¨");
+            Logger.Instance.Log($"  - LoadWithFallback ¼º°ø: {EnumDB.Instance.EnumCount}°³ Enum ·ÎµåµÊ");
             
             Logger.Instance.Log("========================================");
-            Logger.Instance.Log("[TestEnumDBSharedMemory] ëª¨ë“  í…ŒìŠ¤íŠ¸ í†µê³¼!");
+            Logger.Instance.Log("[TestEnumDBSharedMemory] ¸ğµç Å×½ºÆ® Åë°ú!");
             Logger.Instance.Log("========================================");
             
-            result = "[TestEnumDBSharedMemory] í…ŒìŠ¤íŠ¸ ì„±ê³µ";
+            result = "[TestEnumDBSharedMemory] Å×½ºÆ® ¼º°ø";
         }
         catch (Exception e)
         {
-            result = $"[TestEnumDBSharedMemory] í…ŒìŠ¤íŠ¸ ì‹¤íŒ¨: {e.Message}";
+            result = $"[TestEnumDBSharedMemory] Å×½ºÆ® ½ÇÆĞ: {e.Message}";
             Logger.Instance.Error($"{result}\n{e.StackTrace}");
         }
     }
     
     /// <summary>
-    /// í˜„ì¬ EnumDB ë°ì´í„°ë¥¼ ìº¡ì²˜í•©ë‹ˆë‹¤.
+    /// ÇöÀç EnumDB µ¥ÀÌÅÍ¸¦ Ä¸Ã³ÇÕ´Ï´Ù.
     /// </summary>
     private Dictionary<string, List<(string member, int value)>> CaptureEnumData()
     {

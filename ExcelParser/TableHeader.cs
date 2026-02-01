@@ -1,11 +1,10 @@
-using Common.Utils;
+using TableAutomation.Common.Utils;
 using ExcelParser.Core;
 
 namespace ExcelParser;
 
 /// <summary>
-/// 테이블 헤더 정보를 관리하는 클래스
-/// </summary>
+/// ?�이�??�더 ?�보�?관리하???�래??/// </summary>
 public class TableHeader
 {
     public struct Group
@@ -29,10 +28,10 @@ public class TableHeader
     public string TableName { get; set; }
 
     /// <summary>
-    /// 칼럼 타입 딕셔너리로부터 TableHeader를 생성합니다.
+    /// 칼럼 ?�???�셔?�리로�???TableHeader�??�성?�니??
     /// </summary>
-    /// <param name="tableName">테이블명</param>
-    /// <param name="columnTypes">칼럼명과 타입 문자열 딕셔너리</param>
+    /// <param name="tableName">?�이블명</param>
+    /// <param name="columnTypes">칼럼명과 ?�??문자???�셔?�리</param>
     public TableHeader(string tableName, Dictionary<string, string> columnTypes)
     {
         TableName = tableName;

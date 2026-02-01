@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <RootNamespace>BinaryParser</RootNamespace>
+        <OutputPath>$(SolutionDir)Output\$(Configuration)\</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>

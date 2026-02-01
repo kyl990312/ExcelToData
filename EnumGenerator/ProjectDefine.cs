@@ -1,4 +1,4 @@
-using Common;
+using TableAutomation.Common;
 
 namespace EnumGenerator;
 

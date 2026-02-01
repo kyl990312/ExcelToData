@@ -18,7 +18,7 @@ public class ExcelGenerator
     public XLWorkbook Workbook => _workbook;
     
     /// <summary>
-    /// 주어진 데이터에 맞는 엑셀을 생성합니다.
+    /// 주어�??�이?�에 맞는 ?��????�성?�니??
     /// </summary>
     public ExcelGenerator(List<SheetData> sheetList, string path)
     {
@@ -26,8 +26,8 @@ public class ExcelGenerator
         _workbook = new();
         _workbook.Worksheets.Add("temp");
         
-        // 시트 생성 전에 빈 파일 저장부터
-        // 시트 생성 시에 임시로 파일을 저장하는 경우가 발생하는데, 이때 파일명이 없으면 확장자 판단이 어려워 exception을 냄
+        // ?�트 ?�성 ?�에 �??�일 ?�?��???
+        // ?�트 ?�성 ?�에 ?�시�??�일???�?�하??경우가 발생?�는?? ?�때 ?�일명이 ?�으�??�장???�단???�려??exception????
         SaveFile();
         
         ClearWorkbook();
@@ -38,9 +38,9 @@ public class ExcelGenerator
     }
 
     /// <summary>
-    /// 지정된 경로로 저장합니다.
+    /// 지?�된 경로�??�?�합?�다.
     /// </summary>
-    /// <param name="path">Full Path로 넘겨주세요.</param>
+    /// <param name="path">Full Path�??�겨주세??</param>
     public void SaveFile(string path)
     {
         _workbook.SaveAs(path);   
@@ -57,21 +57,21 @@ public class ExcelGenerator
             _workbook.Worksheets.Delete(data.SheetName);
         var worksheet = _workbook.Worksheets.Add(data.SheetName);
         
-        // 컬럼 이름 행 작성 (1행)
+        // 컬럼 ?�름 ???�성 (1??
         for (int i = 0; i < data.ColumnNames.Length; i++)
         {
             var cell = worksheet.Cell(1, i + 1);
             cell.SetValue(data.ColumnNames[i]);
         }
     
-        // 컬럼 타입 행 작성 (2행)
+        // 컬럼 ?�?????�성 (2??
         for (int i = 0; i < data.ColumnTypes.Length; i++)
         {
             var cell = worksheet.Cell(2, i + 1);
             cell.SetValue(data.ColumnTypes[i].FullName);
         }
     
-        // 데이터 행 채우기 (3행부터)
+        // ?�이????채우�?(3?��???
         for (int row = 0; row < data.DataList.Count; row++)
         {
             var rowData = data.DataList[row];
@@ -126,10 +126,10 @@ public class ExcelGenerator
 
     private void ClearWorkbook()
     {
-        // 워크시트 컬렉션의 복사본을 만듭니다 (삭제 중에 컬렉션이 변경되는 것을 방지)
+        // ?�크?�트 컬렉?�의 복사본을 만듭?�다 (??�� 중에 컬렉?�이 변경되??것을 방�?)
         var worksheets = _workbook.Worksheets.ToList();
     
-        // 각 워크시트를 제거합니다
+        // �??�크?�트�??�거?�니??
         foreach (var worksheet in worksheets)
         {
             worksheet.Delete();

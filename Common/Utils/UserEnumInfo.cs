@@ -1,31 +1,30 @@
 using System.Text;
 
-namespace Common.Utils;
+namespace TableAutomation.Common.Utils;
 
 /// <summary>
-/// EnumDB에서 로드한 사용자 정의 Enum 정보를 관리하는 클래스
-/// </summary>
+/// EnumDB?�서 로드???�용???�의 Enum ?�보�?관리하???�래??/// </summary>
 public class UserEnumInfo : Singleton<UserEnumInfo>
 {
     /// <summary>
-    /// Enum 데이터 저장소
-    /// Key: EnumTypeName (예: "ItemType")
-    /// Value: Dictionary(MemberName, MemberValue) (예: {"Weapon": 1, "Armor": 2})
+    /// Enum ?�이???�?�소
+    /// Key: EnumTypeName (?? "ItemType")
+    /// Value: Dictionary(MemberName, MemberValue) (?? {"Weapon": 1, "Armor": 2})
     /// </summary>
     private Dictionary<string, Dictionary<string, int>> _enumMap = new();
 
     /// <summary>
-    /// 역방향 조회용 캐시
+    /// ??��??조회??캐시
     /// Key: EnumTypeName
     /// Value: Dictionary(MemberValue, MemberName)
     /// </summary>
     private Dictionary<string, Dictionary<int, string>> _reverseMap = new();
 
     /// <summary>
-    /// EnumDB 파일에서 데이터를 로드합니다.
+    /// EnumDB ?�일?�서 ?�이?��? 로드?�니??
     /// </summary>
-    /// <param name="enumDBPath">EnumDB 바이너리 파일 경로</param>
-    /// <returns>로드 성공 여부</returns>
+    /// <param name="enumDBPath">EnumDB 바이?�리 ?�일 경로</param>
+    /// <returns>로드 ?�공 ?��?</returns>
     public bool LoadFromFile(string enumDBPath)
     {
         try
@@ -41,7 +40,7 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
             using var fileStream = new FileStream(enumDBPath, FileMode.Open, FileAccess.Read);
             using var reader = new BinaryReader(fileStream, Encoding.UTF8);
 
-            // Header 읽기
+            // Header ?�기
             byte[] magic = reader.ReadBytes(4);
             string magicStr = Encoding.ASCII.GetString(magic);
             if (magicStr != "ENDB")
@@ -58,7 +57,7 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
 
             int enumCount = reader.ReadInt32();
 
-            // Enum Entries 읽기
+            // Enum Entries ?�기
             for (int i = 0; i < enumCount; i++)
             {
                 string enumName = reader.ReadString();
@@ -91,21 +90,21 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
     }
 
     /// <summary>
-    /// 지정된 타입이 사용자 정의 Enum인지 확인합니다.
+    /// 지?�된 ?�?�이 ?�용???�의 Enum?��? ?�인?�니??
     /// </summary>
-    /// <param name="typeName">확인할 타입명</param>
-    /// <returns>사용자 정의 Enum 여부</returns>
+    /// <param name="typeName">?�인???�?�명</param>
+    /// <returns>?�용???�의 Enum ?��?</returns>
     public bool IsUserDefinedEnum(string typeName)
     {
         return _enumMap.ContainsKey(typeName);
     }
 
     /// <summary>
-    /// Enum 멤버명으로 int 값을 조회합니다.
+    /// Enum 멤버명으�?int 값을 조회?�니??
     /// </summary>
-    /// <param name="typeName">Enum 타입명</param>
-    /// <param name="memberName">멤버명</param>
-    /// <returns>멤버 값 (찾지 못하면 0)</returns>
+    /// <param name="typeName">Enum ?�?�명</param>
+    /// <param name="memberName">멤버�?/param>
+    /// <returns>멤버 �?(찾�? 못하�?0)</returns>
     public int GetEnumValue(string typeName, string memberName)
     {
         if (_enumMap.TryGetValue(typeName, out var members))
@@ -124,11 +123,11 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
     }
 
     /// <summary>
-    /// int 값으로 Enum 멤버명을 조회합니다.
+    /// int 값으�?Enum 멤버명을 조회?�니??
     /// </summary>
-    /// <param name="typeName">Enum 타입명</param>
-    /// <param name="value">멤버 값</param>
-    /// <returns>멤버명 (찾지 못하면 빈 문자열)</returns>
+    /// <param name="typeName">Enum ?�?�명</param>
+    /// <param name="value">멤버 �?/param>
+    /// <returns>멤버�?(찾�? 못하�?�?문자??</returns>
     public string GetEnumMember(string typeName, int value)
     {
         if (_reverseMap.TryGetValue(typeName, out var members))
@@ -147,10 +146,10 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
     }
 
     /// <summary>
-    /// 특정 Enum 타입의 모든 멤버 정보를 반환합니다.
+    /// ?�정 Enum ?�?�의 모든 멤버 ?�보�?반환?�니??
     /// </summary>
-    /// <param name="typeName">Enum 타입명</param>
-    /// <returns>멤버 Dictionary (없으면 빈 Dictionary)</returns>
+    /// <param name="typeName">Enum ?�?�명</param>
+    /// <returns>멤버 Dictionary (?�으�?�?Dictionary)</returns>
     public IReadOnlyDictionary<string, int> GetEnumMembers(string typeName)
     {
         if (_enumMap.TryGetValue(typeName, out var members))
@@ -161,21 +160,21 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
     }
 
     /// <summary>
-    /// 등록된 모든 Enum 타입명을 반환합니다.
+    /// ?�록??모든 Enum ?�?�명??반환?�니??
     /// </summary>
-    /// <returns>Enum 타입명 목록</returns>
+    /// <returns>Enum ?�?�명 목록</returns>
     public IEnumerable<string> GetAllEnumTypes()
     {
         return _enumMap.Keys;
     }
 
     /// <summary>
-    /// 등록된 Enum 개수를 반환합니다.
+    /// ?�록??Enum 개수�?반환?�니??
     /// </summary>
     public int EnumCount => _enumMap.Count;
 
     /// <summary>
-    /// 모든 Enum 데이터를 초기화합니다.
+    /// 모든 Enum ?�이?��? 초기?�합?�다.
     /// </summary>
     public void Clear()
     {
@@ -184,7 +183,7 @@ public class UserEnumInfo : Singleton<UserEnumInfo>
     }
 
     /// <summary>
-    /// 디버그용: 현재 로드된 Enum 정보를 출력합니다.
+    /// ?�버그용: ?�재 로드??Enum ?�보�?출력?�니??
     /// </summary>
     public void PrintEnumInfo()
     {

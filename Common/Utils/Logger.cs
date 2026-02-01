@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace Common.Utils;
+namespace TableAutomation.Common.Utils;
 
 public class Logger : IDisposable
 {

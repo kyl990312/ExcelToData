@@ -1,5 +1,5 @@
 using BinaryParser;
-using Common.Utils;
+using TableAutomation.Common.Utils;
 
 namespace UserEnum;
 

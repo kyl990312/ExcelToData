@@ -1,18 +1,18 @@
 using System.Text;
-using Common.Utils;
+using TableAutomation.Common.Utils;
 
 namespace Generator.BinaryTable;
 
 /// <summary>
-/// 구조화된 바이너리 파일을 Dictionary 형태로 읽어오는 클래스
+/// 구조?�된 바이?�리 ?�일??Dictionary ?�태�??�어?�는 ?�래??
 /// </summary>
 public class BinaryReader
 {
     /// <summary>
-    /// 바이너리 파일에서 Dictionary 형태의 데이터를 읽어옵니다
+    /// 바이?�리 ?�일?�서 Dictionary ?�태???�이?��? ?�어?�니??
     /// </summary>
-    /// <param name="filePath">읽을 파일 경로</param>
-    /// <returns>변환된 데이터 (List&lt;Dictionary&lt;string, object&gt;&gt; 형태)</returns>
+    /// <param name="filePath">?�을 ?�일 경로</param>
+    /// <returns>변?�된 ?�이??(List&lt;Dictionary&lt;string, object&gt;&gt; ?�태)</returns>
     public List<Dictionary<string, object>> ReadFromFile(string filePath)
     {
         try
@@ -38,10 +38,10 @@ public class BinaryReader
     }
 
     /// <summary>
-    /// 바이트 배열에서 Dictionary 형태의 데이터를 읽어옵니다
+    /// 바이??배열?�서 Dictionary ?�태???�이?��? ?�어?�니??
     /// </summary>
-    /// <param name="binaryData">바이너리 데이터</param>
-    /// <returns>변환된 데이터 (List&lt;Dictionary&lt;string, object&gt;&gt; 형태)</returns>
+    /// <param name="binaryData">바이?�리 ?�이??/param>
+    /// <returns>변?�된 ?�이??(List&lt;Dictionary&lt;string, object&gt;&gt; ?�태)</returns>
     public List<Dictionary<string, object>> ReadFromBytes(byte[] binaryData)
     {
         using var memoryStream = new MemoryStream(binaryData);
@@ -52,7 +52,7 @@ public class BinaryReader
 
     private List<Dictionary<string, object>> ReadDataFromBinary(System.IO.BinaryReader reader)
     {
-        // Header 정보 읽기
+        // Header ?�보 ?�기
         var fileInfo = ReadHeader(reader);
         
         if (fileInfo.ColumnCount == 0 || fileInfo.RowCount == 0)
@@ -60,10 +60,10 @@ public class BinaryReader
             return new List<Dictionary<string, object>>();
         }
         
-        // Data 정보 읽기 (칼럼별로 읽기)
+        // Data ?�보 ?�기 (칼럼별로 ?�기)
         var columnData = ReadDataByColumns(fileInfo, reader);
         
-        // Dictionary 형태로 변환
+        // Dictionary ?�태�?변??
         return ConvertToRowDictionaries(fileInfo, columnData);
     }
 
@@ -71,22 +71,22 @@ public class BinaryReader
     {
         var info = new FileInfo();
         
-        // 1. 칼럼 갯수
+        // 1. 칼럼 �?��
         info.ColumnCount = reader.ReadInt32();
         
-        // 2. 데이터 갯수 (행 갯수)
+        // 2. ?�이??�?�� (??�?��)
         info.RowCount = reader.ReadInt32();
         
-        // 3. 각 칼럼의 메타데이터
+        // 3. �?칼럼??메�??�이??
         info.Columns = new List<ColumnInfo>();
         for (int i = 0; i < info.ColumnCount; i++)
         {
             var columnInfo = new ColumnInfo();
             
-            // 칼럼 이름
+            // 칼럼 ?�름
             columnInfo.Name = reader.ReadString();
             
-            // 칼럼 타입
+            // 칼럼 ?�??
             var typeString = reader.ReadString();
             columnInfo.Type = GetTypeFromString(typeString);
             
@@ -100,7 +100,7 @@ public class BinaryReader
     {
         var columnData = new Dictionary<string, List<object>>();
         
-        // 각 칼럼별로 데이터 읽기
+        // �?칼럼별로 ?�이???�기
         foreach (var columnInfo in fileInfo.Columns)
         {
             var columnValues = new List<object>();
@@ -115,7 +115,7 @@ public class BinaryReader
                     continue;
                 }
                 
-                // 타입별 데이터 읽기
+                // ?�?�별 ?�이???�기
                 var value = ReadValueByType(columnInfo.Type, reader);
                 columnValues.Add(value);
             }
@@ -177,13 +177,13 @@ public class BinaryReader
             }
             else if (type.IsEnum)
             {
-                // Enum을 정수값에서 복원
+                // Enum???�수값에??복원
                 var intValue = reader.ReadInt32();
                 return Enum.ToObject(type, intValue);
             }
             else
             {
-                // 기타 타입은 문자열에서 변환
+                // 기�? ?�?��? 문자?�에??변??
                 var stringValue = reader.ReadString();
                 try
                 {
@@ -205,10 +205,10 @@ public class BinaryReader
 
     private object ReadArrayValue(Type arrayType, System.IO.BinaryReader reader)
     {
-        // 배열 길이 읽기
+        // 배열 길이 ?�기
         int length = reader.ReadInt32();
         
-        // 배열 요소 타입
+        // 배열 ?�소 ?�??
         var elementType = arrayType.GetElementType();
         if (elementType == null)
         {
@@ -216,10 +216,10 @@ public class BinaryReader
             return Array.CreateInstance(typeof(object), 0);
         }
         
-        // 배열 생성
+        // 배열 ?�성
         var array = Array.CreateInstance(elementType, length);
         
-        // 각 요소 읽기
+        // �??�소 ?�기
         for (int i = 0; i < length; i++)
         {
             // null 체크
@@ -241,12 +241,12 @@ public class BinaryReader
     {
         try
         {
-            // AssemblyQualifiedName으로 시도
+            // AssemblyQualifiedName?�로 ?�도
             var type = Type.GetType(typeString);
             if (type != null)
                 return type;
             
-            // 기본 타입들 직접 매핑
+            // 기본 ?�?�들 직접 매핑
             return typeString switch
             {
                 "System.Int16" => typeof(Int16),
@@ -256,7 +256,7 @@ public class BinaryReader
                 "System.Double" => typeof(Double),
                 "System.String" => typeof(String),
                 "System.Boolean" => typeof(Boolean),
-                _ => typeof(String) // 기본값
+                _ => typeof(String) // 기본�?
             };
         }
         catch (Exception ex)

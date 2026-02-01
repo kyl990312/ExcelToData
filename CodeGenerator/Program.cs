@@ -1,5 +1,5 @@
-﻿using CodeGenerator;
-using Common.Utils;
+using CodeGenerator;
+using TableAutomation.Common.Utils;
 
 Logger.Instance.Log("[CodeGenerator] Start Generate Code");
 var commandInvoker = new CGCommandInvoker();

@@ -1,4 +1,4 @@
-namespace Common.Command;
+namespace TableAutomation.Common.Command;
 
 public abstract class CommandInvoker
 {

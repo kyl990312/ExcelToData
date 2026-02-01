@@ -1,14 +1,14 @@
-ï»¿using Common.Utils;
+using TableAutomation.Common.Utils;
 using ExcelParser;
 
 namespace UserEnum;
 
 /// <summary>
-/// Enum ë°ì´í„°ë¥¼ ë©”ëª¨ë¦¬ì— ì €ì¥í•˜ê³  ê´€ë¦¬í•˜ëŠ” ìºì‹œ
+/// Enum µ¥ÀÌÅÍ¸¦ ¸Ş¸ğ¸®¿¡ ÀúÀåÇÏ°í °ü¸®ÇÏ´Â Ä³½Ã
 /// 
-/// ì €ì¥ êµ¬ì¡°:
-/// - _cache: {Enum íƒ€ì…ëª…: [(ë©¤ë²„ëª…, ê°’)]} - Enum ë°ì´í„°
-/// - _sheetEnumMap: {ì‹œíŠ¸ëª…: [Enum íƒ€ì…ëª…]} - ì‹œíŠ¸ë³„ Enum íƒ€ì… ë§¤í•‘
+/// ÀúÀå ±¸Á¶:
+/// - _cache: {Enum Å¸ÀÔ¸í: [(¸â¹ö¸í, °ª)]} - Enum µ¥ÀÌÅÍ
+/// - _sheetEnumMap: {½ÃÆ®¸í: [Enum Å¸ÀÔ¸í]} - ½ÃÆ®º° Enum Å¸ÀÔ ¸ÅÇÎ
 /// </summary>
 public class EnumCache
 {
@@ -17,25 +17,25 @@ public class EnumCache
     private const string ColumnMember = "member";
     private const string ColumnValue = "value";
 
-    // Enum ë°ì´í„° ì €ì¥ì†Œ: {Enumíƒ€ì…ëª…: [(ë©¤ë²„ëª…, ê°’)]}
+    // Enum µ¥ÀÌÅÍ ÀúÀå¼Ò: {EnumÅ¸ÀÔ¸í: [(¸â¹ö¸í, °ª)]}
     private Dictionary<string, List<(string member, int value)>> _cache = new();
     
-    // ì‹œíŠ¸-Enum íƒ€ì… ë§¤í•‘: {ì‹œíŠ¸ëª…: [Enumíƒ€ì…ëª…]}
+    // ½ÃÆ®-Enum Å¸ÀÔ ¸ÅÇÎ: {½ÃÆ®¸í: [EnumÅ¸ÀÔ¸í]}
     private Dictionary<string, List<string>> _sheetEnumMap = new();
 
     // ============================================
-    // ì™¸ë¶€ ë°ì´í„° ë¡œë“œ ë©”ì„œë“œ
+    // ¿ÜºÎ µ¥ÀÌÅÍ ·Îµå ¸Ş¼­µå
     // ============================================
 
     /// <summary>
-    /// ì™¸ë¶€ì—ì„œ ë¡œë“œí•œ CustomDataTableë¡œë¶€í„° Enum ë°ì´í„°ë¥¼ ì €ì¥í•©ë‹ˆë‹¤.
-    /// í…Œì´ë¸”ì˜ Name ì†ì„±ì„ ì‹œíŠ¸ ì´ë¦„ìœ¼ë¡œ ì‚¬ìš©í•©ë‹ˆë‹¤.
+    /// ¿ÜºÎ¿¡¼­ ·ÎµåÇÑ CustomDataTable·ÎºÎÅÍ Enum µ¥ÀÌÅÍ¸¦ ÀúÀåÇÕ´Ï´Ù.
+    /// Å×ÀÌºíÀÇ Name ¼Ó¼ºÀ» ½ÃÆ® ÀÌ¸§À¸·Î »ç¿ëÇÕ´Ï´Ù.
     /// </summary>
-    /// <param name="table">Enum ë°ì´í„°ë¥¼ í¬í•¨í•˜ëŠ” CustomDataTable</param>
-    /// <returns>ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
+    /// <param name="table">Enum µ¥ÀÌÅÍ¸¦ Æ÷ÇÔÇÏ´Â CustomDataTable</param>
+    /// <returns>·Îµå ¼º°ø ¿©ºÎ</returns>
     public bool LoadFromTable(CustomDataTable table)
     {
-        // 1. í…Œì´ë¸” ìœ íš¨ì„± ê²€ì‚¬
+        // 1. Å×ÀÌºí À¯È¿¼º °Ë»ç
         if (!ValidateTable(table))
         {
             return false;
@@ -43,55 +43,55 @@ public class EnumCache
 
         try
         {
-            Logger.Instance.Log($"[EnumCache] í…Œì´ë¸”ì—ì„œ Enum ë¡œë“œ ì‹œì‘: {table.Name}");
+            Logger.Instance.Log($"[EnumCache] Å×ÀÌºí¿¡¼­ Enum ·Îµå ½ÃÀÛ: {table.Name}");
 
-            // 2. í…Œì´ë¸”ì—ì„œ Enum ë°ì´í„° ì¶”ì¶œ
+            // 2. Å×ÀÌºí¿¡¼­ Enum µ¥ÀÌÅÍ ÃßÃâ
             var extractedEnums = ExtractEnumsFromTable(table);
             if (extractedEnums.Count == 0)
             {
-                Logger.Instance.Warning($"[EnumCache] Enum ë°ì´í„°ê°€ ì—†ìŠµë‹ˆë‹¤: {table.Name}");
+                Logger.Instance.Warning($"[EnumCache] Enum µ¥ÀÌÅÍ°¡ ¾ø½À´Ï´Ù: {table.Name}");
                 return false;
             }
 
-            // 3. ì¤‘ë³µ Enum íƒ€ì… ê²€ì‚¬
+            // 3. Áßº¹ Enum Å¸ÀÔ °Ë»ç
             if (!ValidateDuplicateEnumTypes(table.Name, extractedEnums.Keys))
             {
                 return false;
             }
 
-            // 4. ê²€ì¦ í†µê³¼ ì‹œ ìºì‹œì— ì¶”ê°€
+            // 4. °ËÁõ Åë°ú ½Ã Ä³½Ã¿¡ Ãß°¡
             foreach (var (enumType, members) in extractedEnums)
             {
                 _cache[enumType] = members;
             }
             _sheetEnumMap[table.Name] = extractedEnums.Keys.ToList();
 
-            Logger.Instance.Log($"[EnumCache] í…Œì´ë¸” ë¡œë“œ ì™„ë£Œ: {table.Name} ({extractedEnums.Count}ê°œì˜ Enum)");
+            Logger.Instance.Log($"[EnumCache] Å×ÀÌºí ·Îµå ¿Ï·á: {table.Name} ({extractedEnums.Count}°³ÀÇ Enum)");
             return true;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[EnumCache] í…Œì´ë¸” ë¡œë“œ ì¤‘ ì˜¤ë¥˜: {table.Name} - {ex.Message}");
+            Logger.Instance.Error($"[EnumCache] Å×ÀÌºí ·Îµå Áß ¿À·ù: {table.Name} - {ex.Message}");
             return false;
         }
     }
 
     /// <summary>
-    /// ì—¬ëŸ¬ CustomDataTableì„ í•œ ë²ˆì— ë¡œë“œí•©ë‹ˆë‹¤.
-    /// ê° í…Œì´ë¸”ì˜ Name ì†ì„±ì„ ì‹œíŠ¸ ì´ë¦„ìœ¼ë¡œ ì‚¬ìš©í•©ë‹ˆë‹¤.
+    /// ¿©·¯ CustomDataTableÀ» ÇÑ ¹ø¿¡ ·ÎµåÇÕ´Ï´Ù.
+    /// °¢ Å×ÀÌºíÀÇ Name ¼Ó¼ºÀ» ½ÃÆ® ÀÌ¸§À¸·Î »ç¿ëÇÕ´Ï´Ù.
     /// </summary>
-    /// <param name="tables">ë¡œë“œí•  CustomDataTable ì»¬ë ‰ì…˜</param>
-    /// <returns>ëª¨ë“  í…Œì´ë¸” ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
+    /// <param name="tables">·ÎµåÇÒ CustomDataTable ÄÃ·º¼Ç</param>
+    /// <returns>¸ğµç Å×ÀÌºí ·Îµå ¼º°ø ¿©ºÎ</returns>
     public bool LoadFromTables(IEnumerable<CustomDataTable> tables)
     {
         if (tables == null)
         {
-            Logger.Instance.Error("[EnumCache] í…Œì´ë¸” ì»¬ë ‰ì…˜ì´ nullì…ë‹ˆë‹¤");
+            Logger.Instance.Error("[EnumCache] Å×ÀÌºí ÄÃ·º¼ÇÀÌ nullÀÔ´Ï´Ù");
             return false;
         }
 
         var tableList = tables.ToList();
-        Logger.Instance.Log($"[EnumCache] ë‹¤ì¤‘ í…Œì´ë¸” ë¡œë“œ ì‹œì‘: {tableList.Count}ê°œ");
+        Logger.Instance.Log($"[EnumCache] ´ÙÁß Å×ÀÌºí ·Îµå ½ÃÀÛ: {tableList.Count}°³");
 
         bool allSuccess = true;
         foreach (var table in tableList)
@@ -102,16 +102,16 @@ public class EnumCache
             }
         }
 
-        Logger.Instance.Log($"[EnumCache] ë‹¤ì¤‘ í…Œì´ë¸” ë¡œë“œ ì™„ë£Œ: {_cache.Count}ê°œ Enum íƒ€ì… ì²˜ë¦¬ë¨");
+        Logger.Instance.Log($"[EnumCache] ´ÙÁß Å×ÀÌºí ·Îµå ¿Ï·á: {_cache.Count}°³ Enum Å¸ÀÔ Ã³¸®µÊ");
         return allSuccess;
     }
 
     // ============================================
-    // ì§ë ¬í™” ì§€ì› ë©”ì„œë“œ (EnumDBì—ì„œ ì‚¬ìš©)
+    // Á÷·ÄÈ­ Áö¿ø ¸Ş¼­µå (EnumDB¿¡¼­ »ç¿ë)
     // ============================================
 
     /// <summary>
-    /// ìºì‹œ ë°ì´í„°ë¥¼ BinaryHelperì—ì„œ ì‚¬ìš©í•˜ëŠ” í˜•ì‹ìœ¼ë¡œ ë³€í™˜í•©ë‹ˆë‹¤.
+    /// Ä³½Ã µ¥ÀÌÅÍ¸¦ BinaryHelper¿¡¼­ »ç¿ëÇÏ´Â Çü½ÄÀ¸·Î º¯È¯ÇÕ´Ï´Ù.
     /// </summary>
     public List<Dictionary<string, object>> ConvertToSerializableData()
     {
@@ -141,7 +141,7 @@ public class EnumCache
     }
 
     /// <summary>
-    /// ë°”ì´ë„ˆë¦¬ ë°ì´í„°ë¥¼ ìºì‹œë¡œ ë³µì›í•©ë‹ˆë‹¤.
+    /// ¹ÙÀÌ³Ê¸® µ¥ÀÌÅÍ¸¦ Ä³½Ã·Î º¹¿øÇÕ´Ï´Ù.
     /// </summary>
     public void RestoreFromBinaryData(List<Dictionary<string, object>> data)
     {
@@ -159,14 +159,14 @@ public class EnumCache
             if (string.IsNullOrEmpty(enumType) || string.IsNullOrEmpty(member))
                 continue;
 
-            // _cacheì— ì¶”ê°€
+            // _cache¿¡ Ãß°¡
             if (!_cache.ContainsKey(enumType))
             {
                 _cache[enumType] = [];
             }
             _cache[enumType].Add((member, value));
 
-            // _sheetEnumMapì— ì¶”ê°€
+            // _sheetEnumMap¿¡ Ãß°¡
             if (!_sheetEnumMap.ContainsKey(sheetName))
             {
                 _sheetEnumMap[sheetName] = [];
@@ -177,7 +177,7 @@ public class EnumCache
             }
         }
 
-        // ê° Enumì˜ ë©¤ë²„ë¥¼ ê°’ìœ¼ë¡œ ì •ë ¬
+        // °¢ EnumÀÇ ¸â¹ö¸¦ °ªÀ¸·Î Á¤·Ä
         foreach (var enumType in _cache.Keys.ToList())
         {
             _cache[enumType] = [.. _cache[enumType].OrderBy(x => x.value)];
@@ -185,17 +185,17 @@ public class EnumCache
     }
 
     // ============================================
-    // ë°ì´í„° ì¡°íšŒ ë©”ì„œë“œ
+    // µ¥ÀÌÅÍ Á¶È¸ ¸Ş¼­µå
     // ============================================
 
     /// <summary>
-    /// íŠ¹ì • Enum íƒ€ì…ì˜ ë©¤ë²„ ë°ì´í„°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
+    /// Æ¯Á¤ Enum Å¸ÀÔÀÇ ¸â¹ö µ¥ÀÌÅÍ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
     /// </summary>
     public List<(string member, int value)> GetEnumMembers(string enumType)
     {
         if (string.IsNullOrEmpty(enumType))
         {
-            Logger.Instance.Warning("[EnumCache] Enum íƒ€ì… ì´ë¦„ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
+            Logger.Instance.Warning("[EnumCache] Enum Å¸ÀÔ ÀÌ¸§ÀÌ ºñ¾îÀÖ½À´Ï´Ù");
             return [];
         }
 
@@ -204,18 +204,18 @@ public class EnumCache
             return members;
         }
 
-        Logger.Instance.Warning($"[EnumCache] Enum íƒ€ì…ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {enumType}");
+        Logger.Instance.Warning($"[EnumCache] Enum Å¸ÀÔÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {enumType}");
         return [];
     }
 
     /// <summary>
-    /// íŠ¹ì • ì‹œíŠ¸ì—ì„œ ì •ì˜ëœ Enum íƒ€ì… ëª©ë¡ì„ ë°˜í™˜í•©ë‹ˆë‹¤.
+    /// Æ¯Á¤ ½ÃÆ®¿¡¼­ Á¤ÀÇµÈ Enum Å¸ÀÔ ¸ñ·ÏÀ» ¹İÈ¯ÇÕ´Ï´Ù.
     /// </summary>
     public List<string> GetEnumTypesBySheet(string sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
         {
-            Logger.Instance.Warning("[EnumCache] ì‹œíŠ¸ ì´ë¦„ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
+            Logger.Instance.Warning("[EnumCache] ½ÃÆ® ÀÌ¸§ÀÌ ºñ¾îÀÖ½À´Ï´Ù");
             return [];
         }
 
@@ -224,12 +224,12 @@ public class EnumCache
             return enumTypes;
         }
 
-        Logger.Instance.Warning($"[EnumCache] ì‹œíŠ¸ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {sheetName}");
+        Logger.Instance.Warning($"[EnumCache] ½ÃÆ®¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù: {sheetName}");
         return [];
     }
 
     /// <summary>
-    /// ëª¨ë“  Enum ë°ì´í„°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
+    /// ¸ğµç Enum µ¥ÀÌÅÍ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
     /// </summary>
     public IReadOnlyDictionary<string, List<(string member, int value)>> GetAllEnums()
     {
@@ -237,7 +237,7 @@ public class EnumCache
     }
 
     /// <summary>
-    /// ì‹œíŠ¸-Enum íƒ€ì… ë§¤í•‘ ì •ë³´ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
+    /// ½ÃÆ®-Enum Å¸ÀÔ ¸ÅÇÎ Á¤º¸¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
     /// </summary>
     public IReadOnlyDictionary<string, List<string>> GetSheetEnumMap()
     {
@@ -245,21 +245,21 @@ public class EnumCache
     }
 
     // ============================================
-    // ë©”ëª¨ë¦¬ ê´€ë¦¬ ë©”ì„œë“œ
+    // ¸Ş¸ğ¸® °ü¸® ¸Ş¼­µå
     // ============================================
 
     /// <summary>
-    /// ì „ì²´ ìºì‹œë¥¼ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
+    /// ÀüÃ¼ Ä³½Ã¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
     /// </summary>
     public void Clear()
     {
-        Logger.Instance.Log($"[EnumCache] ìºì‹œ ì´ˆê¸°í™” ({_cache.Count}ê°œ Enum íƒ€ì…, {_sheetEnumMap.Count}ê°œ ì‹œíŠ¸ ì œê±°)");
+        Logger.Instance.Log($"[EnumCache] Ä³½Ã ÃÊ±âÈ­ ({_cache.Count}°³ Enum Å¸ÀÔ, {_sheetEnumMap.Count}°³ ½ÃÆ® Á¦°Å)");
         _cache.Clear();
         _sheetEnumMap.Clear();
     }
 
     /// <summary>
-    /// íŠ¹ì • ì‹œíŠ¸ì˜ Enum ë°ì´í„°ë¥¼ ì œê±°í•©ë‹ˆë‹¤.
+    /// Æ¯Á¤ ½ÃÆ®ÀÇ Enum µ¥ÀÌÅÍ¸¦ Á¦°ÅÇÕ´Ï´Ù.
     /// </summary>
     public void ClearSheet(string sheetName)
     {
@@ -271,16 +271,16 @@ public class EnumCache
             }
             _sheetEnumMap.Remove(sheetName);
             
-            Logger.Instance.Log($"[EnumCache] ì‹œíŠ¸ ì œê±°: {sheetName} ({enumTypes.Count}ê°œ Enum íƒ€ì…)");
+            Logger.Instance.Log($"[EnumCache] ½ÃÆ® Á¦°Å: {sheetName} ({enumTypes.Count}°³ Enum Å¸ÀÔ)");
         }
         else
         {
-            Logger.Instance.Warning($"[EnumCache] ì œê±°í•  ì‹œíŠ¸ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {sheetName}");
+            Logger.Instance.Warning($"[EnumCache] Á¦°ÅÇÒ ½ÃÆ®¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù: {sheetName}");
         }
     }
 
     /// <summary>
-    /// íŠ¹ì • Enum íƒ€ì…ë§Œ ì œê±°í•©ë‹ˆë‹¤.
+    /// Æ¯Á¤ Enum Å¸ÀÔ¸¸ Á¦°ÅÇÕ´Ï´Ù.
     /// </summary>
     public void RemoveEnum(string enumType)
     {
@@ -291,16 +291,16 @@ public class EnumCache
                 _sheetEnumMap[sheetName].Remove(enumType);
             }
             
-            Logger.Instance.Log($"[EnumCache] Enum íƒ€ì… ì œê±°: {enumType}");
+            Logger.Instance.Log($"[EnumCache] Enum Å¸ÀÔ Á¦°Å: {enumType}");
         }
         else
         {
-            Logger.Instance.Warning($"[EnumCache] ì œê±°í•  Enum íƒ€ì…ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {enumType}");
+            Logger.Instance.Warning($"[EnumCache] Á¦°ÅÇÒ Enum Å¸ÀÔÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {enumType}");
         }
     }
 
     // ============================================
-    // ìƒíƒœ ì¡°íšŒ ë©”ì„œë“œ
+    // »óÅÂ Á¶È¸ ¸Ş¼­µå
     // ============================================
 
     public bool HasEnum(string enumType) => _cache.ContainsKey(enumType);
@@ -312,23 +312,23 @@ public class EnumCache
     public bool IsEmpty => _cache.Count == 0;
 
     // ============================================
-    // ê²€ì¦ ë©”ì„œë“œ
+    // °ËÁõ ¸Ş¼­µå
     // ============================================
 
     /// <summary>
-    /// í…Œì´ë¸”ì˜ ìœ íš¨ì„±ì„ ê²€ì¦í•©ë‹ˆë‹¤.
+    /// Å×ÀÌºíÀÇ À¯È¿¼ºÀ» °ËÁõÇÕ´Ï´Ù.
     /// </summary>
     private static bool ValidateTable(CustomDataTable table)
     {
         if (table == null)
         {
-            Logger.Instance.Error("[EnumCache] í…Œì´ë¸”ì´ nullì…ë‹ˆë‹¤");
+            Logger.Instance.Error("[EnumCache] Å×ÀÌºíÀÌ nullÀÔ´Ï´Ù");
             return false;
         }
 
         if (string.IsNullOrEmpty(table.Name))
         {
-            Logger.Instance.Error("[EnumCache] í…Œì´ë¸” ì´ë¦„ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
+            Logger.Instance.Error("[EnumCache] Å×ÀÌºí ÀÌ¸§ÀÌ ºñ¾îÀÖ½À´Ï´Ù");
             return false;
         }
 
@@ -336,7 +336,7 @@ public class EnumCache
     }
 
     /// <summary>
-    /// ì¶”ì¶œëœ Enum íƒ€ì… ì¤‘ ì´ë¯¸ ìºì‹œì— ì¡´ì¬í•˜ëŠ” ì¤‘ë³µ íƒ€ì…ì´ ìˆëŠ”ì§€ ê²€ì¦í•©ë‹ˆë‹¤.
+    /// ÃßÃâµÈ Enum Å¸ÀÔ Áß ÀÌ¹Ì Ä³½Ã¿¡ Á¸ÀçÇÏ´Â Áßº¹ Å¸ÀÔÀÌ ÀÖ´ÂÁö °ËÁõÇÕ´Ï´Ù.
     /// </summary>
     private bool ValidateDuplicateEnumTypes(string tableName, IEnumerable<string> enumTypes)
     {
@@ -346,7 +346,7 @@ public class EnumCache
 
         if (duplicateEnumTypes.Count > 0)
         {
-            Logger.Instance.Error($"[EnumCache] ì‹œíŠ¸ '{tableName}' ë¡œë“œ ì‹¤íŒ¨: ë‹¤ìŒ Enum íƒ€ì…ì´ ì´ë¯¸ ì •ì˜ë˜ì–´ ìˆìŠµë‹ˆë‹¤ - {string.Join(", ", duplicateEnumTypes)}");
+            Logger.Instance.Error($"[EnumCache] ½ÃÆ® '{tableName}' ·Îµå ½ÇÆĞ: ´ÙÀ½ Enum Å¸ÀÔÀÌ ÀÌ¹Ì Á¤ÀÇµÇ¾î ÀÖ½À´Ï´Ù - {string.Join(", ", duplicateEnumTypes)}");
             return false;
         }
 
@@ -354,11 +354,11 @@ public class EnumCache
     }
 
     // ============================================
-    // ë‚´ë¶€ ë©”ì„œë“œ
+    // ³»ºÎ ¸Ş¼­µå
     // ============================================
 
     /// <summary>
-    /// CustomDataTableì—ì„œ Enum ë°ì´í„°ë¥¼ ì¶”ì¶œí•©ë‹ˆë‹¤.
+    /// CustomDataTable¿¡¼­ Enum µ¥ÀÌÅÍ¸¦ ÃßÃâÇÕ´Ï´Ù.
     /// </summary>
     private Dictionary<string, List<(string member, int value)>> ExtractEnumsFromTable(CustomDataTable table)
     {
@@ -368,7 +368,7 @@ public class EnumCache
             !table.HasColumn(ColumnMember) ||
             !table.HasColumn(ColumnValue))
         {
-            Logger.Instance.Error($"[EnumCache] í•„ìˆ˜ ì»¬ëŸ¼ì´ ì—†ìŠµë‹ˆë‹¤. í•„ìš”: {ColumnEnumType}, {ColumnMember}, {ColumnValue}");
+            Logger.Instance.Error($"[EnumCache] ÇÊ¼ö ÄÃ·³ÀÌ ¾ø½À´Ï´Ù. ÇÊ¿ä: {ColumnEnumType}, {ColumnMember}, {ColumnValue}");
             return extractedEnums;
         }
 
@@ -384,13 +384,13 @@ public class EnumCache
 
                     if (string.IsNullOrEmpty(enumType) || string.IsNullOrEmpty(member))
                     {
-                        Logger.Instance.Warning($"[EnumCache] í–‰ {i}: enumType ë˜ëŠ” memberê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
+                        Logger.Instance.Warning($"[EnumCache] Çà {i}: enumType ¶Ç´Â member°¡ ºñ¾îÀÖ½À´Ï´Ù");
                         continue;
                     }
 
                     if (!int.TryParse(valueObj?.ToString(), out int value))
                     {
-                        Logger.Instance.Warning($"[EnumCache] í–‰ {i}: valueë¥¼ ì •ìˆ˜ë¡œ ë³€í™˜í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤ ('{valueObj}')");
+                        Logger.Instance.Warning($"[EnumCache] Çà {i}: value¸¦ Á¤¼ö·Î º¯È¯ÇÒ ¼ö ¾ø½À´Ï´Ù ('{valueObj}')");
                         value = 0;
                     }
 
@@ -400,46 +400,46 @@ public class EnumCache
                     }
 
                     extractedEnums[enumType].Add((member, value));
-                    Logger.Instance.Log($"[EnumCache] Enum ì¶”ì¶œ: {enumType}.{member} = {value}");
+                    Logger.Instance.Log($"[EnumCache] Enum ÃßÃâ: {enumType}.{member} = {value}");
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.Error($"[EnumCache] í–‰ {i} ì²˜ë¦¬ ì¤‘ ì˜¤ë¥˜: {ex.Message}");
+                    Logger.Instance.Error($"[EnumCache] Çà {i} Ã³¸® Áß ¿À·ù: {ex.Message}");
                     continue;
                 }
             }
 
-            // ê° Enumì˜ ë©¤ë²„ë¥¼ ê°’ìœ¼ë¡œ ì •ë ¬
+            // °¢ EnumÀÇ ¸â¹ö¸¦ °ªÀ¸·Î Á¤·Ä
             foreach (var enumType in extractedEnums.Keys.ToList())
             {
                 extractedEnums[enumType] = [.. extractedEnums[enumType].OrderBy(x => x.value)];
             }
 
-            Logger.Instance.Log($"[EnumCache] Enum ì¶”ì¶œ ì™„ë£Œ: {extractedEnums.Count}ê°œ íƒ€ì…");
+            Logger.Instance.Log($"[EnumCache] Enum ÃßÃâ ¿Ï·á: {extractedEnums.Count}°³ Å¸ÀÔ");
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[EnumCache] Enum ë°ì´í„° ì¶”ì¶œ ì¤‘ ì˜¤ë¥˜: {ex.Message}");
+            Logger.Instance.Error($"[EnumCache] Enum µ¥ÀÌÅÍ ÃßÃâ Áß ¿À·ù: {ex.Message}");
         }
 
         return extractedEnums;
     }
 
     /// <summary>
-    /// ë””ë²„ê·¸ìš©: í˜„ì¬ ìºì‹œ ìƒíƒœë¥¼ ì¶œë ¥í•©ë‹ˆë‹¤.
+    /// µğ¹ö±×¿ë: ÇöÀç Ä³½Ã »óÅÂ¸¦ Ãâ·ÂÇÕ´Ï´Ù.
     /// </summary>
     public void PrintCacheInfo()
     {
-        Logger.Instance.Log($"[EnumCache] === ìºì‹œ ì •ë³´ ===");
-        Logger.Instance.Log($"[EnumCache] ì´ ì‹œíŠ¸: {SheetCount}, ì´ Enum íƒ€ì…: {EnumCount}");
+        Logger.Instance.Log($"[EnumCache] === Ä³½Ã Á¤º¸ ===");
+        Logger.Instance.Log($"[EnumCache] ÃÑ ½ÃÆ®: {SheetCount}, ÃÑ Enum Å¸ÀÔ: {EnumCount}");
 
         foreach (var (sheetName, enumTypes) in _sheetEnumMap)
         {
-            Logger.Instance.Log($"[EnumCache] ì‹œíŠ¸: {sheetName}");
+            Logger.Instance.Log($"[EnumCache] ½ÃÆ®: {sheetName}");
             foreach (var enumType in enumTypes)
             {
                 var members = _cache[enumType];
-                Logger.Instance.Log($"[EnumCache]   - {enumType}: {members.Count}ê°œ ë©¤ë²„");
+                Logger.Instance.Log($"[EnumCache]   - {enumType}: {members.Count}°³ ¸â¹ö");
                 foreach (var (member, value) in members)
                 {
                     Logger.Instance.Log($"[EnumCache]     * {member} = {value}");
@@ -450,26 +450,26 @@ public class EnumCache
     }
 
     // ============================================
-    // IPCìš© ì§ì ‘ ë¡œë“œ ë©”ì„œë“œ
+    // IPC¿ë Á÷Á¢ ·Îµå ¸Ş¼­µå
     // ============================================
     
     /// <summary>
-    /// IPC ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ì§ì ‘ Enum ë°ì´í„°ë¥¼ ë¡œë“œí•©ë‹ˆë‹¤.
-    /// SharedEnumMemoryHandlerì—ì„œ ë‚´ë¶€ì ìœ¼ë¡œ ì‚¬ìš©ë©ë‹ˆë‹¤.
+    /// IPC °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ Á÷Á¢ Enum µ¥ÀÌÅÍ¸¦ ·ÎµåÇÕ´Ï´Ù.
+    /// SharedEnumMemoryHandler¿¡¼­ ³»ºÎÀûÀ¸·Î »ç¿ëµË´Ï´Ù.
     /// </summary>
-    /// <param name="enumType">Enum íƒ€ì…ëª…</param>
-    /// <param name="members">ë©¤ë²„ ë¦¬ìŠ¤íŠ¸</param>
+    /// <param name="enumType">Enum Å¸ÀÔ¸í</param>
+    /// <param name="members">¸â¹ö ¸®½ºÆ®</param>
     internal void LoadEnumDirectly(string enumType, List<(string member, int value)> members)
     {
         if (string.IsNullOrEmpty(enumType) || members == null || members.Count == 0)
         {
-            Logger.Instance.Warning($"[EnumCache] LoadEnumDirectly: ìœ íš¨í•˜ì§€ ì•Šì€ ë°ì´í„° - {enumType}");
+            Logger.Instance.Warning($"[EnumCache] LoadEnumDirectly: À¯È¿ÇÏÁö ¾ÊÀº µ¥ÀÌÅÍ - {enumType}");
             return;
         }
         
         _cache[enumType] = [.. members.OrderBy(x => x.value)];
         
-        // IPC ë¡œë“œ ì‹œì—ëŠ” ì‹œíŠ¸ ë§¤í•‘ì´ ì—†ìœ¼ë¯€ë¡œ "_IPC_" ì‹œíŠ¸ë¡œ ë“±ë¡
+        // IPC ·Îµå ½Ã¿¡´Â ½ÃÆ® ¸ÅÇÎÀÌ ¾øÀ¸¹Ç·Î "_IPC_" ½ÃÆ®·Î µî·Ï
         const string ipcSheetName = "_IPC_";
         if (!_sheetEnumMap.ContainsKey(ipcSheetName))
         {
@@ -480,6 +480,6 @@ public class EnumCache
             _sheetEnumMap[ipcSheetName].Add(enumType);
         }
         
-        Logger.Instance.Log($"[EnumCache] IPC ì§ì ‘ ë¡œë“œ: {enumType} ({members.Count}ê°œ ë©¤ë²„)");
+        Logger.Instance.Log($"[EnumCache] IPC Á÷Á¢ ·Îµå: {enumType} ({members.Count}°³ ¸â¹ö)");
     }
 }

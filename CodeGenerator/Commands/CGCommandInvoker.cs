@@ -1,5 +1,5 @@
-using Common;
-using Common.Command;
+using TableAutomation.Common;
+using TableAutomation.Common.Command;
 using TableAutomarionToolShared;
 
 namespace CodeGenerator;

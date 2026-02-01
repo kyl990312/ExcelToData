@@ -1,6 +1,6 @@
-using Common;
-using Common.Command;
-using Common.Utils;
+using TableAutomation.Common;
+using TableAutomation.Common.Command;
+using TableAutomation.Common.Utils;
 using Generator.CodeGenerator;
 using ExcelParser;
 using TableAutomarionToolShared;

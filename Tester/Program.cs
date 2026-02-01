@@ -1,2 +1,2 @@
-﻿TestCommandInvoker invoker = new TestCommandInvoker();
+TestCommandInvoker invoker = new TestCommandInvoker();
 invoker.ExecuteAll();

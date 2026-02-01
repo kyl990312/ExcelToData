@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-        <RootNamespace>Common</RootNamespace>
+        <RootNamespace>TableAutomation.Common</RootNamespace>
         <OutputPath>$(SolutionDir)Output\$(Configuration)\</OutputPath>
     </PropertyGroup>
 

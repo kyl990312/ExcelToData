@@ -1,5 +1,5 @@
 using System.Data;
-using Common.Utils;
+using TableAutomation.Common.Utils;
 using GAuth.Core;
 
 namespace GAuth;

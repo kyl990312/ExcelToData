@@ -1,4 +1,4 @@
-namespace Common.Utils;
+namespace TableAutomation.Common.Utils;
 
 public class Singleton<T>
 where T : class, new()
