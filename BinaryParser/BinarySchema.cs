@@ -6,31 +6,31 @@ using TableAutomation.Common.Utils;
 namespace BinaryParser;
 
 /// <summary>
-/// ¹ÙÀÌ³Ê¸® ÆÄÀÏÀÇ ½ºÅ°¸¶(Çì´õ) Á¤º¸¸¦ ÀĞ¾î¿À´Â Å¬·¡½º
+/// ë°”ì´ë„ˆë¦¬ íŒŒì¼ì˜ ìŠ¤í‚¤ë§ˆ(ë©”íƒ€) ì •ë³´ë¥¼ ì½ì–´ì˜¤ëŠ” í´ë˜ìŠ¤
 /// </summary>
 public class BinarySchema
 {
     /// <summary>
-    /// Ä®·³ ÀÌ¸§°ú Å¸ÀÔ Á¤º¸¸¦ ´ãÀº Dictionary
-    /// Key: Ä®·³ ÀÌ¸§, Value: Å¸ÀÔ ¹®ÀÚ¿­
+    /// ì»¬ëŸ¼ ì´ë¦„ê³¼ íƒ€ì… ì •ë³´ë¥¼ ë‹´ì€ Dictionary
+    /// Key: ì»¬ëŸ¼ ì´ë¦„, Value: íƒ€ì… ë¬¸ìì—´
     /// </summary>
     public Dictionary<string, string> Columns { get; private set; } = new();
 
     /// <summary>
-    /// µ¥ÀÌÅÍ Çà °³¼ö
+    /// ë°ì´í„° í–‰ ê°œìˆ˜
     /// </summary>
     public int RowCount { get; private set; }
 
     /// <summary>
-    /// Ä®·³ °³¼ö
+    /// ì»¬ëŸ¼ ê°œìˆ˜
     /// </summary>
     public int ColumnCount => Columns.Count;
 
     /// <summary>
-    /// ¹ÙÀÌÆ® ¹è¿­¿¡¼­ ½ºÅ°¸¶ Á¤º¸¸¦ ÀĞ¾î¿É´Ï´Ù
+    /// ë°”ì´íŠ¸ ë°°ì—´ì—ì„œ ìŠ¤í‚¤ë§ˆ ì •ë³´ë¥¼ ì½ì–´ì˜µë‹ˆë‹¤
     /// </summary>
-    /// <param name="binaryData">¹ÙÀÌ³Ê¸® µ¥ÀÌÅÍ</param>
-    /// <returns>½ºÅ°¸¶ Á¤º¸¸¦ ´ãÀº BinarySchema ÀÎ½ºÅÏ½º</returns>
+    /// <param name="binaryData">ë°”ì´ë„ˆë¦¬ ë°ì´í„°</param>
+    /// <returns>ìŠ¤í‚¤ë§ˆ ì •ë³´ë¥¼ ë‹´ì€ BinarySchema ì¸ìŠ¤í„´ìŠ¤</returns>
     public static BinarySchema ReadFromBytes(byte[] binaryData)
     {
         var schema = new BinarySchema();
@@ -54,27 +54,27 @@ public class BinarySchema
 
     private void ReadHeader(System.IO.BinaryReader reader)
     {
-        // 1. Ä®·³ °³¼ö
+        // 1. Ä®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         int columnCount = reader.ReadInt32();
 
-        // 2. µ¥ÀÌÅÍ °³¼ö (Çà °³¼ö)
+        // 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         RowCount = reader.ReadInt32();
 
-        // 3. °¢ Ä®·³ÀÇ ¸ŞÅ¸µ¥ÀÌÅÍ
+        // 3. ï¿½ï¿½ Ä®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         Columns = new Dictionary<string, string>();
         for (int i = 0; i < columnCount; i++)
         {
-            // Ä®·³ ÀÌ¸§
+            // Ä®ï¿½ï¿½ ï¿½Ì¸ï¿½
             string columnName = reader.ReadString();
 
-            // Ä®·³ Å¸ÀÔ
+            // Ä®ï¿½ï¿½ Å¸ï¿½ï¿½
             string columnType = reader.ReadString();
 
             Columns[columnName] = columnType;
         }
 
 #if DEBUG && !UNITY_BUILD
-        // ½ºÅ°¸¶ Á¤º¸ ·Î±× Ãâ·Â
+        // ï¿½ï¿½Å°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Î±ï¿½ ï¿½ï¿½ï¿½
         Logger.Instance.Log($"[BinarySchema] ColumnCount: {columnCount}, RowCount: {RowCount}", ConsoleColor.Cyan);
         foreach (var column in Columns)
         {
@@ -84,29 +84,29 @@ public class BinarySchema
     }
 
     /// <summary>
-    /// Ä®·³ ÀÌ¸§ ¸ñ·ÏÀ» ¹İÈ¯ÇÕ´Ï´Ù
+    /// ì»¬ëŸ¼ ì´ë¦„ ëª©ë¡ì„ ë°˜í™˜í•©ë‹ˆë‹¤
     /// </summary>
     public IEnumerable<string> GetColumnNames() => Columns.Keys;
 
     /// <summary>
-    /// Ä®·³ Å¸ÀÔ ¸ñ·ÏÀ» ¹İÈ¯ÇÕ´Ï´Ù
+    /// ì»¬ëŸ¼ íƒ€ì… ëª©ë¡ì„ ë°˜í™˜í•©ë‹ˆë‹¤
     /// </summary>
     public IEnumerable<string> GetColumnTypes() => Columns.Values;
 
     /// <summary>
-    /// Æ¯Á¤ Ä®·³ÀÇ Å¸ÀÔÀ» ¹İÈ¯ÇÕ´Ï´Ù
+    /// íŠ¹ì • ì»¬ëŸ¼ì˜ íƒ€ì…ì„ ë°˜í™˜í•©ë‹ˆë‹¤
     /// </summary>
-    /// <param name="columnName">Ä®·³ ÀÌ¸§</param>
-    /// <returns>Å¸ÀÔ ¹®ÀÚ¿­, ¾øÀ¸¸é null</returns>
+    /// <param name="columnName">ì»¬ëŸ¼ ì´ë¦„</param>
+    /// <returns>íƒ€ì… ë¬¸ìì—´, ì—†ìœ¼ë©´ null</returns>
     public string? GetColumnType(string columnName)
     {
         return Columns.TryGetValue(columnName, out var type) ? type : null;
     }
 
     /// <summary>
-    /// Æ¯Á¤ Ä®·³ÀÌ Á¸ÀçÇÏ´ÂÁö È®ÀÎÇÕ´Ï´Ù
+    /// íŠ¹ì • ì»¬ëŸ¼ì´ ì¡´ì¬í•˜ëŠ”ì§€ í™•ì¸í•©ë‹ˆë‹¤
     /// </summary>
-    /// <param name="columnName">Ä®·³ ÀÌ¸§</param>
-    /// <returns>Á¸Àç ¿©ºÎ</returns>
+    /// <param name="columnName">ì»¬ëŸ¼ ì´ë¦„</param>
+    /// <returns>ì¡´ì¬ ì—¬ë¶€</returns>
     public bool HasColumn(string columnName) => Columns.ContainsKey(columnName);
 }

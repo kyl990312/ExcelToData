@@ -6,42 +6,46 @@ namespace CodeGenerator;
 
 public class CGCommandInvoker : CommandInvoker
 {
+    public CGCommandInvoker(string? targetFileName = null) : base(targetFileName)
+    {
+    }
+
     protected override List<ICommand> CreateCommands()
     {
         var list = new List<ICommand>();
         var fullPath =
             $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{SystemPath.CodeGeneratorConfigPath}";
-        
+
         if(!File.Exists(fullPath))
         {
             list.Add(new GenerateCodeConfigCommand(fullPath));
             return list;
         }
-        
+
         if (!FileLoader.LoadAndConvertJson(fullPath, out CodeGenerateConfig config))
         {
             return list;
         }
 
-        // EnumDB ·Îµå
+        // EnumDB ë¡œë“œ
         list.Add(new LoadEnumDBCommand());
 
-        // Å¬·¡½º ÄÚµå »ı¼º
+        // í´ë˜ìŠ¤ ì½”ë“œ ìƒì„±
         if (ProjectDefine.CodeExtension.EndsWith("cs"))
         {
-            list.Add(new GenerateCSharpCodeCommand(config));
+            list.Add(new GenerateCSharpCodeCommand(config, _targetFileName));
         }
         else if(ProjectDefine.CodeExtension.EndsWith("cpp"))
         {
-            list.Add(new GenerateCppCodeCommand(config));
+            list.Add(new GenerateCppCodeCommand(config, _targetFileName));
         }
-        
-        // Enum ÄÚµå »ı¼º
+
+        // Enum ì½”ë“œ ìƒì„±
         if (config.IsGenerateEnumCode)
         {
             list.Add(new GenerateEnumCodeCommand(config.EnumOutputDirectory, config.CodeExtension));
         }
-        
+
         return list;
     }
 }

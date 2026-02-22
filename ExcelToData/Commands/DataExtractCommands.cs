@@ -11,11 +11,13 @@ namespace ExcelToData;
 public class ExtractJsonCommand : Command
 {
     private DataExtractConfig _config;
+    private string? _targetFileName;
 
-    public ExtractJsonCommand(string configPath)
+    public ExtractJsonCommand(string configPath, string? targetFileName = null)
     {
         var config = JsonSerializer.Deserialize<DataExtractConfig>(File.ReadAllText(configPath));
         _config = config;
+        _targetFileName = targetFileName;
     }
     public override void Execute(out string result)
     {
@@ -32,34 +34,52 @@ public class ExtractJsonCommand : Command
             result = sb.ToString();
             return;
         }
-        
-        var files = ProjectDefine.SearchPatternsBin
-            .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
-            .Distinct()
-            .ToArray();
+
+        // targetFileName이 지정되어 있으면 해당 파일만 처리, 없으면 모든 파일 처리
+        string[] files;
+        if (!string.IsNullOrEmpty(_targetFileName))
+        {
+            // 확장자 없이 파일명이 들어오므로 패턴에 맞는 파일 찾기
+            files = ProjectDefine.SearchPatternsBin
+                .Select(pattern => Path.Combine(_config.SrcDirectory, $"{_targetFileName}{pattern.TrimStart('*')}"))
+                .Where(File.Exists)
+                .ToArray();
+            sb.AppendLine($"[ExtractJsonCommand] Processing specific file: {_targetFileName}");
+        }
+        else
+        {
+            files = ProjectDefine.SearchPatternsBin
+                .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
+                .Distinct()
+                .ToArray();
+            sb.AppendLine($"[ExtractJsonCommand] Processing all files in directory");
+        }
+
         var extractor = new JsonExtractor(_config.DstDirectory);
         foreach (var filePath in files)
         {
             extractor.ExtractData(filePath);
             sb.AppendLine($"[ExtractJsonCommand] Extract Json ({filePath})");
         }
-        sb.AppendLine($"[ExtractJsonCommand] Complete Extract Json ({_config.SrcDirectory})");
+        sb.AppendLine($"[ExtractJsonCommand] Complete Extract Json ({files.Length} files)");
         result = sb.ToString();
     }
 }
 
 /// <summary>
-/// Excel ������ ����ȭ�� ���̳ʸ� �������� �����ϴ� ���ɾ�
+/// Excel 파일을 구조화된 바이너리 파일로 추출하는 명령어
 /// </summary>
 public class ExtractBinaryCommand : Command
 {
     private readonly DataExtractConfig _config;
+    private readonly string? _targetFileName;
 
-    public ExtractBinaryCommand(string configPath)
+    public ExtractBinaryCommand(string configPath, string? targetFileName = null)
     {
         var configText = File.ReadAllText(configPath);
         var config = JsonSerializer.Deserialize<DataExtractConfig>(configText);
         _config = config ?? new DataExtractConfig();
+        _targetFileName = targetFileName;
     }
 
     public override void Execute(out string result)
@@ -71,42 +91,58 @@ public class ExtractBinaryCommand : Command
             result = sb.ToString();
             return;
         }
-        
+
         if (!Directory.Exists(_config.SrcDirectory))
         {
             sb.AppendLine($"[ExtractBinaryCommand] Wrong Src Directory : {_config.SrcDirectory}");
             result = sb.ToString();
             return;
         }
-        
+
         if (string.IsNullOrEmpty(_config.DstDirectory))
         {
             sb.AppendLine($"[ExtractBinaryCommand] Wrong Dst Directory : {_config.DstDirectory}");
             result = sb.ToString();
             return;
         }
-        
+
         try
         {
-            var files = ProjectDefine.SearchPatterns
-                .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
-                .Distinct()
-                .ToArray();
+            // targetFileName이 지정되어 있으면 해당 파일만 처리, 없으면 모든 파일 처리
+            string[] files;
+            if (!string.IsNullOrEmpty(_targetFileName))
+            {
+                // 확장자 없이 파일명이 들어오므로 패턴에 맞는 파일 찾기
+                files = ProjectDefine.SearchPatterns
+                    .Select(pattern => Path.Combine(_config.SrcDirectory, $"{_targetFileName}{pattern.TrimStart('*')}"))
+                    .Where(File.Exists)
+                    .ToArray();
+                sb.AppendLine($"[ExtractBinaryCommand] Processing specific file: {_targetFileName}");
+            }
+            else
+            {
+                files = ProjectDefine.SearchPatterns
+                    .SelectMany(pattern => Directory.GetFiles(_config.SrcDirectory, pattern))
+                    .Distinct()
+                    .ToArray();
+                sb.AppendLine($"[ExtractBinaryCommand] Processing all files in directory");
+            }
+
             var extractor = new StructuredBinaryExtractor(_config.DstDirectory);
-            
+
             foreach (var filePath in files)
             {
                 extractor.ExtractData(filePath);
                 sb.AppendLine($"[ExtractBinaryCommand] Extract StructuredBinary ({filePath})");
             }
-            
-            sb.AppendLine($"[ExtractBinaryCommand] Complete Extract StructuredBinary ({_config.SrcDirectory})");
+
+            sb.AppendLine($"[ExtractBinaryCommand] Complete Extract StructuredBinary ({files.Length} files)");
         }
         catch (Exception ex)
         {
             sb.AppendLine($"[ExtractBinaryCommand] Error: {ex.Message}\n{ex.StackTrace}");
         }
-        
+
         result = sb.ToString();
     }
 }
@@ -177,7 +213,7 @@ public class GenerateConfigCommand : Command
         };
         var options = new JsonSerializerOptions
         {
-            IncludeFields = true // �ʵ带 ����ȭ�� ����
+            IncludeFields = true // 필드를 직렬화에 포함
         };
         var json = JsonSerializer.Serialize(config, options);
         File.WriteAllText(_filePath,json);

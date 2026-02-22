@@ -5,11 +5,11 @@ using TableAutomarionToolShared;
 namespace ExcelToData;
 
 /// <summary>
-/// ExcelToData 명령???�행�?- 구조?�된 바이?�리 지??추�?
+/// ExcelToData 명령 실행자 - 구조화된 바이너리 지원 추가
 /// </summary>
 public class ETDCommandInvoker : CommandInvoker
 {
-    public ETDCommandInvoker() : base()
+    public ETDCommandInvoker(string? targetFileName = null) : base(targetFileName)
     {
     }
 
@@ -21,83 +21,92 @@ public class ETDCommandInvoker : CommandInvoker
         AddEnumDBCommand(ref commands);
         AddStructuredBinaryCommands(ref commands, baseDirectory);
         AddJsonCommands(ref commands, baseDirectory);
-        
+
         return commands;
     }
 
     private void AddEnumDBCommand(ref List<ICommand> commands)
     {
         commands.Add(new LoadEnumDBCommand());
-    }   
+    }
 
     private void AddJsonCommands(ref List<ICommand> commands, string baseDirectory)
     {
         var jsonConfigPath = Path.Combine(baseDirectory, SystemPath.JsonConfigPath);
-        
+
         if (!File.Exists(jsonConfigPath))
         {
             commands.Add(new GenerateConfigCommand(jsonConfigPath));
         }
         else
         {
-            commands.Add(new ExtractJsonCommand(jsonConfigPath));
+            commands.Add(new ExtractJsonCommand(jsonConfigPath, _targetFileName));
         }
     }
 
     private void AddStructuredBinaryCommands(ref List<ICommand> commands, string baseDirectory)
     {
         var jsonConfigPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
-        
+
         if (!File.Exists(jsonConfigPath))
         {
             commands.Add(new GenerateConfigCommand(jsonConfigPath));
         }
         else
         {
-            commands.Add(new ExtractBinaryCommand(jsonConfigPath));
+            commands.Add(new ExtractBinaryCommand(jsonConfigPath, _targetFileName));
             commands.Add(new ExtractBinaryFromGSheet(jsonConfigPath));
         }
     }
 }
 
 /// <summary>
-/// ?�스?�용 명령???�행�?- 모든 ?�정 ?�일 ?�성�??�행
+/// 테스트용 명령 실행자 - 모든 설정 파일 생성 실행
 /// </summary>
 public class ETDCommandTestInvoker : CommandInvoker
 {
+    public ETDCommandTestInvoker(string? targetFileName = null) : base(targetFileName)
+    {
+    }
+
     protected override List<ICommand> CreateCommands()
     {
         var commands = new List<ICommand>();
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
-        
-        // 모든 ?�정 ?�일 ?�성
+
+        // 모든 설정 파일 생성
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.BinaryConfigPath)));
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.JsonConfigPath)));
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath)));
-        
+
         return commands;
     }
 }
 
 /// <summary>
-/// 구조?�된 바이?�리�?처리?�는 명령???�행�?/// </summary>
+/// 구조화된 바이너리만 처리하는 명령 실행자
+/// </summary>
 public class StructuredBinaryOnlyInvoker : CommandInvoker
 {
+    public StructuredBinaryOnlyInvoker(string? targetFileName = null) : base(targetFileName)
+    {
+    }
+
     protected override List<ICommand> CreateCommands()
     {
         var commands = new List<ICommand>();
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
         var configPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
-        
+
         if (!File.Exists(configPath))
         {
             commands.Add(new GenerateConfigCommand(configPath));
         }
         else
         {
-            commands.Add(new ExtractBinaryCommand(configPath));
+            commands.Add(new ExtractBinaryCommand(configPath, _targetFileName));
         }
-        
+
         return commands;
     }
 }

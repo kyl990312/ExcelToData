@@ -1,66 +1,66 @@
 namespace CodeGenerator;
 
 /// <summary>
-/// ÄÚµå »ı¼º±â ¼³Á¤ Å¬·¡½º
-/// ¿ÜºÎ¿¡¼­ ¼öÁ¤ °¡´ÉÇÑ JSON ÇüÅÂ·Î »ç¿ëµÊ
+/// ì½”ë“œ ìƒì„±ê¸° ì„¤ì • í´ë˜ìŠ¤
+/// ì™¸ë¶€ì—ì„œ ì„¤ì • íŒŒì¼ì„ JSON í˜•íƒœë¡œ ì €ì¥
 /// </summary>
 public class CodeGenerateConfig
 {
     // ============================================
-    // Å¬·¡½º ÄÚµå »ı¼º ¼³Á¤
+    // í´ë˜ìŠ¤ ì½”ë“œ ìƒì„± ì„¤ì •
     // ============================================
-    
+
     /// <summary>
-    /// ¹ÙÀÌ³Ê¸® ÆÄÀÏ µğ·ºÅä¸® °æ·Î
+    /// ë°”ì´ë„ˆë¦¬ íŒŒì¼ ë””ë ‰í„°ë¦¬ ê²½ë¡œ
     /// </summary>
     public string BinaryDirectory { get; set; } = "Binary";
 
     /// <summary>
-    /// Å¬·¡½º ÄÚµå »ı¼º µğ·ºÅä¸® °æ·Î
+    /// í´ë˜ìŠ¤ ì½”ë“œ ì¶œë ¥ ë””ë ‰í„°ë¦¬ ê²½ë¡œ
     /// </summary>
     public string ClassOutputDirectory { get; set; } = "Generated/Classes";
 
     /// <summary>
-    /// Å×ÀÌºí °ü¸®ÀÚ Å¬·¡½º »ı¼º µğ·ºÅä¸® °æ·Î
+    /// í…Œì´ë¸” ë§¤ë‹ˆì € í´ë˜ìŠ¤ ì¶œë ¥ ë””ë ‰í„°ë¦¬ ê²½ë¡œ
     /// </summary>
     public string ManagerOutputDirectory { get; set; } = "Generated/Managers";
 
     /// <summary>
-    /// Å¬·¡½º ³×ÀÓ½ºÆäÀÌ½º
+    /// í´ë˜ìŠ¤ ë„¤ì„ìŠ¤í˜ì´ìŠ¤
     /// </summary>
     public string ClassNamespace { get; set; } = "Generated.Data";
 
     /// <summary>
-    /// Å×ÀÌºí °ü¸®ÀÚ ³×ÀÓ½ºÆäÀÌ½º
+    /// í…Œì´ë¸” ë§¤ë‹ˆì € ë„¤ì„ìŠ¤í˜ì´ìŠ¤
     /// </summary>
     public string ManagerNamespace { get; set; } = "Generated.Managers";
 
     /// <summary>
-    /// ¹ÙÀÌ³Ê¸® ÆÄÀÏ È®ÀåÀÚ ÇÊÅÍ
+    /// ë°”ì´ë„ˆë¦¬ íŒŒì¼ í™•ì¥ì íŒ¨í„´
     /// </summary>
     public string ReadFileExtension { get; set; } = "*.bin";
 
     // ============================================
-    // Enum ÄÚµå »ı¼º ¼³Á¤
+    // Enum ì½”ë“œ ìƒì„± ì„¤ì •
     // ============================================
-    
+
     /// <summary>
-    /// Enum ÄÚµå »ı¼º ¿©ºÎ
+    /// Enum ì½”ë“œ ìƒì„± ì—¬ë¶€
     /// </summary>
     public bool IsGenerateEnumCode { get; set; } = true;
 
     /// <summary>
-    /// Enum ¹ÙÀÌ³Ê¸® ÆÄÀÏ °æ·Î (EnumCache ·Îµå¿ë)
+    /// Enum ë°”ì´ë„ˆë¦¬ íŒŒì¼ ê²½ë¡œ (EnumCache ë¡œë“œìš©)
     /// </summary>
     public string EnumBinaryPath { get; set; } = "Binary/EnumDB.bin";
-    
+
     /// <summary>
-    /// Enum ÄÚµå Ãâ·Â µğ·ºÅä¸®
+    /// Enum ì½”ë“œ ì¶œë ¥ ë””ë ‰í„°ë¦¬
     /// </summary>
     public string EnumOutputDirectory { get; set; } = "Generated/Enums";
-    
+
     /// <summary>
-    /// ÄÚµå ÆÄÀÏ È®ÀåÀÚ
+    /// ì½”ë“œ íŒŒì¼ í™•ì¥ì
     /// </summary>
     public string CodeExtension { get; set; } = ".cs";
 

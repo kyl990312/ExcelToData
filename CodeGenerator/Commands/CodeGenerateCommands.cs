@@ -14,10 +14,12 @@ namespace CodeGenerator;
 public class GenerateCSharpCodeCommand : Command
 {
     private readonly CodeGenerateConfig _config;
+    private readonly string? _targetFileName;
 
-    public GenerateCSharpCodeCommand(CodeGenerateConfig config)
+    public GenerateCSharpCodeCommand(CodeGenerateConfig config, string? targetFileName = null)
     {
         _config = config;
+        _targetFileName = targetFileName;
     }
 
     public override void Execute(out string result)
@@ -52,8 +54,28 @@ public class GenerateCSharpCodeCommand : Command
     {
         int count = 0;
 
-        // 모든 바이너리 파일 검색
-        var files = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories);
+        // targetFileName이 지정되어 있으면 해당 파일만 처리, 없으면 모든 파일 처리
+        string[] files;
+        if (!string.IsNullOrEmpty(_targetFileName))
+        {
+            // 확장자 없이 파일명이 들어오므로 .bin 파일 찾기
+            string targetFile = Path.Combine(config.BinaryDirectory, $"{_targetFileName}.bin");
+            if (File.Exists(targetFile))
+            {
+                files = new[] { targetFile };
+                Logger.Instance.Log($"[GenerateCodeCommand] Processing specific file: {_targetFileName}");
+            }
+            else
+            {
+                Logger.Instance.Warning($"[GenerateCodeCommand] Target file not found: {targetFile}");
+                files = Array.Empty<string>();
+            }
+        }
+        else
+        {
+            files = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories);
+            Logger.Instance.Log($"[GenerateCodeCommand] Processing all files in directory");
+        }
 
         // 클래스 생성기 생성
         var param = new CSharpClassParam()
@@ -96,10 +118,12 @@ public class GenerateCSharpCodeCommand : Command
 public class GenerateCppCodeCommand : Command
 {
     private readonly CodeGenerateConfig _config;
+    private readonly string? _targetFileName;
 
-    public GenerateCppCodeCommand(CodeGenerateConfig config)
+    public GenerateCppCodeCommand(CodeGenerateConfig config, string? targetFileName = null)
     {
         _config = config;
+        _targetFileName = targetFileName;
     }
 
     public override void Execute(out string result)
@@ -131,8 +155,28 @@ public class GenerateCppCodeCommand : Command
     {
         int count = 0;
 
-        // 모든 바이너리 파일 검색
-        var files = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories);
+        // targetFileName이 지정되어 있으면 해당 파일만 처리, 없으면 모든 파일 처리
+        string[] files;
+        if (!string.IsNullOrEmpty(_targetFileName))
+        {
+            // 확장자 없이 파일명이 들어오므로 .bin 파일 찾기
+            string targetFile = Path.Combine(config.BinaryDirectory, $"{_targetFileName}.bin");
+            if (File.Exists(targetFile))
+            {
+                files = new[] { targetFile };
+                Logger.Instance.Log($"[GenerateCppCodeCommand] Processing specific file: {_targetFileName}");
+            }
+            else
+            {
+                Logger.Instance.Warning($"[GenerateCppCodeCommand] Target file not found: {targetFile}");
+                files = Array.Empty<string>();
+            }
+        }
+        else
+        {
+            files = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories);
+            Logger.Instance.Log($"[GenerateCppCodeCommand] Processing all files in directory");
+        }
 
         // C++ 클래스 생성기 생성
         var param = new CppClassParam()
