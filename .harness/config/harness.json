@@ -1,0 +1,23 @@
+{
+  "doc_backend": "local",
+  "status_backend": "none",
+  "mode": "auto",
+
+  "default_model": "claude-sonnet-4-6",
+  "models": {},
+  "stage_tools": {},
+
+  "stub_stages": false,
+
+  "build_cmd": "dotnet build ../TableAutomarionTool.sln --nologo",
+  "test_cmd": "",
+  "commit_cmd": "powershell -ExecutionPolicy Bypass -File harness-core/scripts/commit.ps1",
+  "commit_repo_dir": "..",
+
+  "budgets": {
+    "planning": { "max_iterations": 3 },
+    "dev-loop": { "max_iterations": 5 }
+  },
+
+  "schema_version": 1
+}

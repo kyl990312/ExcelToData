@@ -1,8 +1,16 @@
 {
-  "outputStyle": "Explanatory",
   "permissions": {
     "allow": [
-      "SlashCommand(/init)"
-    ]
+      "Bash(python:*)",
+      "Bash(python .harness/harness-core/orchestrator/run.py:*)",
+      "Bash(python .harness/plugins/knowledge/run.py:*)",
+      "Bash(claude -p:*)",
+      "Bash(git:*)",
+      "Bash(powershell:*)",
+      "SlashCommand(*)",
+      "Edit(C:/PROJECT/TableAutomarionTool/.harness/**)",
+      "Edit(C:/PROJECT/TableAutomarionTool/.pre-code/**)"
+    ],
+    "deny": []
   }
 }

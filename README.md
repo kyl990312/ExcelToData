@@ -22,6 +22,7 @@ TableAutomationTool은 Excel 파일을 기반으로 다양한 형태의 코드�
 
 | 도구명 | 입력 | 출력 | 목적 |
 |--------|------|------|------|
+| **TableTool** (통합 CLI) | 명령어 | - | 모든 도구를 하나의 CLI로 실행 |
 | **ExcelToData** | Excel 파일 (.xlsm) | Binary/JSON 파일 | 데이터 추출 및 변환 |
 | **CodeGenerator** | Binary 파일 (.bin) | C#/C++ 클래스 | 코드 자동 생성 |
 | **EnumGenerator** | Excel 파일 (.xlsm) | Enum 코드 (.cs) | 열거형 생성 |
@@ -556,9 +557,90 @@ public enum ItemRarity
 }
 ```
 
+## TableTool - 통합 CLI 도구
+
+### 개요
+
+TableTool은 ExcelToData, CodeGenerator, EnumGenerator를 하나의 명령어로 실행할 수 있는 통합 CLI 도구입니다.
+
+### 설치 및 실행
+
+```bash
+# 빌드
+dotnet build TableTool/TableTool.csproj --configuration Release
+
+# 실행
+cd Output/Release/net9.0
+./TableTool.exe <command> [options]
+```
+
+### 사용법
+
+```bash
+# 도움말 보기
+tabletool help
+
+# 전체 파이프라인 실행 (enum → extract → generate)
+tabletool all
+
+# 특정 테이블만 처리
+tabletool all -each Item
+
+# Excel을 Binary로 변환
+tabletool extract
+
+# 특정 Excel 파일만 변환
+tabletool extract -each Character
+
+# Binary를 C# 클래스로 생성
+tabletool generate
+
+# 특정 Binary만 C# 클래스로 생성
+tabletool gen -f Item
+
+# Enum 코드만 생성
+tabletool enum
+```
+
+### 명령어 목록
+
+| 명령어 | 별칭 | 설명 |
+|--------|------|------|
+| `all` | `pipeline` | 전체 파이프라인 실행 (enum → extract → generate) |
+| `extract` | `etd` | Excel 파일을 Binary로 변환 |
+| `generate` | `gen`, `cg` | Binary를 C# 클래스로 생성 |
+| `enum` | - | Enum 코드 생성 |
+| `help` | `-h`, `--help` | 도움말 표시 |
+
+### 옵션
+
+| 옵션 | 설명 |
+|------|------|
+| `-each <filename>` | 특정 파일만 처리 (확장자 제외) |
+| `-f, --file <filename>` | -each와 동일 |
+
+### 장점
+
+- ✅ **단일 진입점**: 모든 도구를 하나의 명령어로 실행
+- ✅ **파이프라인 자동화**: `all` 명령으로 전체 워크플로우 실행
+- ✅ **에러 처리**: 각 단계의 실패를 자동 감지하고 중단
+- ✅ **간편한 사용**: 짧은 별칭 지원 (etd, gen, cg 등)
+
 ## 통합 워크플로우
 
-### 1. 전체 파이프라인 실행
+### 1. TableTool 사용 (권장)
+
+```bash
+cd Output/Release/net9.0
+
+# 전체 파이프라인 실행
+./TableTool.exe all
+
+# 특정 테이블만 처리
+./TableTool.exe all -each Item
+```
+
+### 2. 개별 도구 사용
 
 ```bash
 # 1단계: Excel을 Binary로 변환
