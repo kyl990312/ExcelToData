@@ -7,8 +7,11 @@ namespace EnumGenerator.DataExtractor;
 
 public class BytesExtractorFromGSheet : StructuredBinaryExtractor
 {
-    public BytesExtractorFromGSheet(string directory) : base(directory)
+    private readonly string? _targetFileName;
+
+    public BytesExtractorFromGSheet(string directory, string? targetFileName = null) : base(directory)
     {
+        _targetFileName = targetFileName;
     }
 
     protected override List<CustomDataTable> GetDataTablesByFile(string filePath)
@@ -28,9 +31,9 @@ public class BytesExtractorFromGSheet : StructuredBinaryExtractor
         {
             var nameStrs = table.Name.Split('_');
             table.Name = table.Name.Replace(nameStrs[0]+"_", "");
-            
+
 #if DEBUG
-            // Çì´õ Á¤º¸ ·Î±× Ãâ·Â
+            // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Î±ï¿½ ï¿½ï¿½ï¿½
             Logger.Instance.Log($"[BytesExtractorFromGSheet] Table: {table.Name}, ColumnCount: {table.ColumnCount}, RowCount: {table.RowCount}", ConsoleColor.Cyan);
             foreach (var header in table.Header.Headers)
             {
@@ -38,6 +41,19 @@ public class BytesExtractorFromGSheet : StructuredBinaryExtractor
             }
 #endif
         }
+
+        if (!string.IsNullOrEmpty(_targetFileName))
+        {
+            var before = result.Count;
+            result = result
+                .Where(t => t.Name.Equals(_targetFileName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (result.Count == 0)
+                Logger.Instance.Log(
+                    $"[BytesExtractorFromGSheet] Warning: No table matched '{_targetFileName}' (searched {before} tables). 0 files will be written.",
+                    ConsoleColor.Yellow);
+        }
+
         return result;
     }
 }

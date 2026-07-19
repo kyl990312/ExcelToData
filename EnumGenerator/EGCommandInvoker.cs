@@ -6,6 +6,20 @@ namespace EnumGenerator;
 
 public class EGCommandInvoker : CommandInvoker
 {
+    public EGCommandInvoker(string[] args) : base(args)
+    {
+    }
+
+    protected override List<ICommand> CreateInitConfigCommands()
+    {
+        var list = new List<ICommand>();
+        var fullPath =
+            $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{SystemPath.EnumGeneratorConfigPath}";
+
+        list.Add(new CreateEnumGenerateConfigCommand(fullPath));
+        return list;
+    }
+
     protected override List<ICommand> CreateCommands()
     {
         var list = new List<ICommand>();
@@ -18,33 +32,33 @@ public class EGCommandInvoker : CommandInvoker
         if (!FileLoader.LoadAndConvertJson(fullPath, out EnumGeneratorConfig config))
             return list;
         
-        // 1. EnumCache »ý¼º (ÃÖ¿ì¼± ½ÇÇà)
+        // 1. EnumCache ï¿½ï¿½ï¿½ï¿½ (ï¿½Ö¿ì¼± ï¿½ï¿½ï¿½ï¿½)
         if (config.IsLoadFromGSheet && !string.IsNullOrEmpty(config.SrcGDriveLink))
         {
-            // ±¸±Û ½ÃÆ®¿¡¼­ ·Îµå
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½
             list.Add(new EnumCacheGenerateFromGSheetCommand(config.SrcGDriveLink, config.EnumSheetPatterns));
         }
         else if (config.IsLoadFromLocal && !string.IsNullOrEmpty(config.EnumFilePath))
         {
-            // ·ÎÄÃ ÆÄÀÏ¿¡¼­ ·Îµå
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ï¿½ï¿½ ï¿½Îµï¿½
             list.Add(new EnumCacheGenerateCommand(config.EnumFilePath));
         }
 
-        // 2. [Dev] EnumDB Å×½ºÆ® (¹ÙÀÌ³Ê¸® ÀúÀå Àü)
+        // 2. [Dev] EnumDB ï¿½×½ï¿½Æ® (ï¿½ï¿½ï¿½Ì³Ê¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)
         {
             var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
             if (SystemDefine.DevelopmentMode)
                 list.Add(new EnumDBTestCommand(SystemPath.EnumBinaryPath.Replace(enumFileName, $"EnumDB_BeforeSave.txt")));
         }
 
-        // 3. EnumDB ¹ÙÀÌ³Ê¸® »ý¼º
+        // 3. EnumDB ï¿½ï¿½ï¿½Ì³Ê¸ï¿½ ï¿½ï¿½ï¿½ï¿½
         list.Add(new GenerateEnumBinaryCommand());
 
-        // 4. [Dev] EnumDB ·Îµå (ÀúÀåµÈ ¹ÙÀÌ³Ê¸® °ËÁõ)
+        // 4. [Dev] EnumDB ï¿½Îµï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì³Ê¸ï¿½ ï¿½ï¿½ï¿½ï¿½)
         if (SystemDefine.DevelopmentMode)
             list.Add(new EnumDBLoadCommand());
 
-        // 5. [Dev] EnumDB Å×½ºÆ® (¹ÙÀÌ³Ê¸® ·Îµå ÈÄ)
+        // 5. [Dev] EnumDB ï¿½×½ï¿½Æ® (ï¿½ï¿½ï¿½Ì³Ê¸ï¿½ ï¿½Îµï¿½ ï¿½ï¿½)
         {
             var enumFileName = Path.GetFileName(SystemPath.EnumBinaryPath);
             if (SystemDefine.DevelopmentMode)

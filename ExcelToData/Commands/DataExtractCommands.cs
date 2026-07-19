@@ -5,6 +5,7 @@ using TableAutomation.Common.Command;
 using EnumGenerator.DataExtractor;
 using ExcelParser;
 using Generator.DataExtractor;
+using GAuth.Core;
 
 namespace ExcelToData;
 
@@ -150,12 +151,14 @@ public class ExtractBinaryCommand : Command
 public class ExtractBinaryFromGSheet : Command
 {
     private readonly DataExtractConfig _config;
+    private readonly string? _targetFileName;
 
-    public ExtractBinaryFromGSheet(string configPath)
+    public ExtractBinaryFromGSheet(string configPath, string? targetFileName = null)
     {
         var configText = File.ReadAllText(configPath);
         var config = JsonSerializer.Deserialize<DataExtractConfig>(configText);
         _config = config ?? new DataExtractConfig();
+        _targetFileName = targetFileName;
     }
 
     public override void Execute(out string result)
@@ -176,7 +179,7 @@ public class ExtractBinaryFromGSheet : Command
 
         try
         {
-            var extractor = new BytesExtractorFromGSheet(_config.DstDirectory);
+            var extractor = new BytesExtractorFromGSheet(_config.DstDirectory, _targetFileName);
             extractor.ExtractData(_config.SrcGDriveLink);
         }
         catch (Exception ex)
@@ -203,7 +206,7 @@ public class GenerateConfigCommand : Command
             result = $"Config file already exists at: {_filePath}";
             return;
         }
-        
+
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath) ?? string.Empty);
 
         var config = new DataExtractConfig
@@ -218,5 +221,46 @@ public class GenerateConfigCommand : Command
         var json = JsonSerializer.Serialize(config, options);
         File.WriteAllText(_filePath,json);
         result = $"[GenerateConfigCommand] Generate Config : {_filePath}. Please Edit Config. \n result : {json}";
+    }
+}
+
+/// <summary>
+/// GAuth (Google API 인증) Config 파일을 생성하는 명령어
+/// </summary>
+public class GenerateGAuthConfigCommand : Command
+{
+    private string _filePath;
+
+    public GenerateGAuthConfigCommand(string filePath)
+    {
+        _filePath = filePath;
+    }
+
+    public override void Execute(out string result)
+    {
+        if (File.Exists(_filePath))
+        {
+            result = $"[GenerateGAuthConfigCommand] Config file already exists at: {_filePath}";
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(_filePath) ?? string.Empty);
+
+        var config = new UserCredentialConfig
+        {
+            ApplicationName = "TableAutomationTool",
+            User = "user@example.com",
+            ClientSceret = "path/to/client_secret.json"
+        };
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            IncludeFields = true
+        };
+
+        var json = JsonSerializer.Serialize(config, options);
+        File.WriteAllText(_filePath, json);
+        result = $"[GenerateGAuthConfigCommand] Generated GAuth Config: {_filePath}\nPlease edit the config with your Google API credentials.\n{json}";
     }
 }

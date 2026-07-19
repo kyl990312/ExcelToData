@@ -9,8 +9,20 @@ namespace ExcelToData;
 /// </summary>
 public class ETDCommandInvoker : CommandInvoker
 {
-    public ETDCommandInvoker(string? targetFileName = null) : base(targetFileName)
+    public ETDCommandInvoker(string[] args) : base(args)
     {
+    }
+
+    protected override List<ICommand> CreateInitConfigCommands()
+    {
+        var commands = new List<ICommand>();
+        var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
+
+        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.BinaryConfigPath)));
+        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.JsonConfigPath)));
+        commands.Add(new GenerateGAuthConfigCommand(Path.Combine(baseDirectory, SystemPath.GAuthConfigPath)));
+
+        return commands;
     }
 
     protected override List<ICommand> CreateCommands()
@@ -46,7 +58,7 @@ public class ETDCommandInvoker : CommandInvoker
 
     private void AddStructuredBinaryCommands(ref List<ICommand> commands, string baseDirectory)
     {
-        var jsonConfigPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
+        var jsonConfigPath = Path.Combine(baseDirectory, SystemPath.BinaryConfigPath);
 
         if (!File.Exists(jsonConfigPath))
         {
@@ -55,7 +67,7 @@ public class ETDCommandInvoker : CommandInvoker
         else
         {
             commands.Add(new ExtractBinaryCommand(jsonConfigPath, _targetFileName));
-            commands.Add(new ExtractBinaryFromGSheet(jsonConfigPath));
+            commands.Add(new ExtractBinaryFromGSheet(jsonConfigPath, _targetFileName));
         }
     }
 }
@@ -65,7 +77,7 @@ public class ETDCommandInvoker : CommandInvoker
 /// </summary>
 public class ETDCommandTestInvoker : CommandInvoker
 {
-    public ETDCommandTestInvoker(string? targetFileName = null) : base(targetFileName)
+    public ETDCommandTestInvoker(string[] args) : base(args)
     {
     }
 
@@ -77,7 +89,6 @@ public class ETDCommandTestInvoker : CommandInvoker
         // 모든 설정 파일 생성
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.BinaryConfigPath)));
         commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, SystemPath.JsonConfigPath)));
-        commands.Add(new GenerateConfigCommand(Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath)));
 
         return commands;
     }
@@ -88,7 +99,7 @@ public class ETDCommandTestInvoker : CommandInvoker
 /// </summary>
 public class StructuredBinaryOnlyInvoker : CommandInvoker
 {
-    public StructuredBinaryOnlyInvoker(string? targetFileName = null) : base(targetFileName)
+    public StructuredBinaryOnlyInvoker(string[] args) : base(args)
     {
     }
 
@@ -96,7 +107,7 @@ public class StructuredBinaryOnlyInvoker : CommandInvoker
     {
         var commands = new List<ICommand>();
         var baseDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty;
-        var configPath = Path.Combine(baseDirectory, ProjectDefine.StructuredBinaryConfigPath);
+        var configPath = Path.Combine(baseDirectory, SystemPath.BinaryConfigPath);
 
         if (!File.Exists(configPath))
         {

@@ -6,8 +6,18 @@ namespace CodeGenerator;
 
 public class CGCommandInvoker : CommandInvoker
 {
-    public CGCommandInvoker(string? targetFileName = null) : base(targetFileName)
+    public CGCommandInvoker(string[] args) : base(args)
     {
+    }
+
+    protected override List<ICommand> CreateInitConfigCommands()
+    {
+        var list = new List<ICommand>();
+        var fullPath =
+            $"{Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)}/{SystemPath.CodeGeneratorConfigPath}";
+
+        list.Add(new GenerateCodeConfigCommand(fullPath));
+        return list;
     }
 
     protected override List<ICommand> CreateCommands()

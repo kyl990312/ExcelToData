@@ -1,4 +1,4 @@
-using TableAutomation.Common.Utils;
+﻿using TableAutomation.Common.Utils;
 using ExcelToData;
 using CodeGenerator;
 using EnumGenerator;
@@ -74,13 +74,23 @@ class Program
         return null;
     }
 
+    /// <summary>
+    /// targetFileName을 Invoker에 전달할 args 배열로 변환
+    /// </summary>
+    static string[] BuildSubArgs(string? targetFileName)
+    {
+        if (!string.IsNullOrEmpty(targetFileName))
+            return new[] { "-each", targetFileName };
+        return Array.Empty<string>();
+    }
+
     static int RunExcelToData(string? targetFileName)
     {
         Logger.Instance.Log("[TableTool] Running ExcelToData...");
 
         try
         {
-            var invoker = new ETDCommandInvoker(targetFileName);
+            var invoker = new ETDCommandInvoker(BuildSubArgs(targetFileName));
             invoker.ExecuteAll();
             Logger.Instance.Log("[TableTool] ExcelToData completed successfully");
             return 0;
@@ -98,7 +108,7 @@ class Program
 
         try
         {
-            var invoker = new CGCommandInvoker(targetFileName);
+            var invoker = new CGCommandInvoker(BuildSubArgs(targetFileName));
             invoker.ExecuteAll();
             Logger.Instance.Log("[TableTool] CodeGenerator completed successfully");
             return 0;
@@ -116,7 +126,7 @@ class Program
 
         try
         {
-            var invoker = new EGCommandInvoker();
+            var invoker = new EGCommandInvoker(Array.Empty<string>());
             invoker.ExecuteAll();
             Logger.Instance.Log("[TableTool] EnumGenerator completed successfully");
             return 0;

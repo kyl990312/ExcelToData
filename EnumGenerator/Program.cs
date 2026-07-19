@@ -1,10 +1,12 @@
 using TableAutomation.Common.Utils;
 using EnumGenerator;
 
-Logger.Instance.Log("[ExcelToData] Start Extract Data");
-var commandInvoker = new EGCommandInvoker();
+Logger.Instance.Log("[EnumGenerator] Start");
+
+var commandInvoker = new EGCommandInvoker(args);
 commandInvoker.ExecuteAll();
-Logger.Instance.Log("[ExcelToData] Quit Program");
+
+Logger.Instance.Log("[EnumGenerator] Quit Program");
 if (Environment.UserInteractive)
 {
     Console.WriteLine("Press any key to exit...");

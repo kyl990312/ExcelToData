@@ -18,7 +18,10 @@ internal static class GAuthAPIHandler
         SheetsService.Scope.SpreadsheetsReadonly
     };
 
-    private static readonly string CONFIG_PATH = "C:\\PROJECT\\TableAutomarionTool\\Output\\Debug\\net9.0\\Config\\GAuthConfig.json";
+    private static readonly string CONFIG_PATH = Path.Combine(
+        Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.FullName ?? string.Empty,
+        "Config/GAuthConfig.json"
+    );
 
     private static UserCredentialConfig _config;
     public static void Initialize()
@@ -75,7 +78,7 @@ internal static class GAuthAPIHandler
             Console.WriteLine($"[GAuth] Token error: {tokenEx.Error.Error} - {tokenEx.Error.ErrorDescription}");
             Console.WriteLine("[GAuth] Attempting to refresh credentials...");
             
-            // ÅäÅ« ÆÄÀÏ »èÁ¦ÇÏ°í ÀçÀÎÁõ ½Ãµµ
+            // ï¿½ï¿½Å« ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ãµï¿½
             string credPath = "token.json";
             if (Directory.Exists(credPath))
             {
@@ -83,7 +86,7 @@ internal static class GAuthAPIHandler
                 Console.WriteLine("[GAuth] Deleted old token. Please re-authenticate.");
             }
             
-            // Àç½Ãµµ
+            // ï¿½ï¿½Ãµï¿½
             using var stream = new FileStream(_config.ClientSceret, FileMode.Open, FileAccess.Read);
             return GoogleWebAuthorizationBroker.AuthorizeAsync(
                 GoogleClientSecrets.FromStream(stream).Secrets,

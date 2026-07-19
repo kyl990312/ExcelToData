@@ -11,6 +11,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Common\Common.csproj" />
       <ProjectReference Include="..\ExcelParser\ExcelParser.csproj" />
+      <ProjectReference Include="..\GAuth\GAuth.csproj" />
       <ProjectReference Include="..\Generator\Generator.csproj" />
       <ProjectReference Include="..\TableAutomarionToolShared\TableAutomarionToolShared.csproj" />
     </ItemGroup>

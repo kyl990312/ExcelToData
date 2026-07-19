@@ -1,47 +1,52 @@
 namespace TableAutomarionToolShared;
 
 /// <summary>
-/// ½Ã½ºÅÛ Àü¿ª¿¡¼­ °øÀ¯ÇÏ´Â °æ·Î Á¤ÀÇ
-/// - Config ÆÄÀÏ °æ·Î
-/// - EnumDB °æ·Î
+/// ï¿½Ã½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+/// - Config ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+/// - EnumDB ï¿½ï¿½ï¿½
 /// </summary>
 public static class SystemPath
 {
     // ============================================
-    // Config ÆÄÀÏ °æ·Î
+    // Config ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     // ============================================
     
     /// <summary>
-    /// Config µğ·ºÅä¸®
+    /// Config ï¿½ï¿½ï¿½ä¸®
     /// </summary>
     public const string ConfigDirectory = "Config";
     
     /// <summary>
-    /// EnumGenerator Config ÆÄÀÏ °æ·Î
+    /// EnumGenerator Config ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     /// </summary>
     public const string EnumGeneratorConfigPath = "Config/EnumGeneratorConfig.json";
     
     /// <summary>
-    /// CodeGenerator Config ÆÄÀÏ °æ·Î
+    /// CodeGenerator Config ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     /// </summary>
-    public const string CodeGeneratorConfigPath = "Config/CodeGenerateConfig.json";
+    public const string CodeGeneratorConfigPath = "Config/CodeGeneratorConfig.json";
     
     /// <summary>
-    /// ExcelToData Binary Config ÆÄÀÏ °æ·Î
+    /// ExcelToData Binary Config ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     /// </summary>
-    public const string BinaryConfigPath = "Config/BinaryConfig.json";
+    public const string BinaryConfigPath = "Config/ExcelToDataConfig.json";
     
     /// <summary>
-    /// ExcelToData Json Config ÆÄÀÏ °æ·Î
+    /// ExcelToData Json Config ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     /// </summary>
     public const string JsonConfigPath = "Config/JsonConfig.json";
-    
+
+    /// <summary>
+    /// GAuth (Google API ì¸ì¦) Config íŒŒì¼ ê²½ë¡œ
+    /// </summary>
+    public const string GAuthConfigPath = "Config/GAuthConfig.json";
+
     // ============================================
-    // EnumDB °æ·Î (½Ã½ºÅÛ Àü¿ª °øÀ¯)
+    // EnumDB ï¿½ï¿½ï¿½ (ï¿½Ã½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     // ============================================
     
     /// <summary>
-    /// EnumDB ¹ÙÀÌ³Ê¸® »ó´ë °æ·Î
+    /// EnumDB ï¿½ï¿½ï¿½Ì³Ê¸ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     /// </summary>
     public const string EnumBinaryPath = "Binary/EnumDB.bin";
 }
