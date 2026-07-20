@@ -1,6 +1,8 @@
 using System.Data;
 using TableAutomation.Common.Utils;
 using GAuth.Core;
+using Google.Apis.Sheets.v4;
+using Google.Apis.Sheets.v4.Data;
 
 namespace GAuth;
 
@@ -8,6 +10,8 @@ public struct GSheetTable
 {
     public string TableName { get; set; }
     public List<string[]> Data { get; set; }
+    public string SpreadsheetId { get; set; }
+    public string SheetTitle { get; set; }
 }
 
 public static class GAuthService
@@ -60,7 +64,7 @@ public static class GAuthService
                         
                         if (response.Values != null && response.Values.Count > 0)
                         {
-                            var gSheetTable = ConvertToGSheetTable(response.Values, $"{sheetFile.Name}_{sheetTitle}");
+                            var gSheetTable = ConvertToGSheetTable(response.Values, $"{sheetFile.Name}_{sheetTitle}", sheetFile.Id, sheetTitle);
                             if (gSheetTable.Data != null && gSheetTable.Data.Count > 0)
                             {
                                 tables.Add(gSheetTable);
@@ -94,12 +98,18 @@ public static class GAuthService
     /// <param name="values">Google Sheets에서 읽어온 값들</param>
     /// <param name="tableName">생성할 테이블의 이름</param>
     /// <returns>변환된 GSheetTable</returns>
-    private static GSheetTable ConvertToGSheetTable(IList<IList<object>> values, string tableName)
+    private static GSheetTable ConvertToGSheetTable(
+        IList<IList<object>> values,
+        string tableName,
+        string spreadsheetId,
+        string sheetTitle)
     {
         var table = new GSheetTable
         {
             TableName = tableName,
-            Data = new List<string[]>()
+            Data = new List<string[]>(),
+            SpreadsheetId = spreadsheetId,
+            SheetTitle = sheetTitle
         };
         
         if (values == null || values.Count == 0)
@@ -143,6 +153,45 @@ public static class GAuthService
         }
         
         return table;
+    }
+
+    /// <summary>
+    /// GSheet의 지정 탭을 rows로 덮어씁니다. clear → update 순서로 완전 갱신합니다.
+    /// </summary>
+    public static void UpdateGSheetTable(string spreadsheetId, string sheetTitle, List<string[]> rows)
+    {
+        var sheetsService = GAuthAPIHandler.GetSheetsService();
+        var clearRange = $"{sheetTitle}!A:Z";
+
+        try
+        {
+            var clearRequest = sheetsService.Spreadsheets.Values.Clear(
+                new ClearValuesRequest(), spreadsheetId, clearRange);
+            clearRequest.Execute();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"GSheet 클리어 실패 (데이터 유지됨): {ex.Message}", ex);
+        }
+
+        var ilist = rows
+            .Select(r => (IList<object>)r.Select(c => (object)c).ToList())
+            .ToList<IList<object>>();
+        var body = new ValueRange { Values = ilist };
+        var updateRequest = sheetsService.Spreadsheets.Values.Update(
+            body, spreadsheetId, $"{sheetTitle}!A1");
+        updateRequest.ValueInputOption =
+            SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+        try
+        {
+            updateRequest.Execute();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"GSheet 업데이트 실패 (GSheet가 비어 있습니다 — 재저장하세요): {ex.Message}", ex);
+        }
+
+        Logger.Instance.Log($"[GAuthService] UpdateGSheetTable 완료: {spreadsheetId} [{sheetTitle}] ({rows.Count} rows)");
     }
 
     /// <summary>

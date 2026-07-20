@@ -15,7 +15,7 @@ internal static class GAuthAPIHandler
 {
     static string[] Scopes = {
         DriveService.Scope.DriveReadonly,
-        SheetsService.Scope.SpreadsheetsReadonly
+        SheetsService.Scope.Spreadsheets
     };
 
     private static readonly string CONFIG_PATH = Path.Combine(
@@ -30,6 +30,7 @@ internal static class GAuthAPIHandler
         {
             Console.Error.WriteLine($"[GAuth] Error loading config: {CONFIG_PATH}");
         }
+
     }
        
     public static DriveService GetDriveService()

@@ -46,7 +46,7 @@ public class EditViewModel : ViewModelBase
 
         SearchCommand = new RelayCommand(ApplySearch);
         RefreshCommand = new RelayCommand(LoadTables);
-        SaveCommand = new RelayCommand(Save, () => !_isGSheet && _dt != null && !_pipe.IsBusy);
+        SaveCommand = new RelayCommand(Save, () => _dt != null && !_pipe.IsBusy);
         RevertCommand = new RelayCommand(Revert, () => HasChanges);
         SaveExtractCommand = new RelayCommand(SaveAndExtract,
             () => !_isGSheet && _dt != null && _selectedTable != null && !_pipe.IsBusy);
@@ -216,7 +216,7 @@ public class EditViewModel : ViewModelBase
                 .OrderBy(n => n)
                 .ToList();
             ApplySearch();
-            _status($"GSheet 테이블 {_all.Count}개 로드됨 (읽기 전용)");
+            _status($"GSheet 테이블 {_all.Count}개 로드됨");
         }
         catch (Exception ex)
         {
@@ -408,8 +408,13 @@ public class EditViewModel : ViewModelBase
 
     private void Save()
     {
-        if (_dt == null || _loadedFile == null || _selectedSheet == null)
+        if (_dt == null) return;
+        if (_isGSheet)
+        {
+            _ = SaveToGSheetAsync();
             return;
+        }
+        if (_loadedFile == null || _selectedSheet == null) return;
 
         try
         {
@@ -447,6 +452,43 @@ public class EditViewModel : ViewModelBase
         {
             UiLog.Write($"[TableEditor][Error] 저장 실패: {ex}");
             _status($"저장 실패: {ex.Message}");
+        }
+    }
+
+    private async Task SaveToGSheetAsync()
+    {
+        var src = _gsheetCache.FirstOrDefault(t => NormalizeName(t.TableName) == _selectedTable);
+        if (src.SpreadsheetId == null)
+        {
+            _status("GSheet 원본 참조를 찾을 수 없습니다.");
+            return;
+        }
+
+        var rows = new List<string[]>();
+        rows.Add(_colNames);
+        rows.Add(_colTypes);
+        foreach (DataRow dr in _dt!.Rows)
+        {
+            if (dr.RowState == DataRowState.Deleted) continue;
+            var row = new string[_colNames.Length];
+            for (int i = 0; i < _colNames.Length; i++)
+                row[i] = dr[i]?.ToString() ?? string.Empty;
+            rows.Add(row);
+        }
+
+        _status($"GSheet 되쓰는 중… ({src.SheetTitle})");
+        try
+        {
+            await Task.Run(() => GAuthService.UpdateGSheetTable(src.SpreadsheetId, src.SheetTitle, rows));
+            _dt.AcceptChanges();
+            UpdateChangeInfo();
+            _status($"GSheet 저장 완료: {src.SheetTitle}");
+            UiLog.Write($"[TableEditor] GSheet 저장: {src.SpreadsheetId} [{src.SheetTitle}]");
+        }
+        catch (Exception ex)
+        {
+            UiLog.Write($"[TableEditor][Error] GSheet 저장 실패: {ex}");
+            _status($"GSheet 저장 실패: {ex.Message}");
         }
     }
 

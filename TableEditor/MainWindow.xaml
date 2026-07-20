@@ -88,7 +88,7 @@
                             <TextBlock Text="원본:" VerticalAlignment="Center" />
                             <RadioButton Content="xlsx" GroupName="EditSrc" VerticalAlignment="Center" Margin="8,0,0,0"
                                          IsChecked="{Binding Edit.IsLocal}" />
-                            <RadioButton Content="GSheet (읽기 전용)" GroupName="EditSrc" VerticalAlignment="Center" Margin="10,0,0,0"
+                            <RadioButton Content="GSheet" GroupName="EditSrc" VerticalAlignment="Center" Margin="10,0,0,0"
                                          IsChecked="{Binding Edit.IsGSheet}" />
                             <TextBlock Text="시트:" VerticalAlignment="Center" Margin="20,0,0,0" />
                             <ComboBox Width="150" Margin="6,0,0,0"
@@ -160,8 +160,8 @@
 
                             <DataGrid Grid.Row="2" AutoGenerateColumns="True"
                                       ItemsSource="{Binding Edit.TableView}"
-                                      IsReadOnly="{Binding Edit.IsGSheet}"
-                                      CanUserAddRows="{Binding Edit.IsLocal}"
+                                      IsReadOnly="False"
+                                      CanUserAddRows="True"
                                       HeadersVisibility="All" GridLinesVisibility="All"
                                       EnableRowVirtualization="True" EnableColumnVirtualization="True" />
                         </Grid>
