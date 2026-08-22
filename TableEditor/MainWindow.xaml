@@ -5,7 +5,6 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.InputBindings>
-        <KeyBinding Modifiers="Control" Key="S" Command="{Binding Edit.SaveCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -73,8 +72,8 @@
         <!-- ═══ 센터 상단 기능 탭 ═══ -->
         <TabControl Margin="8,8,8,4">
 
-            <!-- ─── 탭 1: 편집 (뷰어 통합) ─── -->
-            <TabItem Header="편집">
+            <!-- ─── 탭 1: 뷰어 ─── -->
+            <TabItem Header="뷰어">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -84,22 +83,8 @@
 
                     <!-- 상단 툴바 -->
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                            <TextBlock Text="원본:" VerticalAlignment="Center" />
-                            <RadioButton Content="xlsx" GroupName="EditSrc" VerticalAlignment="Center" Margin="8,0,0,0"
-                                         IsChecked="{Binding Edit.IsLocal}" />
-                            <RadioButton Content="GSheet" GroupName="EditSrc" VerticalAlignment="Center" Margin="10,0,0,0"
-                                         IsChecked="{Binding Edit.IsGSheet}" />
-                            <TextBlock Text="시트:" VerticalAlignment="Center" Margin="20,0,0,0" />
-                            <ComboBox Width="150" Margin="6,0,0,0"
-                                      ItemsSource="{Binding Edit.SheetNames}"
-                                      SelectedItem="{Binding Edit.SelectedSheet}" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="새로고침" Style="{StaticResource ToolButton}" Command="{Binding Edit.RefreshCommand}" />
-                            <Button Content="+ 신규 테이블" Style="{StaticResource ToolButton}" Command="{Binding Edit.OpenNewTableCommand}" />
-                            <Button Content="저장" Style="{StaticResource ToolButton}" Command="{Binding Edit.SaveCommand}" />
-                        </StackPanel>
+                        <Button Content="새로고침" HorizontalAlignment="Right"
+                                Style="{StaticResource ToolButton}" Command="{Binding Viewer.RefreshCommand}" />
                     </DockPanel>
 
                     <!-- 본문: 좌측 리스트 + 우측 그리드 -->
@@ -113,67 +98,41 @@
                         <DockPanel Grid.Column="0" Margin="0,0,10,0">
                             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                                 <Button DockPanel.Dock="Right" Content="검색" Padding="12,3"
-                                        Command="{Binding Edit.SearchCommand}" />
+                                        Command="{Binding Viewer.SearchCommand}" />
                                 <TextBox Margin="0,0,6,0" VerticalContentAlignment="Center"
-                                         Text="{Binding Edit.SearchText, UpdateSourceTrigger=PropertyChanged}">
+                                         Text="{Binding Viewer.SearchText, UpdateSourceTrigger=PropertyChanged}">
                                     <TextBox.InputBindings>
-                                        <KeyBinding Key="Return" Command="{Binding Edit.SearchCommand}" />
+                                        <KeyBinding Key="Return" Command="{Binding Viewer.SearchCommand}" />
                                     </TextBox.InputBindings>
                                 </TextBox>
                             </DockPanel>
-                            <ListBox ItemsSource="{Binding Edit.Tables}"
-                                     SelectedItem="{Binding Edit.SelectedTable}" />
+                            <ListBox ItemsSource="{Binding Viewer.Tables}"
+                                     SelectedItem="{Binding Viewer.SelectedTable}" />
                         </DockPanel>
 
-                        <!-- 우측: 신규 테이블 인라인 패널 + 데이터 그리드 -->
+                        <!-- 우측: 타입 요약 + 데이터 그리드 -->
                         <Grid Grid.Column="1">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <Border Grid.Row="0" Padding="10" Margin="0,0,0,8" CornerRadius="6"
-                                    Background="#F4F7FC" BorderBrush="#C9D4E4" BorderThickness="1"
-                                    Visibility="{Binding Edit.NewPanelOpen, Converter={StaticResource BoolToVis}}">
-                                <StackPanel>
-                                    <TextBlock Text="신규 테이블 추가 (원본 폴더에 xlsx 생성)" FontWeight="SemiBold" Margin="0,0,0,6" />
-                                    <DockPanel Margin="0,2">
-                                        <TextBlock Text="테이블명" Style="{StaticResource FieldLabel}" Width="90" />
-                                        <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Edit.NewTableName, UpdateSourceTrigger=PropertyChanged}" />
-                                    </DockPanel>
-                                    <DockPanel Margin="0,2">
-                                        <TextBlock Text="컬럼 (이름:타입)" Style="{StaticResource FieldLabel}" Width="90" VerticalAlignment="Top" />
-                                        <TextBox Height="72" AcceptsReturn="True" FontFamily="Consolas"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 Text="{Binding Edit.NewColumnsText, UpdateSourceTrigger=PropertyChanged}" />
-                                    </DockPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
-                                        <Button Content="생성" Style="{StaticResource ToolButton}" Command="{Binding Edit.CreateTableCommand}" />
-                                        <Button Content="취소" Style="{StaticResource ToolButton}" Command="{Binding Edit.CancelNewTableCommand}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <TextBlock Grid.Row="1" Text="{Binding Edit.TypesSummary}" Foreground="#5B6673"
+                            <TextBlock Grid.Row="0" Text="{Binding Viewer.TypesSummary}" Foreground="#5B6673"
                                        FontSize="12" Margin="2,0,0,4" TextTrimming="CharacterEllipsis" />
 
-                            <DataGrid Grid.Row="2" AutoGenerateColumns="True"
-                                      ItemsSource="{Binding Edit.TableView}"
-                                      IsReadOnly="False"
-                                      CanUserAddRows="True"
+                            <DataGrid Grid.Row="1" AutoGenerateColumns="True"
+                                      ItemsSource="{Binding Viewer.TableView}"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
                                       HeadersVisibility="All" GridLinesVisibility="All"
                                       EnableRowVirtualization="True" EnableColumnVirtualization="True" />
                         </Grid>
                     </Grid>
 
-                    <!-- 하단: 변경 상태 -->
-                    <DockPanel Grid.Row="2" Margin="250,8,0,0">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                            <Button Content="되돌리기" Style="{StaticResource ToolButton}" Command="{Binding Edit.RevertCommand}" />
-                            <Button Content="저장 후 데이터 추출" Style="{StaticResource ToolButton}" Command="{Binding Edit.SaveExtractCommand}" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding Edit.ChangeInfo}" VerticalAlignment="Center" Foreground="#5B6673" />
+                    <!-- 하단: 행/컬럼 정보 -->
+                    <DockPanel Grid.Row="2" Margin="0,8,0,0">
+                        <TextBlock Text="{Binding Viewer.RowInfo}" VerticalAlignment="Center" Foreground="#5B6673" />
                     </DockPanel>
                 </Grid>
             </TabItem>

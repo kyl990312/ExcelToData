@@ -37,7 +37,7 @@ public class MainViewModel : ViewModelBase
 
         void SetStatus(string s) => Status = s;
 
-        Edit = new EditViewModel(cfg, pipe, SetStatus);
+        Viewer = new ViewerViewModel(cfg, SetStatus);
         Extract = new ExtractViewModel(cfg, pipe, SetStatus);
         CodeGen = new CodeGenViewModel(cfg, pipe, SetStatus);
         Settings = new SettingsViewModel(cfg, SetStatus);
@@ -49,7 +49,7 @@ public class MainViewModel : ViewModelBase
         });
     }
 
-    public EditViewModel Edit { get; }
+    public ViewerViewModel Viewer { get; }
     public ExtractViewModel Extract { get; }
     public CodeGenViewModel CodeGen { get; }
     public SettingsViewModel Settings { get; }

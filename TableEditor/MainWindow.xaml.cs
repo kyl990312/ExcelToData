@@ -18,16 +18,6 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (DataContext is MainViewModel vm && vm.Edit.HasChanges)
-        {
-            var result = MessageBox.Show(
-                "저장하지 않은 변경이 있습니다. 저장 없이 종료할까요?",
-                "Table Editor",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes)
-                e.Cancel = true;
-        }
         base.OnClosing(e);
     }
 }

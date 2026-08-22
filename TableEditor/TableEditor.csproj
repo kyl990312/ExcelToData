@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\BinaryParser\BinaryParser.csproj" />
     <ProjectReference Include="..\ExcelParser\ExcelParser.csproj" />
     <ProjectReference Include="..\GAuth\GAuth.csproj" />
     <ProjectReference Include="..\ExcelToData\ExcelToData.csproj" />
