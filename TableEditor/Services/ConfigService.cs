@@ -1,10 +1,11 @@
 using System.IO;
 using System.Text.Json;
-using CodeGenerator;
-using ExcelToData;
-using EnumGenerator;
-using GAuth.Core;
-using TableAutomarionToolShared;
+using TableAutomationTool.CodeGenerator;
+using TableAutomationTool.ExcelToData;
+using TableAutomationTool.EnumGenerator;
+using TableAutomationTool.GAuth.Core;
+using TableAutomationTool.Shared;
+using TableAutomationTool.Vcs;
 
 namespace TableEditor.Services;
 
@@ -28,12 +29,14 @@ public class ConfigService
     public string CodeGenConfigFile => Path.Combine(BaseDirectory, SystemPath.CodeGeneratorConfigPath);
     public string EnumConfigFile => Path.Combine(BaseDirectory, SystemPath.EnumGeneratorConfigPath);
     public string GAuthConfigFile => Path.Combine(BaseDirectory, SystemPath.GAuthConfigPath);
+    public string GitConfigFile => Path.Combine(BaseDirectory, SystemPath.GitConfigPath);
 
     public DataExtractConfig Binary { get; private set; } = new();
     public DataExtractConfig Json { get; private set; } = new();
     public CodeGenerateConfig CodeGen { get; private set; } = CodeGenerateConfig.GetDefault();
     public EnumGeneratorConfig EnumCfg { get; private set; } = EnumGeneratorConfig.GetDefault();
     public UserCredentialConfig GAuthCfg { get; private set; } = NewGAuthDefault();
+    public GitConfig Git { get; private set; } = GitConfig.GetDefault();
 
     public void LoadAll()
     {
@@ -46,6 +49,7 @@ public class ConfigService
         CodeGen = Load(CodeGenConfigFile, CodeGenerateConfig.GetDefault);
         EnumCfg = Load(EnumConfigFile, EnumGeneratorConfig.GetDefault);
         GAuthCfg = Load(GAuthConfigFile, NewGAuthDefault);
+        Git = Load(GitConfigFile, GitConfig.GetDefault);
     }
 
     public void SaveAll()
@@ -55,7 +59,8 @@ public class ConfigService
         Save(CodeGenConfigFile, CodeGen);
         Save(EnumConfigFile, EnumCfg);
         Save(GAuthConfigFile, GAuthCfg);
-        UiLog.Write($"[Config] 설정 5종 저장 완료 ({Path.Combine(BaseDirectory, SystemPath.ConfigDirectory)})");
+        Save(GitConfigFile, Git);
+        UiLog.Write($"[Config] 설정 6종 저장 완료 ({Path.Combine(BaseDirectory, SystemPath.ConfigDirectory)})");
     }
 
     public void ResetDefaults()
@@ -69,6 +74,7 @@ public class ConfigService
         CodeGen = CodeGenerateConfig.GetDefault();
         EnumCfg = EnumGeneratorConfig.GetDefault();
         GAuthCfg = NewGAuthDefault();
+        Git = GitConfig.GetDefault();
     }
 
     private static UserCredentialConfig NewGAuthDefault() => new()

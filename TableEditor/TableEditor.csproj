@@ -1,14 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj" />
-    <ProjectReference Include="..\BinaryParser\BinaryParser.csproj" />
-    <ProjectReference Include="..\ExcelParser\ExcelParser.csproj" />
-    <ProjectReference Include="..\GAuth\GAuth.csproj" />
-    <ProjectReference Include="..\ExcelToData\ExcelToData.csproj" />
-    <ProjectReference Include="..\CodeGenerator\CodeGenerator.csproj" />
-    <ProjectReference Include="..\EnumGenerator\EnumGenerator.csproj" />
-    <ProjectReference Include="..\TableAutomarionToolShared\TableAutomarionToolShared.csproj" />
+    <ProjectReference Include="..\TableAutomationTool\TableAutomationTool.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

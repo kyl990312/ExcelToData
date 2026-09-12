@@ -36,7 +36,7 @@ public class CodeGenViewModel : ViewModelBase
     public ObservableCollection<SelectableItem> Items { get; } = new();
 
     public string LanguageText =>
-        CodeGenerator.ProjectDefine.CodeExtension.EndsWith("cs") ? "C#" : "C++";
+        TableAutomationTool.CodeGenerator.ProjectDefine.CodeExtension.EndsWith("cs") ? "C#" : "C++";
 
     public bool WithEnum
     {
@@ -75,6 +75,8 @@ public class CodeGenViewModel : ViewModelBase
 
         var pattern = string.IsNullOrWhiteSpace(_cfg.CodeGen.ReadFileExtension) ? "*.bin" : _cfg.CodeGen.ReadFileExtension;
         var names = Directory.GetFiles(dir, pattern, SearchOption.AllDirectories)
+            // EnumDB 는 테이블이 아니라 Enum 메타데이터다. 코드 생성 대상 목록에서 제외한다.
+            .Where(f => !_cfg.CodeGen.IsEnumBinary(f))
             .Select(Path.GetFileNameWithoutExtension)
             .Where(n => !string.IsNullOrEmpty(n))
             .Cast<string>()

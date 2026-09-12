@@ -131,7 +131,7 @@ GameDataToolConfig의 필드를 `ScriptableObject` Inspector처럼 통째로 내
 
 ### 5.1 EnumGenerate Config
 
-EnumGenerator.exe가 사용하는 Config 항목에 대응한다.
+`TableAutomationTool.exe enum` 단계가 사용하는 Config 항목에 대응한다.
 
 | 항목 | UI 레이블 | 설명 |
 |------|-----------|------|
@@ -141,7 +141,7 @@ EnumGenerator.exe가 사용하는 Config 항목에 대응한다.
 
 ### 5.2 ExcelToData Config
 
-ExcelToData.exe가 사용하는 Config 항목에 대응한다.
+`TableAutomationTool.exe extract` 단계가 사용하는 Config 항목에 대응한다.
 
 | 항목 | UI 레이블 | 설명 |
 |------|-----------|------|
@@ -151,7 +151,7 @@ ExcelToData.exe가 사용하는 Config 항목에 대응한다.
 
 ### 5.3 CodeGenerator Config
 
-CodeGenerator.exe가 사용하는 Config 항목에 대응한다.
+`TableAutomationTool.exe generate` 단계가 사용하는 Config 항목에 대응한다.
 
 | 항목 | UI 레이블 | 설명 |
 |------|-----------|------|
@@ -178,10 +178,8 @@ CodeGenerator.exe가 사용하는 Config 항목에 대응한다.
             → 각 Tool의 init-config 명령어를 실행하여 기본 Config 파일 생성
             → 생성된 Config 파일에 InputField 값을 반영하여 갱신
       
-      대상 Tool:
-        - EnumGenerator.exe --init-config
-        - ExcelToData.exe   --init-config
-        - CodeGenerator.exe --init-config
+      대상: 통합 CLI 1개 (개별 exe 3종은 제거되었다)
+        - TableAutomationTool.exe init-config
 
 [3] GameDataTool Path 정보를 Unity Asset에 저장
       - GameDataToolConfig ScriptableObject 갱신
@@ -199,9 +197,12 @@ Config 파일이 존재하지 않는 Tool에 대해서만 init-config를 실행�
 
 | Tool | 실행 명령 | 생성되는 Config |
 |------|-----------|----------------|
-| EnumGenerator | `EnumGenerator.exe --init-config` | EnumGeneratorConfig.json |
-| ExcelToData | `ExcelToData.exe --init-config` | BinaryConfig.json |
-| CodeGenerator | `CodeGenerator.exe --init-config` | CodeGenerateConfig.json |
+| TableAutomationTool (통합 CLI) | `TableAutomationTool.exe init-config` | `ExcelToDataConfig.json`, `JsonConfig.json`, `GAuthConfig.json`, `CodeGeneratorConfig.json`, `EnumGeneratorConfig.json`, `GitConfig.json` |
+
+> 인자는 `--init-config` 가 아니라 **`init-config`** 이다(더블대시 없음).
+> 한 번의 호출로 6종을 모두 만들고, **이미 있는 파일은 건너뛴다.**
+> 개별 exe(`EnumGenerator.exe` · `ExcelToData.exe` · `CodeGenerator.exe`)는 제거되었으므로
+> 더 이상 호출할 수 없다.
 
 init-config 실행 후 생성된 기본 Config에 InputField에 입력된 값을 덮어써서 최종 Config를 확정한다.
 
@@ -247,13 +248,17 @@ public class GameDataToolConfig : ScriptableObject
 
 ## 8. Config 파일 생성 대상
 
-각 Tool의 Config JSON 파일은 Tool 실행 파일의 Config 디렉토리에 생성된다.
+Config JSON 파일은 **통합 CLI 실행 파일과 같은 폴더의 `Config/`** 한 곳에 모인다.
+(경로 규약의 단일 소스는 `TableAutomationTool/Shared/SystemPath.cs` 이다)
 
-| Tool | Config 파일명 | 기본 저장 위치 |
+| 단계 | Config 파일명 | 기본 저장 위치 |
 |------|--------------|---------------|
-| EnumGenerator | EnumGeneratorConfig.json | {EnumGeneratorExe 경로}/Config/ |
-| ExcelToData | BinaryConfig.json | {ExcelToDataExe 경로}/Config/ |
-| CodeGenerator | CodeGenerateConfig.json | {CodeGeneratorExe 경로}/Config/ |
+| enum | `EnumGeneratorConfig.json` | {TableAutomationTool.exe 경로}/Config/ |
+| extract (bin) | `ExcelToDataConfig.json` | {TableAutomationTool.exe 경로}/Config/ |
+| extract (json) | `JsonConfig.json` | {TableAutomationTool.exe 경로}/Config/ |
+| generate | `CodeGeneratorConfig.json` | {TableAutomationTool.exe 경로}/Config/ |
+| GSheet 인증 | `GAuthConfig.json` | {TableAutomationTool.exe 경로}/Config/ |
+| diff | `GitConfig.json` | {TableAutomationTool.exe 경로}/Config/ |
 
 ---
 

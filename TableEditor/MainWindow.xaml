@@ -153,6 +153,10 @@
                                          IsChecked="{Binding Extract.IsLocalSource}" />
                             <RadioButton Content="GSheet 폴더" GroupName="ExtractSrc" VerticalAlignment="Center" Margin="10,0,0,0"
                                          IsChecked="{Binding Extract.IsGSheetSource}" />
+                            <CheckBox Content="Diff만 보기" VerticalAlignment="Center" Margin="20,0,0,0"
+                                      IsChecked="{Binding Extract.DiffOnly}"
+                                      IsEnabled="{Binding Extract.IsLocalSource}"
+                                      ToolTip="git 으로 변경이 감지된 워크북의 테이블만 표시합니다. 저장소 경로는 설정 탭의 Git 항목을 따릅니다." />
                         </StackPanel>
                         <Button Content="목록 새로고침" HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
                                 Command="{Binding Extract.RefreshCommand}" />
@@ -340,6 +344,25 @@
                                         <TextBlock Text="client_secret 경로" Style="{StaticResource FieldLabel}" />
                                         <TextBox Text="{Binding Settings.GAuthCfg.ClientSceret, UpdateSourceTrigger=PropertyChanged}" />
                                     </DockPanel>
+                                </StackPanel>
+                            </Expander>
+
+                            <Expander Header="Git (버전 관리)" Margin="0,0,0,6">
+                                <StackPanel Margin="20,6,0,4">
+                                    <DockPanel Margin="0,3">
+                                        <TextBlock Text="저장소 경로" Style="{StaticResource FieldLabel}" />
+                                        <Button DockPanel.Dock="Right" Content="찾기" Padding="10,2" Margin="6,0,0,0"
+                                                Command="{Binding Settings.BrowseCommand}" CommandParameter="git.repo" />
+                                        <TextBox Text="{Binding Settings.Git.RepositoryPath, UpdateSourceTrigger=PropertyChanged}" />
+                                    </DockPanel>
+                                    <TextBlock Margin="0,0,0,4" Foreground="Gray" TextWrapping="Wrap"
+                                               Text="비워 두면 데이터 추출 Src 폴더를 사용합니다. CLI 의 --path 인자가 항상 우선합니다." />
+                                    <DockPanel Margin="0,3">
+                                        <TextBlock Text="git 실행 파일" Style="{StaticResource FieldLabel}" />
+                                        <TextBox Text="{Binding Settings.Git.GitExecutablePath, UpdateSourceTrigger=PropertyChanged}" />
+                                    </DockPanel>
+                                    <TextBlock Margin="0,0,0,2" Foreground="Gray" TextWrapping="Wrap"
+                                               Text="기본값 &quot;git&quot; 은 PATH 에서 찾습니다. 전체 경로를 직접 지정해도 됩니다." />
                                 </StackPanel>
                             </Expander>
 

@@ -51,19 +51,19 @@ TableAutomationTool은 Excel 및 Google Sheets 데이터를 게임 런타임에�
 
 ### 3.1 TableAutomationTool (데이터 파이프라인)
 
-TableAutomationTool은 세 개의 실행 프로그램으로 구성된다. 각 프로그램은 Command Pattern 기반의 CommandInvoker를 통해 작업을 수행한다.
+TableAutomationTool은 통합 CLI 실행 파일 하나(TableAutomationTool.exe)와 GUI(TableEditor.exe)로 구성된다. 데이터 파이프라인은 통합 CLI의 세 가지 서브 커맨드(enum / extract / generate)로 나뉜다. 이 밖에 init-config(설정 생성), test(EnumDB 공유 메모리 검증), diff(git 변경 테이블 목록) 서브 커맨드가 있으며, 각 단계는 Command Pattern 기반의 CommandInvoker를 통해 작업을 수행한다.
 
-**EnumGenerator** — Excel에서 사용자 정의 Enum을 추출하여 EnumBinary와 C# enum 코드를 생성한다. 다른 프로그램들이 Enum 타입 정보에 의존하므로 가장 먼저 실행해야 한다.
+**enum (EnumGenerator)** — Excel에서 사용자 정의 Enum을 추출하여 EnumBinary와 C# enum 코드를 생성한다. 다른 단계가 Enum 타입 정보에 의존하므로 가장 먼저 실행해야 한다.
 
-**ExcelToData** — Excel 파일(.xlsm) 또는 Google Sheets를 읽어 구조화된 Binary(.bin)와 JSON 데이터로 변환한다. Local 파일과 Google Sheets 두 가지 데이터 소스를 지원한다.
+**extract (ExcelToData)** — Excel 파일(.xlsm) 또는 Google Sheets를 읽어 구조화된 Binary(.bin)와 JSON 데이터로 변환한다. Local 파일과 Google Sheets 두 가지 데이터 소스를 지원한다.
 
-**CodeGenerator** — 변환된 Binary 파일을 읽어 타입 안전한 C# 클래스를 자동 생성한다. 생성된 클래스에는 프로퍼티, 생성자, ToString(), Equals(), GetHashCode() 메서드가 포함된다.
+**generate (CodeGenerator)** — 변환된 Binary 파일을 읽어 타입 안전한 C# 클래스를 자동 생성한다. 생성된 클래스에는 프로퍼티, 생성자, ToString(), Equals(), GetHashCode() 메서드가 포함된다.
 
 ### 3.2 출력물
 
 **Binary** — 컬럼 기반 저장 방식의 바이너리 데이터 파일이다. 게임 런타임에서 BinaryParser를 통해 로딩되며, 캐시 효율성과 쿼리 성능이 최적화되어 있다.
 
-**Scripts** — CodeGenerator와 EnumGenerator가 생성한 C# 소스 코드이다. 데이터 클래스와 Enum 정의가 포함된다.
+**Scripts** — generate 단계가 생성한 C# 소스 코드이다. 데이터 클래스와 Enum 정의가 포함된다.
 
 ### 3.3 Local Storage
 
@@ -144,7 +144,7 @@ Common (기반 라이브러리)
 │   └── TableHeader, TableHelper, CustomDataTable
 │
 ├── BinaryParser (바이너리 직렬화)
-│   └── BinaryWriter, BinaryReader, BinaryHelper
+│   └── BinaryWriter, BinaryReader, BinarySchema
 │
 ├── Generator (코드 생성 & 데이터 추출)
 │   └── CSharpClassGenerator, StructuredBinaryExtractor
@@ -153,26 +153,33 @@ Common (기반 라이브러리)
     └── GAuthService, GAuth.Core
 ```
 
-실행 프로그램들은 위 라이브러리들을 조합하여 사용한다.
+위 라이브러리는 전부 **단일 프로젝트 `TableAutomationTool`(net9.0, exe)** 안의 폴더로 존재한다.
+예전에는 라이브러리마다 별도 csproj가 있었으나 통합되었고, 폴더·네임스페이스 경계만 남았다.
 
-| 실행 프로그램 | 참조 라이브러리 |
-|--------------|---------------|
-| ExcelToData | Common, ExcelParser, BinaryParser, Generator, GAuth |
-| CodeGenerator | Common, BinaryParser, Generator |
-| EnumGenerator | Common, ExcelParser, Generator |
+| 서브 커맨드 | 주로 쓰는 폴더 |
+|-------------|---------------|
+| extract | Common, ExcelParser, BinaryParser, Generator, GAuth |
+| generate | Common, BinaryParser, Generator |
+| enum | Common, ExcelParser, Generator |
+| diff | Common, Vcs (IVcsHandler / GitHandler), ExcelToData(ProjectDefine) |
+
+GUI(`TableEditor`, net9.0-windows)는 이 프로젝트 하나만 ProjectReference 한다.
 
 ---
 
 ## 7. 설정 파일 구조
 
-각 프로그램은 JSON 기반 설정 파일을 사용하며, 최초 실행 시 자동 생성된다.
+각 설정 파일은 실행 파일과 같은 폴더의 `Config/` 아래에 있으며, 최초 실행 시 자동 생성된다.
+`init-config` 서브 커맨드로 6종을 한 번에 만들 수 있고, **이미 있는 파일은 건너뛴다.**
 
-| 설정 파일 | 대상 프로그램 | 주요 설정 |
-|-----------|-------------|-----------|
-| BinaryConfig.json | ExcelToData | SrcDirectory, DstDirectory, IsLoadFromLocal, IsLoadFromGSheet |
-| JsonConfig.json | ExcelToData | SrcDirectory, DstDirectory |
-| CodeGenerateConfig.json | CodeGenerator | BinaryDirectory, ClassOutputDirectory, ClassNamespace |
-| EnumGeneratorConfig.json | EnumGenerator | EnumFilePath, DstDirectory, CodeExtension |
+| 설정 파일 | 대상 단계 | 주요 설정 |
+|-----------|----------|-----------|
+| ExcelToDataConfig.json | extract (Binary) | SrcDirectory, DstDirectory, IsLoadFromLocal, IsLoadFromGSheet |
+| JsonConfig.json | extract (JSON) | SrcDirectory, DstDirectory |
+| CodeGeneratorConfig.json | generate | BinaryDirectory, ClassOutputDirectory, ClassNamespace |
+| EnumGeneratorConfig.json | enum | EnumFilePath, DstDirectory, CodeExtension |
+| GAuthConfig.json | GSheet 인증 | ApplicationName, User, ClientSceret |
+| GitConfig.json | diff | RepositoryPath, GitExecutablePath |
 
 ---
 

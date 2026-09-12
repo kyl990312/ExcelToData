@@ -1,6 +1,6 @@
-using CodeGenerator;
-using EnumGenerator;
-using ExcelToData;
+using TableAutomationTool.CodeGenerator;
+using TableAutomationTool.EnumGenerator;
+using TableAutomationTool.ExcelToData;
 
 namespace TableEditor.Services;
 
