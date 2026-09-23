@@ -1,6 +1,0 @@
-{
-  "model": "claude-sonnet-4-6",
-  "stub": false,
-  "workspace": "knowledges/pre-code",
-  "budgets": { "review": 3 }
-}
