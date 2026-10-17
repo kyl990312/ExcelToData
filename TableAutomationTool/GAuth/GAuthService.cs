@@ -23,9 +23,27 @@ public struct GSheetTab
     public string SpreadsheetId { get; set; }
     public string SheetTitle { get; set; }
 
+    /// <summary>탭의 sheetId(gid). 행 삽입·삭제·셀 쓰기(batchUpdate)가 탭을 가리킬 때 쓴다.</summary>
+    public int SheetId { get; set; }
+
     /// <summary>추출 결과 .bin 이름과 같은 테이블 이름 (ToTableName 규칙)</summary>
     public string TableName { get; set; }
 }
+
+/// <summary>
+/// EditGSheetTab 이 한 번의 batchUpdate 로 순서대로 적용하는 편집. 행·열은 0부터 센 시트 좌표다.
+/// 앞 편집이 행을 끼우거나 지우면 뒤 편집의 좌표는 그 결과를 기준으로 한다.
+/// </summary>
+public abstract record GSheetEdit;
+
+/// <summary>Row 위치에 빈 행을 끼운다. 기존 Row 이하 행은 한 칸씩 밀린다. InheritFromBefore 면 위 행, 아니면 아래 행의 서식을 따른다.</summary>
+public sealed record GSheetInsertRow(int Row, bool InheritFromBefore) : GSheetEdit;
+
+/// <summary>Row 행을 지운다. 아래 행은 한 칸씩 당겨진다.</summary>
+public sealed record GSheetDeleteRow(int Row) : GSheetEdit;
+
+/// <summary>셀 값을 쓴다. Value 는 string(문자 그대로, 수식 해석 없음) | double(숫자) | bool. 서식은 건드리지 않는다.</summary>
+public sealed record GSheetSetCell(int Row, int Column, object Value) : GSheetEdit;
 
 public static class GAuthService
 {
@@ -123,7 +141,7 @@ public static class GAuthService
         foreach (var sheetFile in GetAllGoogleSheets(folderLink))
         {
             var request = sheetsService.Spreadsheets.Get(sheetFile.Id);
-            request.Fields = "sheets.properties.title";
+            request.Fields = "sheets.properties(sheetId,title)";
             var spreadsheet = request.Execute();
 
             foreach (var sheet in spreadsheet.Sheets)
@@ -137,6 +155,7 @@ public static class GAuthService
                     SpreadsheetName = sheetFile.Name,
                     SpreadsheetId = sheetFile.Id,
                     SheetTitle = sheetTitle,
+                    SheetId = sheet.Properties.SheetId ?? 0,
                     TableName = ToTableName($"{sheetFile.Name}_{sheetTitle}"),
                 });
             }
@@ -165,6 +184,89 @@ public static class GAuthService
 
         return ConvertToGSheetTable(response.Values, tab.TableName, tab.SpreadsheetId, tab.SheetTitle);
     }
+
+    /// <summary>
+    /// 탭의 A:Z 값을 행 위치 그대로 읽는다. 빈 행·EOF 이후 행도 지우지 않으므로 인덱스 = 시트 행(0부터)이다.
+    /// 범위·값 형식(표시 값)은 GetTableFromGSheetTab 과 같다. 끝의 빈 행은 API 가 돌려주지 않는다.
+    /// </summary>
+    public static List<string[]> GetGSheetTabValues(GSheetTab tab)
+    {
+        var sheetsService = GAuthAPIHandler.GetSheetsService();
+        var response = sheetsService.Spreadsheets.Values.Get(tab.SpreadsheetId, $"{QuoteSheetTitle(tab.SheetTitle)}!A:Z").Execute();
+
+        return (response.Values ?? new List<IList<object>>())
+            .Select(row => row == null
+                ? Array.Empty<string>()
+                : row.Select(cell => cell?.ToString() ?? string.Empty).ToArray())
+            .ToList();
+    }
+
+    /// <summary>
+    /// 편집을 batchUpdate 한 번으로 적용한다. API 가 요청을 순서대로 적용하고, 하나라도 잘못되면 아무것도 적용하지 않는다.
+    /// 셀은 userEnteredValue 만 바꾸므로 서식·데이터 확인 규칙은 남는다.
+    /// </summary>
+    public static void EditGSheetTab(GSheetTab tab, IReadOnlyList<GSheetEdit> edits)
+    {
+        if (edits.Count == 0)
+            return;
+
+        var requests = edits.Select(edit => ToRequest(tab.SheetId, edit)).ToList();
+        var sheetsService = GAuthAPIHandler.GetSheetsService();
+        sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, tab.SpreadsheetId).Execute();
+
+        Logger.Instance.Log($"[GAuthService] EditGSheetTab 완료: {tab.SpreadsheetName}/{tab.SheetTitle} ({requests.Count} request(s))");
+    }
+
+    private static Request ToRequest(int sheetId, GSheetEdit edit)
+    {
+        DimensionRange RowRange(int row) => new()
+        {
+            SheetId = sheetId,
+            Dimension = "ROWS",
+            StartIndex = row,
+            EndIndex = row + 1,
+        };
+
+        return edit switch
+        {
+            GSheetInsertRow insert => new Request
+            {
+                InsertDimension = new InsertDimensionRequest
+                {
+                    Range = RowRange(insert.Row),
+                    InheritFromBefore = insert.InheritFromBefore,
+                }
+            },
+            GSheetDeleteRow delete => new Request
+            {
+                DeleteDimension = new DeleteDimensionRequest { Range = RowRange(delete.Row) }
+            },
+            GSheetSetCell cell => new Request
+            {
+                UpdateCells = new UpdateCellsRequest
+                {
+                    Start = new GridCoordinate { SheetId = sheetId, RowIndex = cell.Row, ColumnIndex = cell.Column },
+                    Rows = new List<RowData>
+                    {
+                        new() { Values = new List<CellData> { new() { UserEnteredValue = ToExtendedValue(cell.Value) } } }
+                    },
+                    Fields = "userEnteredValue",
+                }
+            },
+            _ => throw new ArgumentException($"알 수 없는 편집: {edit.GetType().Name}", nameof(edit))
+        };
+    }
+
+    private static ExtendedValue ToExtendedValue(object value) => value switch
+    {
+        double number => new ExtendedValue { NumberValue = number },
+        bool flag => new ExtendedValue { BoolValue = flag },
+        string text => new ExtendedValue { StringValue = text },
+        _ => throw new ArgumentException($"셀 값은 string | double | bool 이어야 합니다: {value.GetType().Name}", nameof(value))
+    };
+
+    /// <summary>A1 표기의 시트 이름. 공백·특수 문자가 있어도 되도록 항상 작은따옴표로 감싼다.</summary>
+    private static string QuoteSheetTitle(string sheetTitle) => $"'{sheetTitle.Replace("'", "''")}'";
 
     /// <summary>
     /// GetTableFromGSheet 의 테이블 이름("{시트파일}_{탭}")을 추출 결과 .bin 이름으로 바꾼다.

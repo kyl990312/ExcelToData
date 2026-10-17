@@ -22,7 +22,7 @@ public class AiToolException : Exception
 public sealed class AiArgs
 {
     /// <summary>값 없이 쓰는 옵션</summary>
-    private static readonly HashSet<string> Flags = new(StringComparer.OrdinalIgnoreCase) { "pretty" };
+    private static readonly HashSet<string> Flags = new(StringComparer.OrdinalIgnoreCase) { "pretty", "dry-run", "all" };
 
     /// <summary>모든 툴이 받는 옵션</summary>
     public static readonly string[] CommonOptions = { "timeout", "pretty" };

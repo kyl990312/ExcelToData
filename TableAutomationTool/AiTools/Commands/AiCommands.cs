@@ -39,6 +39,9 @@ public abstract class AiCommand : Command
 
     public string? FailureMessage { get; protected set; }
 
+    /// <summary>Succeeded 가 false 일 때의 오류 코드. 없으면 run_failed.</summary>
+    public string? FailureCode { get; protected set; }
+
     protected AiTableSourceKind ResolveSource()
     {
         var kind = Ctx.ResolveSource(Args.Get("source"));
@@ -205,11 +208,6 @@ public sealed class AiRowsCommand : AiCommand
 {
     private const int DefaultLimit = 50;
 
-    /// <summary>앞에서부터 검사하므로 두 글자 연산자를 먼저 둔다</summary>
-    private static readonly string[] Operators = { "!=", ">=", "<=", "=", "~", ">", "<" };
-
-    private sealed record Condition(string Column, string Op, string Value, double? Number);
-
     public AiRowsCommand(AiContext ctx, AiArgs args) : base(ctx, args) { }
 
     public override IReadOnlyCollection<string> Options => new[] { "source", "where", "search", "columns", "offset", "limit" };
@@ -221,22 +219,22 @@ public sealed class AiRowsCommand : AiCommand
         var offset = Args.GetInt("offset", 0);
         var limit = Args.GetInt("limit", DefaultLimit);
         var search = Args.Get("search");
-        var conditions = Args.GetAll("where").Select(ParseCondition).ToList();
+        var conditions = Args.GetAll("where").Select(AiRowFilter.ParseCondition).ToList();
 
         var kind = ResolveSource();
         var table = LoadTable(name, kind);
 
         var columnNames = table.Columns.Select(c => c.Name).ToList();
         foreach (var condition in conditions)
-            RequireColumn(columnNames, condition.Column);
+            AiRowFilter.RequireColumn(columnNames, condition.Column);
 
         var projection = ParseColumns(Args.Get("columns"), columnNames);
 
         var matched = table.Rows
             .Select((row, index) => (row, index))
-            .Where(x => conditions.All(c => Matches(x.row, c)))
+            .Where(x => conditions.All(c => AiRowFilter.Matches(x.row, c)))
             .Where(x => string.IsNullOrEmpty(search)
-                        || x.row.Values.Any(v => Format(v).Contains(search, StringComparison.OrdinalIgnoreCase)))
+                        || x.row.Values.Any(v => AiRowFilter.Format(v).Contains(search, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         var page = matched.Skip(offset);
@@ -267,7 +265,27 @@ public sealed class AiRowsCommand : AiCommand
         result = $"[AiRowsCommand] {table.Name}: {rows.Count}/{matched.Count} row(s)";
     }
 
-    private static Condition ParseCondition(string expression)
+    private static List<string> ParseColumns(string? option, List<string> columnNames)
+    {
+        if (string.IsNullOrWhiteSpace(option))
+            return columnNames;
+
+        var wanted = option.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        return wanted.Select(w => AiRowFilter.RequireColumn(columnNames, w)).ToList();
+    }
+}
+
+/// <summary>
+/// --where 조건 해석·매칭과 값 문자열화. rows 와 쓰기 툴(update·delete)이 같은 규칙으로 행을 고르도록 공유한다.
+/// </summary>
+internal static class AiRowFilter
+{
+    /// <summary>앞에서부터 검사하므로 두 글자 연산자를 먼저 둔다</summary>
+    private static readonly string[] Operators = { "!=", ">=", "<=", "=", "~", ">", "<" };
+
+    public sealed record Condition(string Column, string Op, string Value, double? Number);
+
+    public static Condition ParseCondition(string expression)
     {
         for (int i = 0; i < expression.Length; i++)
         {
@@ -296,16 +314,7 @@ public sealed class AiRowsCommand : AiCommand
             "--where \"컬럼=값\" | \"컬럼!=값\" | \"컬럼~부분문자열\" | \"컬럼>=숫자\" (> < >= <=)");
     }
 
-    private static List<string> ParseColumns(string? option, List<string> columnNames)
-    {
-        if (string.IsNullOrWhiteSpace(option))
-            return columnNames;
-
-        var wanted = option.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-        return wanted.Select(w => RequireColumn(columnNames, w)).ToList();
-    }
-
-    private static string RequireColumn(List<string> columnNames, string column)
+    public static string RequireColumn(List<string> columnNames, string column)
     {
         var found = columnNames.FirstOrDefault(c => c.Equals(column, StringComparison.OrdinalIgnoreCase));
         if (found == null)
@@ -314,7 +323,7 @@ public sealed class AiRowsCommand : AiCommand
         return found;
     }
 
-    private static bool Matches(Dictionary<string, object?> row, Condition condition)
+    public static bool Matches(Dictionary<string, object?> row, Condition condition)
     {
         var key = row.Keys.First(k => k.Equals(condition.Column, StringComparison.OrdinalIgnoreCase));
         var value = row[key];
@@ -346,7 +355,7 @@ public sealed class AiRowsCommand : AiCommand
         };
     }
 
-    private static string Format(object? value) => value switch
+    public static string Format(object? value) => value switch
     {
         null => string.Empty,
         string s => s,

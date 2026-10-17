@@ -63,15 +63,23 @@ public static class AiToolRunner
                 var timeout = parsed.GetInt("timeout", parsed.Tool == "run" ? DefaultRunTimeoutSeconds : DefaultTimeoutSeconds);
                 var task = Task.Run(() => Execute(parsed, callerDirectory, capture));
                 if (!task.Wait(TimeSpan.FromSeconds(timeout)))
-                    throw new AiToolException("timeout", $"{timeout}초 안에 끝나지 않았습니다.",
-                        "GSheet 인증이 브라우저 로그인을 기다리는 중일 수 있습니다. --timeout 으로 늘리거나 사용자에게 확인하세요.");
+                {
+                    if (AiWriteCommand.TryBlockApply())
+                        throw new AiToolException("timeout", $"{timeout}초 안에 끝나지 않았습니다.",
+                            "GSheet 인증이 브라우저 로그인을 기다리는 중일 수 있습니다. --timeout 으로 늘리거나 사용자에게 확인하세요.");
+
+                    // 시트 쓰기(batchUpdate)를 이미 보냈다. 여기서 결과를 버리면 적용 여부를 알 수 없어
+                    // 재시도가 행을 중복 추가하거나 엉뚱한 행을 지우므로, 끝까지 기다려 실제 결과를 돌려준다.
+                    task.Wait();
+                    envelope.Warnings.Add($"{timeout}초를 넘겼지만 시트 쓰기를 시작한 뒤라 끝까지 기다렸습니다.");
+                }
 
                 var command = task.Result;
                 envelope.Data = command.Data;
                 envelope.Warnings.AddRange(command.Warnings);
                 envelope.Ok = command.Succeeded;
                 if (!command.Succeeded)
-                    envelope.Error = new ErrorInfo("run_failed", command.FailureMessage ?? "실패했습니다.", null);
+                    envelope.Error = new ErrorInfo(command.FailureCode ?? "run_failed", command.FailureMessage ?? "실패했습니다.", null);
             }
         }
         catch (Exception ex)
@@ -100,6 +108,9 @@ public static class AiToolRunner
             "rows" => new AiRowsCommand(ctx, args),
             "diff" => new AiDiffCommand(ctx, args),
             "run" => new AiRunCommand(ctx, args, capture),
+            "update" => new AiUpdateCommand(ctx, args),
+            "insert" => new AiInsertCommand(ctx, args),
+            "delete" => new AiDeleteCommand(ctx, args),
             _ => throw new AiToolException("unknown_tool", $"알 수 없는 툴: {args.Tool}", "ai help 로 목록을 확인하세요.")
         };
 
@@ -115,6 +126,8 @@ public static class AiToolRunner
         _ when FindTokenError(ex) is { } token => new ErrorInfo("gsheet_auth_expired",
             $"Google 토큰을 갱신할 수 없습니다: {token.Error?.Error}",
             "토큰이 만료·폐기되었습니다(인증 라이브러리가 캐시를 지웁니다). 사용자에게 TableEditor 설정 탭의 [Google 인증]을 다시 요청하세요."),
+        Google.GoogleApiException { HttpStatusCode: System.Net.HttpStatusCode.TooManyRequests } quota => new ErrorInfo("gsheet_api_error", quota.Message,
+            "Google API 요청 한도(사용자당 분당 읽기 횟수 등)를 넘었습니다. 1분쯤 기다렸다가 다시 시도하세요."),
         Google.GoogleApiException google => new ErrorInfo("gsheet_api_error", google.Message,
             "폴더 링크·공유 권한을 확인하세요. 토큰이 만료됐으면 사용자에게 [Google 인증]을 다시 요청하세요."),
         _ => new ErrorInfo("internal_error", $"{ex.GetType().Name}: {ex.Message}", "stderr 로그를 확인하세요.")
@@ -145,6 +158,9 @@ public static class AiToolRunner
         usage = "TableAutomationTool.exe ai <tool> [args] [--option value] [--timeout sec] [--pretty]",
         output = "stdout 에 JSON 한 줄. {ok, tool, data | error{code,message,hint}, warnings}. 종료 코드 ok=0, 실패=1. 로그는 stderr.",
         sources = "local = ExcelToDataConfig.SrcDirectory 의 xlsx 시트, gsheet = SrcGDriveLink 폴더의 시트 탭, bin = DstDirectory 의 추출 결과. --source 생략 시 설정(IsLoadFromGSheet)을 따른다.",
+        writes = "update·insert·delete 는 GSheet 탭만 고친다(--source 없음, 로컬 xlsx·.bin 은 그대로). 먼저 --dry-run 으로 changes 를 확인하고 적용한다. "
+                 + "적용하면 batchUpdate 한 번으로 쓰고 다시 읽어 verified 를 준다. 값은 컬럼 타입으로 검사한다(빈 숫자·변환 불가·enum 멤버 아님은 invalid_value). "
+                 + ".bin 반영은 ai run extract 가 따로 한다.",
         tools = new object[]
         {
             new
@@ -179,13 +195,35 @@ public static class AiToolRunner
                 description = "엔진 실행(파일을 쓴다). 단계별 ok·changedFiles·errors·warnings. 실패하면 이후 단계는 skipped. "
                               + "추출 소스는 --source 가 아니라 설정을 따른다. --table 은 테이블(시트) 또는 워크북 이름.",
             },
+            new
+            {
+                name = "update",
+                usage = "ai update <table> (--row N... | --where \"Col=Val\"...) --set \"Col=Val\"... [--all] [--dry-run]",
+                description = "GSheet 셀 값 변경. --row 는 ai rows 의 _row(반복 가능), --where 는 rows 와 같은 문법(AND). 둘 다 주면 --where 가 가드(맞지 않는 --row 가 있으면 no_match). "
+                              + "--where 만으로 2행 이상이면 --all 필요. 이미 같은 값인 셀은 건너뛴다(unchanged). "
+                              + "--set 값은 첫 '=' 뒤 전체(문자열은 앞뒤 공백도 그대로). 배열은 \"[a,b]\", enum 은 멤버 이름 또는 정수.",
+            },
+            new
+            {
+                name = "insert",
+                usage = "ai insert <table> --set \"Col=Val\"... [--copy N] [--at N] [--dry-run]",
+                description = "GSheet 에 행을 끼워 넣는다. --at 은 새 행의 _row(기본 끝 = 마지막 데이터 행 아래, EOF·주석 행은 유지). "
+                              + "--copy N 은 _row N 의 값을 복사한 뒤 --set 으로 덮어쓴다. --copy 가 없으면 문자열·배열이 아닌 컬럼은 모두 --set 필요(missing_value).",
+            },
+            new
+            {
+                name = "delete",
+                usage = "ai delete <table> (--row N... | --where \"Col=Val\"...) [--all] [--dry-run]",
+                description = "GSheet 에서 행을 지운다. 대상 선택은 update 와 같다. 지운 행의 값은 changes 에 남는다.",
+            },
         },
         errorCodes = new[]
         {
             "invalid_args", "unknown_tool", "config_not_found", "source_not_found", "source_disabled", "table_not_found",
             "column_not_found", "gsheet_not_configured", "gsheet_auth_required", "gsheet_auth_expired", "gsheet_api_error",
             "diff_path_not_configured", "diff_path_not_found", "not_a_git_repository", "git_not_found", "git_failed",
-            "run_failed", "timeout", "internal_error"
+            "run_failed", "no_match", "multiple_matches", "invalid_value", "missing_value", "no_columns", "layout_mismatch", "ambiguous_table",
+            "gsheet_permission_denied", "verify_failed", "timeout", "internal_error"
         },
     };
 }

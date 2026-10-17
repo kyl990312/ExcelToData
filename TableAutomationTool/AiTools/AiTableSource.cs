@@ -187,21 +187,31 @@ public static class AiTableSource
 
     private static AiTable LoadGSheet(AiContext ctx, string tableName)
     {
+        var matches = FindGSheetTabs(ctx, tableName);
+        var tab = matches[0];
+        var gsheetTable = GAuthService.GetTableFromGSheetTab(tab);
+        var table = FromCustomTable(TableHelper.GetTable(tab.TableName, gsheetTable.Data),
+            AiTableSourceKind.GSheet, GSheetOrigin(tab));
+
+        if (matches.Count > 1)
+            table.Warnings.Add($"같은 이름의 탭이 여러 개입니다: {string.Join(", ", matches.Select(GSheetOrigin))} — 첫 번째를 읽었습니다.");
+        return table;
+    }
+
+    /// <summary>
+    /// 테이블 이름(ToTableName 규칙)이 같은 GSheet 탭을 모두 찾는다(폴더 순서). 하나도 없으면 table_not_found.
+    /// </summary>
+    internal static List<GSheetTab> FindGSheetTabs(AiContext ctx, string tableName)
+    {
         ctx.EnsureGSheetReady();
         var tabs = GAuthService.GetTabsFromGSheet(ctx.Extract.SrcGDriveLink);
         var matches = tabs.Where(t => t.TableName.Equals(tableName, StringComparison.OrdinalIgnoreCase)).ToList();
         if (matches.Count == 0)
             throw NotFound(tableName, "gsheet", tabs.Select(t => t.TableName), null);
-
-        var tab = matches[0];
-        var gsheetTable = GAuthService.GetTableFromGSheetTab(tab);
-        var table = FromCustomTable(TableHelper.GetTable(tab.TableName, gsheetTable.Data),
-            AiTableSourceKind.GSheet, $"{tab.SpreadsheetName}/{tab.SheetTitle}");
-
-        if (matches.Count > 1)
-            table.Warnings.Add($"같은 이름의 탭이 여러 개입니다: {string.Join(", ", matches.Select(m => $"{m.SpreadsheetName}/{m.SheetTitle}"))} — 첫 번째를 읽었습니다.");
-        return table;
+        return matches;
     }
+
+    internal static string GSheetOrigin(GSheetTab tab) => $"{tab.SpreadsheetName}/{tab.SheetTitle}";
 
     // ───────────── .bin ─────────────
 
@@ -271,7 +281,7 @@ public static class AiTableSource
         return new AiToolException("table_not_found", $"{source} 에서 테이블을 찾을 수 없습니다: {tableName}", hint);
     }
 
-    private static AiTable FromCustomTable(CustomDataTable custom, AiTableSourceKind kind, string origin)
+    internal static AiTable FromCustomTable(CustomDataTable custom, AiTableSourceKind kind, string origin)
     {
         var table = new AiTable
         {
@@ -303,6 +313,18 @@ public static class AiTableSource
             table.Warnings.Add($"타입 변환 실패가 {failures - MaxConversionWarnings}건 더 있습니다.");
 
         return table;
+    }
+
+    /// <summary>
+    /// 원본 셀 문자열 하나를 FromCustomTable 이 내는 값과 같게 바꾼다.
+    /// CustomDataTable 이 배열 셀에 하는 변환(DataTypeHelper.ConvertValue) 뒤 NormalizeLikeBinaryWriter 를 거친다.
+    /// </summary>
+    internal static object? NormalizeCellText(string text, AiColumn column)
+    {
+        object value = column.IsArray
+            ? DataTypeHelper.ConvertValue(text, column.DataType, column.EnumType, isArray: true)
+            : text;
+        return NormalizeLikeBinaryWriter(value, column.Type, out _);
     }
 
     /// <summary>

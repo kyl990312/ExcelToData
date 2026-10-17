@@ -549,7 +549,7 @@ class Program
         Console.WriteLine("  diff all              변경분만 전체 파이프라인 (Y/N 확인)");
         Console.WriteLine("  diff extract|etd      변경분만 추출 (Y/N 확인)");
         Console.WriteLine("  diff generate|gen|cg  변경분만 코드 생성 (Y/N 확인)");
-        Console.WriteLine("  ai <tool>             AI 용 JSON 툴 (tables·schema·rows·diff·run, 'ai help' 로 상세)");
+        Console.WriteLine("  ai <tool>             AI 용 JSON 툴 (tables·schema·rows·diff·run·update·insert·delete, 'ai help' 로 상세)");
         Console.WriteLine("  help, -h, --help      이 도움말 표시");
         Console.WriteLine();
         Console.WriteLine("Options:");
@@ -596,6 +596,7 @@ class Program
         Console.WriteLine("  TableAutomationTool.exe ai help");
         Console.WriteLine("  TableAutomationTool.exe ai tables");
         Console.WriteLine(@"  TableAutomationTool.exe ai rows Character --where ""Id=1001""");
+        Console.WriteLine(@"  TableAutomationTool.exe ai update Character --where ""Id=1001"" --set ""Name=홍길동"" --dry-run");
         Console.WriteLine();
         Console.WriteLine("═══════════════════════════════════════════════════════════");
     }
