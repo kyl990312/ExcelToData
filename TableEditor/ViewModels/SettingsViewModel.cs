@@ -16,17 +16,21 @@ namespace TableEditor.ViewModels;
 public class SettingsViewModel : ViewModelBase
 {
     private readonly ConfigService _cfg;
+    private readonly PipelineService _pipe;
     private readonly Action<string> _status;
+    private string _googleAuthStatus = "미인증";
 
-    public SettingsViewModel(ConfigService cfg, Action<string> status)
+    public SettingsViewModel(ConfigService cfg, PipelineService pipe, Action<string> status)
     {
         _cfg = cfg;
+        _pipe = pipe;
         _status = status;
 
         SaveCommand = new RelayCommand(Save);
         ValidateCommand = new RelayCommand(Validate);
         DefaultsCommand = new RelayCommand(Defaults);
         BrowseCommand = new RelayCommand(p => Browse(p as string));
+        AuthorizeGoogleCommand = new RelayCommand(async () => await AuthorizeGoogle(), () => !_pipe.IsBusy);
     }
 
     public DataExtractConfig Binary => _cfg.Binary;
@@ -36,13 +40,16 @@ public class SettingsViewModel : ViewModelBase
     public UserCredentialConfig GAuthCfg => _cfg.GAuthCfg;
     public GitConfig Git => _cfg.Git;
 
-    public string EnumPatternsText
+    /// <summary>
+    /// SystemEnumFiles 편집용. 한 줄에 경로 하나.
+    /// </summary>
+    public string SystemEnumFilesText
     {
-        get => string.Join(",", _cfg.EnumCfg.EnumSheetPatterns);
+        get => string.Join(Environment.NewLine, _cfg.EnumCfg.SystemEnumFiles);
         set
         {
-            _cfg.EnumCfg.EnumSheetPatterns = value
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            _cfg.EnumCfg.SystemEnumFiles = value
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             OnPropertyChanged();
         }
     }
@@ -51,6 +58,36 @@ public class SettingsViewModel : ViewModelBase
     public RelayCommand ValidateCommand { get; }
     public RelayCommand DefaultsCommand { get; }
     public RelayCommand BrowseCommand { get; }
+    public RelayCommand AuthorizeGoogleCommand { get; }
+
+    /// <summary>
+    /// [Google 인증] 버튼 옆에 보이는 마지막 인증 결과.
+    /// </summary>
+    public string GoogleAuthStatus
+    {
+        get => _googleAuthStatus;
+        private set => Set(ref _googleAuthStatus, value);
+    }
+
+    private async Task AuthorizeGoogle()
+    {
+        try
+        {
+            _cfg.SaveGAuth();
+        }
+        catch (Exception ex)
+        {
+            UiLog.Write($"[TableEditor][Error] GAuth 설정 저장 실패: {ex}");
+            _status($"GAuth 설정 저장 실패: {ex.Message}");
+            return;
+        }
+
+        GoogleAuthStatus = "인증 중… (브라우저가 열리면 로그인하세요)";
+        var account = await _pipe.AuthorizeGoogle(_cfg.GAuthCfg);
+        GoogleAuthStatus = account != null ? $"인증됨: {account}" : "인증 실패 — 하단 상태/로그 확인";
+        if (account != null)
+            _status($"Google 인증 완료: {account}");
+    }
 
     private void Save()
     {
@@ -145,6 +182,7 @@ public class SettingsViewModel : ViewModelBase
             case "json.dst": _cfg.Json.DstDirectory = path; break;
             case "cg.bin": _cfg.CodeGen.BinaryDirectory = path; break;
             case "cg.class": _cfg.CodeGen.ClassOutputDirectory = path; break;
+            case "cg.manager": _cfg.CodeGen.ManagerOutputDirectory = path; break;
             case "git.repo": _cfg.Git.RepositoryPath = path; break;
         }
         OnPropertyChanged(string.Empty);

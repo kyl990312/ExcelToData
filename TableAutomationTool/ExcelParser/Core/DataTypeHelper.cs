@@ -192,7 +192,7 @@ public static class DataTypeHelper
     {
         var elements = arrayStr.Trim('[', ']')
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(s => s.Trim())
+            .Select(s => s.Trim().Trim('"'))
             .ToArray();
 
         if (elements.Length == 0)

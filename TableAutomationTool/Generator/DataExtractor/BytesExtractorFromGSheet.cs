@@ -29,8 +29,7 @@ public class BytesExtractorFromGSheet : StructuredBinaryExtractor
         }
         foreach (var table in result)
         {
-            var nameStrs = table.Name.Split('_');
-            table.Name = table.Name.Replace(nameStrs[0]+"_", "");
+            table.Name = GAuthService.ToTableName(table.Name);
 
 #if DEBUG
             // ��� ���� �α� ���

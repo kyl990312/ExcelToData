@@ -50,12 +50,6 @@ public class CGCommandInvoker : CommandInvoker
             list.Add(new GenerateCppCodeCommand(config, _targetFileName));
         }
 
-        // Enum 코드 생성
-        if (config.IsGenerateEnumCode)
-        {
-            list.Add(new GenerateEnumCodeCommand(config.EnumOutputDirectory, config.CodeExtension));
-        }
-
         return list;
     }
 }

@@ -40,7 +40,7 @@ public class MainViewModel : ViewModelBase
         Viewer = new ViewerViewModel(cfg, SetStatus);
         Extract = new ExtractViewModel(cfg, pipe, SetStatus);
         CodeGen = new CodeGenViewModel(cfg, pipe, SetStatus);
-        Settings = new SettingsViewModel(cfg, SetStatus);
+        Settings = new SettingsViewModel(cfg, pipe, SetStatus);
 
         ClearLogCommand = new RelayCommand(() =>
         {

@@ -1,6 +1,8 @@
 using TableAutomationTool.CodeGenerator;
 using TableAutomationTool.EnumGenerator;
 using TableAutomationTool.ExcelToData;
+using TableAutomationTool.GAuth;
+using TableAutomationTool.GAuth.Core;
 
 namespace TableEditor.Services;
 
@@ -49,6 +51,33 @@ public class PipelineService
                 new CGCommandInvoker(new[] { "-each", name }).ExecuteAll();
             }
         });
+
+    /// <summary>
+    /// 브라우저 로그인을 기다리는 최대 시간. 넘으면 인증을 취소한다.
+    /// </summary>
+    private static readonly TimeSpan GoogleLoginTimeout = TimeSpan.FromMinutes(3);
+
+    /// <summary>
+    /// Google 인증을 실행한다. 성공하면 로그인한 계정 이메일, 실패하면 null.
+    /// </summary>
+    public async Task<string?> AuthorizeGoogle(UserCredentialConfig config)
+    {
+        string? account = null;
+        await RunAsync("Google 인증", () =>
+        {
+            using var cts = new CancellationTokenSource(GoogleLoginTimeout);
+            try
+            {
+                account = GAuthService.Authorize(config, cts.Token);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                throw new TimeoutException($"브라우저 로그인 대기 시간({GoogleLoginTimeout.TotalMinutes:0}분)이 지났습니다.");
+            }
+            UiLog.Write($"[TableEditor] Google 인증 완료: {account}");
+        });
+        return account;
+    }
 
     private async Task RunAsync(string title, Action work)
     {

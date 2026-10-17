@@ -1,9 +1,6 @@
 using TableAutomationTool.Common;
 using TableAutomationTool.Common.Command;
 using TableAutomationTool.Common.Utils;
-using ClosedXML.Excel;
-using TableAutomationTool.ExcelParser;
-using TableAutomationTool.GAuth;
 using System.Text;
 using TableAutomationTool.UserEnum;
 using Exception = System.Exception;
@@ -42,175 +39,56 @@ public class CreateEnumGenerateConfigCommand : Command
 }
 
 /// <summary>
-/// 로컬 Enum 테이블에서 EnumCache를 생성하는 커맨드
+/// 프로그래머가 작성한 C# enum 소스 파일(SystemEnumFiles)에서 EnumCache를 생성하는 커맨드.
+/// 파일 하나라도 읽지 못하거나 값 계산에 실패하면 예외를 던져 파이프라인을 멈춘다.
+/// (실패를 로그만 남기고 넘어가면 이전 EnumDB.bin 으로 데이터 추출이 진행되어 잘못된 검증을 하게 된다)
 /// </summary>
-public class EnumCacheGenerateCommand : Command
+public class EnumCacheFromSourceCommand : Command
 {
-    private readonly string _enumFilePath;
+    private readonly string[] _sourceFiles;
 
-    public EnumCacheGenerateCommand(string enumFilePath)
+    public EnumCacheFromSourceCommand(string[] sourceFiles)
     {
-        _enumFilePath = enumFilePath;
+        _sourceFiles = sourceFiles ?? [];
     }
 
     public override void Execute(out string result)
     {
-        result = "";
-        
-        if (string.IsNullOrEmpty(_enumFilePath))
+        EnumDB.Instance.Clear();
+
+        if (_sourceFiles.Length == 0)
         {
-            result = "[EnumCacheGenerateCommand] Enum 파일 경로가 비어있습니다";
-            Logger.Instance.Error(result);
+            result = "[EnumCacheFromSourceCommand] SystemEnumFiles 가 비어 있습니다. 등록된 enum 이 없습니다.";
+            Logger.Instance.Warning(result);
             return;
         }
 
-        if (!File.Exists(_enumFilePath))
+        if (!EnumSourceParser.TryParse(_sourceFiles, out var files, out var errors))
         {
-            result = $"[EnumCacheGenerateCommand] Enum 파일을 찾을 수 없습니다: {_enumFilePath}";
-            Logger.Instance.Error(result);
-            return;
-        }
-
-        try
-        {
+            foreach (var error in errors)
+                Logger.Instance.Error($"[EnumCacheFromSourceCommand] {error}");
             EnumDB.Instance.Clear();
+            throw new InvalidOperationException($"enum 소스 파싱 실패 ({errors.Count}건). EnumDB.bin 을 갱신하지 않습니다.");
+        }
 
-            using var workbook = new XLWorkbook(_enumFilePath);
-            foreach (var worksheet in workbook.Worksheets)
+        foreach (var file in files)
+        {
+            if (file.Enums.Count == 0)
             {
-                var table = TableHelper.GetTable(worksheet);
-                if (table == null)
-                {
-                    Logger.Instance.Warning($"[EnumCacheGenerateCommand] 테이블 변환 실패: {worksheet.Name}");
-                    continue;
-                }
-
-                if (!EnumDB.Instance.Cache.LoadFromTable(table))
-                {
-                    Logger.Instance.Warning($"[EnumCacheGenerateCommand] EnumCache 로드 실패: {worksheet.Name}");
-                    continue;
-                }
-
-                Logger.Instance.Log($"[EnumCacheGenerateCommand] EnumCache 로드 완료: {worksheet.Name}");
+                Logger.Instance.Warning($"[EnumCacheFromSourceCommand] enum 이 없는 파일입니다: {file.FilePath}");
+                continue;
             }
 
-            var enumCount = EnumDB.Instance.EnumCount;
-            var sheetCount = EnumDB.Instance.Cache.SheetCount;
-            result = $"[EnumCacheGenerateCommand] EnumCache 생성 완료: {enumCount}개 Enum 타입, {sheetCount}개 시트";
-            Logger.Instance.Log(result);
-        }
-        catch (Exception e)
-        {
-            result = $"[EnumCacheGenerateCommand] 실행 실패: {e.Message}";
-            Logger.Instance.Error($"{result}\n{e.StackTrace}");
-        }
-    }
-}
-
-/// <summary>
-/// 구글 시트에서 EnumCache를 생성하는 커맨드
-/// </summary>
-public class EnumCacheGenerateFromGSheetCommand : Command
-{
-    private readonly string _gDriveLink;
-    private readonly string[] _sheetPatterns;
-
-    public EnumCacheGenerateFromGSheetCommand(string gDriveLink, string[] sheetPatterns = null)
-    {
-        _gDriveLink = gDriveLink;
-        _sheetPatterns = sheetPatterns ?? ["*Enum*", "*enum*"];
-    }
-
-    public override void Execute(out string result)
-    {
-        result = "";
-
-        if (string.IsNullOrEmpty(_gDriveLink))
-        {
-            result = "[EnumCacheGenerateFromGSheetCommand] 구글 드라이브 링크가 비어있습니다";
-            Logger.Instance.Error(result);
-            return;
-        }
-
-        try
-        {
-            Logger.Instance.Log($"[EnumCacheGenerateFromGSheetCommand] 구글 시트에서 Enum 로드 시작: {_gDriveLink}");
-
-            EnumDB.Instance.Clear();
-
-            // 구글 시트에서 DataTable 목록 가져오기
-            var dataTables = GAuthService.GetTableFromGSheet(_gDriveLink);
-            
-            if (dataTables == null || dataTables.Count == 0)
+            if (!EnumDB.Instance.Cache.LoadFromDefinitions(file.SheetName, file.Enums))
             {
-                result = "[EnumCacheGenerateFromGSheetCommand] 구글 시트에서 데이터를 찾을 수 없습니다";
-                Logger.Instance.Warning(result);
-                return;
+                EnumDB.Instance.Clear();
+                throw new InvalidOperationException($"enum 등록 실패: {file.FilePath}. EnumDB.bin 을 갱신하지 않습니다.");
             }
 
-            int loadedCount = 0;
-            foreach (var dataTable in dataTables)
-            {
-                // 패턴에 맞는 시트만 처리
-                if (!IsMatchPattern(dataTable.TableName))
-                {
-                    Logger.Instance.Log($"[EnumCacheGenerateFromGSheetCommand] 패턴 불일치로 스킵: {dataTable.TableName}");
-                    continue;
-                }
-
-                // TableHelper를 사용하여 CustomDataTable로 변환 (헤더 자동 처리)
-                var customTable = TableHelper.GetTable(dataTable.TableName, dataTable.Data);
-                if (customTable == null)
-                {
-                    Logger.Instance.Warning($"[EnumCacheGenerateFromGSheetCommand] CustomDataTable 변환 실패: {dataTable.TableName}");
-                    continue;
-                }
-
-                // 테이블 이름에서 파일명 prefix 제거 (예: "FileName_SheetName" -> "SheetName")
-                var nameStrs = customTable.Name.Split('_');
-                if (nameStrs.Length > 1)
-                {
-                    customTable.Name = customTable.Name.Replace(nameStrs[0] + "_", "");
-                }
-
-                if (!EnumDB.Instance.Cache.LoadFromTable(customTable))
-                {
-                    Logger.Instance.Warning($"[EnumCacheGenerateFromGSheetCommand] EnumCache 로드 실패: {customTable.Name}");
-                    continue;
-                }
-
-                loadedCount++;
-                Logger.Instance.Log($"[EnumCacheGenerateFromGSheetCommand] EnumCache 로드 완료: {customTable.Name}");
-            }
-
-            var enumCount = EnumDB.Instance.EnumCount;
-            var sheetCount = EnumDB.Instance.Cache.SheetCount;
-            result = $"[EnumCacheGenerateFromGSheetCommand] 구글 시트에서 EnumCache 생성 완료: {enumCount}개 Enum 타입, {sheetCount}개 시트 (총 {loadedCount}개 시트 처리)";
-            Logger.Instance.Log(result);
-        }
-        catch (Exception e)
-        {
-            result = $"[EnumCacheGenerateFromGSheetCommand] 실행 실패: {e.Message}";
-            Logger.Instance.Error($"{result}\n{e.StackTrace}");
-        }
-    }
-
-    /// <summary>
-    /// 테이블 이름이 패턴과 일치하는지 확인합니다.
-    /// </summary>
-    private bool IsMatchPattern(string tableName)
-    {
-        if (_sheetPatterns == null || _sheetPatterns.Length == 0)
-            return true;
-
-        foreach (var pattern in _sheetPatterns)
-        {
-            var searchTerm = pattern.Replace("*", "");
-            if (tableName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-                return true;
+            Logger.Instance.Log($"[EnumCacheFromSourceCommand] 로드 완료: {file.FilePath} ({file.Enums.Count}개 Enum)");
         }
 
-        return false;
+        result = $"[EnumCacheFromSourceCommand] EnumCache 생성 완료: {EnumDB.Instance.EnumCount}개 Enum 타입, {EnumDB.Instance.Cache.SheetCount}개 파일";
     }
 }
 
@@ -259,7 +137,10 @@ public class EnumDBTestCommand : Command
                     
                     foreach (var enumType in enumTypes)
                     {
-                        sb.AppendLine($"  └─ {enumType}");
+                        var enumNamespace = EnumDB.Instance.GetEnumNamespace(enumType);
+                        sb.AppendLine(string.IsNullOrEmpty(enumNamespace)
+                            ? $"  └─ {enumType}"
+                            : $"  └─ {enumType}  (namespace {enumNamespace})");
                         var members = EnumDB.Instance.GetEnumMembers(enumType);
                         
                         foreach (var (member, value) in members)
@@ -352,16 +233,20 @@ public class GenerateEnumBinaryCommand : Command
     {
         result = "";
         
+        var enumDBPath = SystemPath.EnumBinaryPath;
+
         if (EnumDB.Instance.IsEmpty)
         {
-            result = "[GenerateEnumBinaryCommand] EnumDB가 비어있습니다.";
-            Logger.Instance.Error(result);
+            // 등록된 enum 이 없으면 이전 실행의 EnumDB.bin 이 남아 데이터 추출에 쓰이지 않도록 지운다.
+            if (File.Exists(enumDBPath))
+                File.Delete(enumDBPath);
+            result = $"[GenerateEnumBinaryCommand] 등록된 enum 이 없어 EnumDB 를 만들지 않습니다: {enumDBPath}";
+            Logger.Instance.Warning(result);
             return;
         }
 
         try
         {
-            var enumDBPath = SystemPath.EnumBinaryPath;
             
             // 디렉토리 생성
             var directory = Path.GetDirectoryName(enumDBPath);

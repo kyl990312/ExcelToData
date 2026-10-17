@@ -63,6 +63,15 @@ public class ConfigService
         UiLog.Write($"[Config] 설정 6종 저장 완료 ({Path.Combine(BaseDirectory, SystemPath.ConfigDirectory)})");
     }
 
+    /// <summary>
+    /// GAuth 설정만 파일에 저장한다. [Google 인증] 버튼이 CLI 와 같은 설정을 쓰도록 인증 전에 호출한다.
+    /// </summary>
+    public void SaveGAuth()
+    {
+        Save(GAuthConfigFile, GAuthCfg);
+        UiLog.Write($"[Config] GAuth 설정 저장 ({GAuthConfigFile})");
+    }
+
     public void ResetDefaults()
     {
         Binary = new DataExtractConfig

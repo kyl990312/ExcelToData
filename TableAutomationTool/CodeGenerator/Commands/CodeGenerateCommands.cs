@@ -32,16 +32,13 @@ public class GenerateCSharpCodeCommand : Command
 
         try
         {
-            // directory 준비
+            // directory 준비 (ClassOutputDirectory = Info 소스 루트)
             if (!Directory.Exists(_config.ClassOutputDirectory))
                 Directory.CreateDirectory(_config.ClassOutputDirectory);
 
-            if (!Directory.Exists(_config.ManagerOutputDirectory))
-                Directory.CreateDirectory(_config.ManagerOutputDirectory);
-
-            // 클래스 생성
+            // Info 구조 생성
             int classCount = GenerateClasses(_config);
-            result = $"[GenerateCodeCommand] Generated {classCount} classes.";
+            result = $"[GenerateCodeCommand] Generated {classCount} tables.";
         }
         catch (Exception ex)
         {
@@ -83,36 +80,34 @@ public class GenerateCSharpCodeCommand : Command
             Logger.Instance.Log($"[GenerateCodeCommand] Skip enum metadata (not a table): {Path.GetFileName(skipped)}");
         files = files.Where(f => !config.IsEnumBinary(f)).ToArray();
 
-        // 클래스 생성기 생성
-        var param = new CSharpClassParam()
+        var generator = new CSharpInfoGenerator(new CSharpInfoParam()
         {
+            infoRootDirectory = config.ClassOutputDirectory,
+            managerRootDirectory = config.ManagerOutputDirectory,
             @namespace = config.ClassNamespace,
-            generateEquals = true,
-            generateGetHashCode = true
-        };
-        var generator = new CSharpClassGenerator(param);
+        });
 
         foreach (var file in files)
         {
             try
             {
-                // 출력 파일 경로
-                string relativePath = Path.GetRelativePath(config.BinaryDirectory, file);
-                string outputPath = Path.Combine(
-                    config.ClassOutputDirectory,
-                    Path.ChangeExtension(relativePath, ".cs")
-                );
-
-                // 코드 생성
-                generator.Generate(file, outputPath);
-                Logger.Instance.Log($"[GenerateCodeCommand] Generated {relativePath}");
-                count++;
+                if (generator.GenerateTable(file))
+                    count++;
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error($"[GenerateCodeCommand] Error generating class for {file}: {ex.Message}");
+                Logger.Instance.Error($"[GenerateCodeCommand] Error generating info for {file}: {ex.Message}");
             }
         }
+
+        // DataManager 등록부는 -each 여부와 관계없이 전체 테이블 기준으로 다시 만든다.
+        var allTables = Directory.GetFiles(config.BinaryDirectory, config.ReadFileExtension, SearchOption.AllDirectories)
+            .Where(f => !config.IsEnumBinary(f))
+            .ToArray();
+        generator.GenerateDataManager(allTables);
+
+        if (string.IsNullOrEmpty(_targetFileName))
+            generator.RemoveStaleTemplates(allTables);
 
         return count;
     }
@@ -223,65 +218,6 @@ public class GenerateCppCodeCommand : Command
         }
 
         return count;
-    }
-}
-
-/// <summary>
-/// Enum 코드(.cs)를 생성하는 커맨드
-/// 시스템 통일 경로(SystemPath.EnumBinaryPath)에서 EnumCache를 로드하여 코드를 생성합니다.
-/// </summary>
-public class GenerateEnumCodeCommand : Command
-{
-    private readonly string _outputDirectory;
-    private readonly string _codeExtension;
-
-    public GenerateEnumCodeCommand(string outputDirectory, string codeExtension)
-    {
-        _outputDirectory = outputDirectory;
-        _codeExtension = codeExtension;
-    }
-    
-    public override void Execute(out string result)
-    {
-        result = "";
-
-        // 시스템 통일 경로에서 EnumDB 로드
-        var enumBinaryPath = SystemPath.EnumBinaryPath;
-
-        if (!File.Exists(enumBinaryPath))
-        {
-            result = $"[GenerateEnumCodeCommand] Enum 바이너리 파일을 찾을 수 없습니다: {enumBinaryPath}";
-            Logger.Instance.Warning(result);
-            return;
-        }
-
-        try
-        {
-            if (!EnumDB.Instance.LoadFromBinary(enumBinaryPath))
-            {
-                result = $"[GenerateEnumCodeCommand] EnumCache 로드 실패: {enumBinaryPath}";
-                Logger.Instance.Error(result);
-                return;
-            }
-
-            if (EnumDB.Instance.IsEmpty)
-            {
-                result = "[GenerateEnumCodeCommand] EnumCache가 비어있습니다.";
-                Logger.Instance.Warning(result);
-                return;
-            }
-
-            var enumGenerator = new EnumCodeGenerator();
-            enumGenerator.Generate(EnumDB.Instance.Cache, _outputDirectory, _codeExtension);
-            
-            result = $"[GenerateEnumCodeCommand] Enum 코드 생성 완료: {_outputDirectory} ({EnumDB.Instance.EnumCount}개 Enum)";
-            Logger.Instance.Log(result);
-        }
-        catch (Exception e)
-        {
-            result = $"[GenerateEnumCodeCommand] 실행 실패: {e.Message}";
-            Logger.Instance.Error($"{result}\n{e.StackTrace}");
-        }
     }
 }
 

@@ -6,14 +6,14 @@ using TableAutomationTool.Common.Utils;
 namespace TableAutomationTool.UserEnum;
 
 /// <summary>
-/// ÇÁ·Î¼¼½º °£ Enum µ¥ÀÌÅÍ °øÀ¯¸¦ À§ÇÑ Memory-Mapped File ±â¹İ IPC ÇÚµé·¯
-/// EnumDB¿¡¼­ ÀÎ½ºÅÏ½º¸¦ »ı¼ºÇÏ¿© »ç¿ëÇÕ´Ï´Ù.
+/// í”„ë¡œì„¸ìŠ¤ ê°„ Enum ë°ì´í„° ê³µìœ ë¥¼ ìœ„í•œ Memory-Mapped File ê¸°ë°˜ IPC í•¸ë“¤ëŸ¬
+/// EnumDBì—ì„œ ì¸ìŠ¤í„´ìŠ¤ë¥¼ ìƒì„±í•˜ì—¬ ì‚¬ìš©í•©ë‹ˆë‹¤.
 /// </summary>
 public sealed class SharedEnumMemoryHandler : IDisposable
 {
     private const string DefaultMapName = "TableAutomationTool_EnumDB";
     private const string DefaultMutexName = "TableAutomationTool_EnumDB_Mutex";
-    private const int DefaultCapacity = 10 * 1024 * 1024; // 10MB ±âº» ¿ë·®
+    private const int DefaultCapacity = 10 * 1024 * 1024; // 10MB ê¸°ë³¸ ìš©ëŸ‰
     
     private MemoryMappedFile? _mmf;
     private Mutex? _mutex;
@@ -24,10 +24,10 @@ public sealed class SharedEnumMemoryHandler : IDisposable
     public SharedEnumMemoryHandler() : this(DefaultMapName, DefaultCapacity) { }
     
     /// <summary>
-    /// Ä¿½ºÅÒ ¼³Á¤À¸·Î ÇÚµé·¯ »ı¼º
+    /// ì»¤ìŠ¤í…€ ì„¤ì •ìœ¼ë¡œ í•¸ë“¤ëŸ¬ ìƒì„±
     /// </summary>
-    /// <param name="mapName">Memory-Mapped File ÀÌ¸§</param>
-    /// <param name="capacity">ÃÖ´ë ¿ë·® (¹ÙÀÌÆ®)</param>
+    /// <param name="mapName">Memory-Mapped File ì´ë¦„</param>
+    /// <param name="capacity">ìµœëŒ€ ìš©ëŸ‰ (ë°”ì´íŠ¸)</param>
     public SharedEnumMemoryHandler(string mapName, int capacity)
     {
         _mapName = mapName;
@@ -35,19 +35,19 @@ public sealed class SharedEnumMemoryHandler : IDisposable
     }
     
     // ============================================
-    // °øÀ¯ ¸Ş¸ğ¸® ¾²±â (Producer)
+    // ê³µìœ  ë©”ëª¨ë¦¬ ì“°ê¸° (Producer)
     // ============================================
     
     /// <summary>
-    /// EnumCache µ¥ÀÌÅÍ¸¦ °øÀ¯ ¸Ş¸ğ¸®¿¡ ÀúÀåÇÕ´Ï´Ù.
+    /// EnumCache ë°ì´í„°ë¥¼ ê³µìœ  ë©”ëª¨ë¦¬ì— ì €ì¥í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="cache">ÀúÀåÇÒ EnumCache</param>
-    /// <returns>ÀúÀå ¼º°ø ¿©ºÎ</returns>
+    /// <param name="cache">ì €ì¥í•  EnumCache</param>
+    /// <returns>ì €ì¥ ì„±ê³µ ì—¬ë¶€</returns>
     public bool Write(EnumCache cache)
     {
         if (cache.IsEmpty)
         {
-            Logger.Instance.Warning("[SharedEnumMemoryHandler] EnumCache°¡ ºñ¾îÀÖ½À´Ï´Ù");
+            Logger.Instance.Warning("[SharedEnumMemoryHandler] EnumCacheê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
             return false;
         }
         
@@ -57,7 +57,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
             
             if (!_mutex!.WaitOne(TimeSpan.FromSeconds(5)))
             {
-                Logger.Instance.Error("[SharedEnumMemoryHandler] Mutex È¹µæ ½ÇÆĞ (Å¸ÀÓ¾Æ¿ô)");
+                Logger.Instance.Error("[SharedEnumMemoryHandler] Mutex íšë“ ì‹¤íŒ¨ (íƒ€ì„ì•„ì›ƒ)");
                 return false;
             }
             
@@ -68,7 +68,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
                 
                 if (bytes.Length > _capacity - sizeof(int))
                 {
-                    Logger.Instance.Error($"[SharedEnumMemoryHandler] µ¥ÀÌÅÍ Å©±â({bytes.Length})°¡ ¿ë·®({_capacity})À» ÃÊ°úÇÕ´Ï´Ù");
+                    Logger.Instance.Error($"[SharedEnumMemoryHandler] ë°ì´í„° í¬ê¸°({bytes.Length})ê°€ ìš©ëŸ‰({_capacity})ì„ ì´ˆê³¼í•©ë‹ˆë‹¤");
                     return false;
                 }
                 
@@ -79,7 +79,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
                 accessor.Write(0, bytes.Length);
                 accessor.WriteArray(sizeof(int), bytes, 0, bytes.Length);
                 
-                Logger.Instance.Log($"[SharedEnumMemoryHandler] °øÀ¯ ¸Ş¸ğ¸®¿¡ ÀúÀå ¿Ï·á: {bytes.Length} bytes, {cache.EnumCount} enum types");
+                Logger.Instance.Log($"[SharedEnumMemoryHandler] ê³µìœ  ë©”ëª¨ë¦¬ì— ì €ì¥ ì™„ë£Œ: {bytes.Length} bytes, {cache.EnumCount} enum types");
                 return true;
             }
             finally
@@ -89,20 +89,20 @@ public sealed class SharedEnumMemoryHandler : IDisposable
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[SharedEnumMemoryHandler] ¾²±â ¿À·ù: {ex.Message}");
+            Logger.Instance.Error($"[SharedEnumMemoryHandler] ì“°ê¸° ì˜¤ë¥˜: {ex.Message}");
             return false;
         }
     }
     
     // ============================================
-    // °øÀ¯ ¸Ş¸ğ¸® ÀĞ±â (Consumer)
+    // ê³µìœ  ë©”ëª¨ë¦¬ ì½ê¸° (Consumer)
     // ============================================
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ EnumCache·Î µ¥ÀÌÅÍ¸¦ ·ÎµåÇÕ´Ï´Ù.
+    /// ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ EnumCacheë¡œ ë°ì´í„°ë¥¼ ë¡œë“œí•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="cache">µ¥ÀÌÅÍ¸¦ ·ÎµåÇÒ EnumCache</param>
-    /// <returns>·Îµå ¼º°ø ¿©ºÎ</returns>
+    /// <param name="cache">ë°ì´í„°ë¥¼ ë¡œë“œí•  EnumCache</param>
+    /// <returns>ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
     public bool Read(EnumCache cache)
     {
         try
@@ -111,7 +111,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
             
             if (!_mutex!.WaitOne(TimeSpan.FromSeconds(5)))
             {
-                Logger.Instance.Error("[SharedEnumMemoryHandler] Mutex È¹µæ ½ÇÆĞ (Å¸ÀÓ¾Æ¿ô)");
+                Logger.Instance.Error("[SharedEnumMemoryHandler] Mutex íšë“ ì‹¤íŒ¨ (íƒ€ì„ì•„ì›ƒ)");
                 return false;
             }
             
@@ -123,7 +123,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
                 }
                 catch (FileNotFoundException)
                 {
-                    Logger.Instance.Warning("[SharedEnumMemoryHandler] °øÀ¯ ¸Ş¸ğ¸®°¡ Á¸ÀçÇÏÁö ¾Ê½À´Ï´Ù");
+                    Logger.Instance.Warning("[SharedEnumMemoryHandler] ê³µìœ  ë©”ëª¨ë¦¬ê°€ ì¡´ì¬í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤");
                     return false;
                 }
                 
@@ -132,7 +132,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
                 
                 if (dataLength <= 0 || dataLength > _capacity - sizeof(int))
                 {
-                    Logger.Instance.Warning($"[SharedEnumMemoryHandler] À¯È¿ÇÏÁö ¾ÊÀº µ¥ÀÌÅÍ ±æÀÌ: {dataLength}");
+                    Logger.Instance.Warning($"[SharedEnumMemoryHandler] ìœ íš¨í•˜ì§€ ì•Šì€ ë°ì´í„° ê¸¸ì´: {dataLength}");
                     return false;
                 }
                 
@@ -142,7 +142,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
                 var data = Encoding.UTF8.GetString(bytes);
                 DeserializeToEnumCache(data, cache);
                 
-                Logger.Instance.Log($"[SharedEnumMemoryHandler] °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ·Îµå ¿Ï·á: {dataLength} bytes, {cache.EnumCount} enum types");
+                Logger.Instance.Log($"[SharedEnumMemoryHandler] ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ë¡œë“œ ì™„ë£Œ: {dataLength} bytes, {cache.EnumCount} enum types");
                 return true;
             }
             finally
@@ -152,17 +152,17 @@ public sealed class SharedEnumMemoryHandler : IDisposable
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[SharedEnumMemoryHandler] ÀĞ±â ¿À·ù: {ex.Message}");
+            Logger.Instance.Error($"[SharedEnumMemoryHandler] ì½ê¸° ì˜¤ë¥˜: {ex.Message}");
             return false;
         }
     }
     
     // ============================================
-    // »óÅÂ È®ÀÎ
+    // ìƒíƒœ í™•ì¸
     // ============================================
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®°¡ Á¸ÀçÇÏ´ÂÁö È®ÀÎÇÕ´Ï´Ù.
+    /// ê³µìœ  ë©”ëª¨ë¦¬ê°€ ì¡´ì¬í•˜ëŠ”ì§€ í™•ì¸í•©ë‹ˆë‹¤.
     /// </summary>
     public bool Exists()
     {
@@ -178,7 +178,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
     }
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®ÀÇ µ¥ÀÌÅÍ Å©±â¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// ê³µìœ  ë©”ëª¨ë¦¬ì˜ ë°ì´í„° í¬ê¸°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
     public int GetDataSize()
     {
@@ -195,24 +195,25 @@ public sealed class SharedEnumMemoryHandler : IDisposable
     }
     
     // ============================================
-    // Á÷·ÄÈ­/¿ªÁ÷·ÄÈ­
+    // ì§ë ¬í™”/ì—­ì§ë ¬í™”
     // ============================================
     
     private static string SerializeEnumCache(EnumCache cache)
     {
         var serializableData = new SharedEnumData
         {
-            Version = 1,
+            Version = 2,
             Timestamp = DateTime.UtcNow,
             Enums = []
         };
-        
+
         foreach (var enumType in cache.EnumTypes)
         {
             var members = cache.GetEnumMembers(enumType);
             serializableData.Enums[enumType] = members
                 .Select(m => new EnumMemberData { Name = m.member, Value = m.value })
                 .ToList();
+            serializableData.Namespaces[enumType] = cache.GetEnumNamespace(enumType);
         }
         
         return JsonSerializer.Serialize(serializableData, new JsonSerializerOptions 
@@ -227,7 +228,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
         
         if (data?.Enums == null)
         {
-            Logger.Instance.Warning("[SharedEnumMemoryHandler] ¿ªÁ÷·ÄÈ­µÈ µ¥ÀÌÅÍ°¡ ºñ¾îÀÖ½À´Ï´Ù");
+            Logger.Instance.Warning("[SharedEnumMemoryHandler] ì—­ì§ë ¬í™”ëœ ë°ì´í„°ê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
             return;
         }
         
@@ -236,12 +237,13 @@ public sealed class SharedEnumMemoryHandler : IDisposable
         foreach (var (enumType, members) in data.Enums)
         {
             var memberTuples = members.Select(m => (m.Name, m.Value)).ToList();
-            cache.LoadEnumDirectly(enumType, memberTuples);
+            var enumNamespace = data.Namespaces?.GetValueOrDefault(enumType) ?? string.Empty;
+            cache.LoadEnumDirectly(enumType, memberTuples, enumNamespace);
         }
     }
     
     // ============================================
-    // ¸®¼Ò½º °ü¸®
+    // ë¦¬ì†ŒìŠ¤ ê´€ë¦¬
     // ============================================
     
     private void EnsureMutex()
@@ -257,11 +259,11 @@ public sealed class SharedEnumMemoryHandler : IDisposable
         _mutex?.Dispose();
         _disposed = true;
         
-        Logger.Instance.Log("[SharedEnumMemoryHandler] ¸®¼Ò½º ÇØÁ¦ ¿Ï·á");
+        Logger.Instance.Log("[SharedEnumMemoryHandler] ë¦¬ì†ŒìŠ¤ í•´ì œ ì™„ë£Œ");
     }
     
     // ============================================
-    // Á÷·ÄÈ­¿ë ³»ºÎ Å¬·¡½º
+    // ì§ë ¬í™”ìš© ë‚´ë¶€ í´ë˜ìŠ¤
     // ============================================
     
     private sealed class SharedEnumData
@@ -269,6 +271,7 @@ public sealed class SharedEnumMemoryHandler : IDisposable
         public int Version { get; set; }
         public DateTime Timestamp { get; set; }
         public Dictionary<string, List<EnumMemberData>> Enums { get; set; } = [];
+        public Dictionary<string, string> Namespaces { get; set; } = [];
     }
     
     private sealed class EnumMemberData

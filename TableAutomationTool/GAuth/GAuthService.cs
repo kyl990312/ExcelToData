@@ -14,6 +14,19 @@ public struct GSheetTable
     public string SheetTitle { get; set; }
 }
 
+/// <summary>
+/// 데이터 없이 탭 메타데이터만 담는다. 목록 조회에서 전체 데이터를 내려받지 않기 위해 쓴다.
+/// </summary>
+public struct GSheetTab
+{
+    public string SpreadsheetName { get; set; }
+    public string SpreadsheetId { get; set; }
+    public string SheetTitle { get; set; }
+
+    /// <summary>추출 결과 .bin 이름과 같은 테이블 이름 (ToTableName 규칙)</summary>
+    public string TableName { get; set; }
+}
+
 public static class GAuthService
 {
     /// <summary>
@@ -23,6 +36,12 @@ public static class GAuthService
     /// </summary>
     /// <param name="folderLink">구글 드라이브 폴더 경로</param>
     /// <returns>폴더 내에 존재하는 구글 시트 파일이 갖는 모든 테이블</returns>
+    /// <summary>
+    /// Google 인증을 수행하고(필요하면 브라우저 로그인) 로그인한 계정 이메일을 돌려준다.
+    /// </summary>
+    public static string Authorize(UserCredentialConfig config, CancellationToken cancellationToken)
+        => GAuthAPIHandler.Authorize(config, cancellationToken);
+
     public static List<GSheetTable> GetTableFromGSheet(string folderLink)
     {
         List<GSheetTable> tables = new();
@@ -49,7 +68,7 @@ public static class GAuthService
                         var sheetTitle = sheet.Properties.Title;
                         
                         // 제외 탭 필터링 (# 또는 //로 시작하는 경우)
-                        if (sheetTitle.StartsWith("#") || sheetTitle.StartsWith("//"))
+                        if (IsExcludedTab(sheetTitle))
                         {
                             Logger.Instance.Log($"[GAuthService] Skipping excluded tab: {sheetTitle}");
                             continue;
@@ -91,6 +110,79 @@ public static class GAuthService
         Logger.Instance.Log($"[GAuthService] Total GSheetTables created: {tables.Count}");
         return tables;
     }
+
+    /// <summary>
+    /// 폴더 내 구글 시트의 탭 목록만 가져온다(셀 데이터는 받지 않는다).
+    /// 제외 규칙은 GetTableFromGSheet 와 같다. 오류는 삼키지 않고 호출자에게 던진다.
+    /// </summary>
+    public static List<GSheetTab> GetTabsFromGSheet(string folderLink)
+    {
+        var tabs = new List<GSheetTab>();
+        var sheetsService = GAuthAPIHandler.GetSheetsService();
+
+        foreach (var sheetFile in GetAllGoogleSheets(folderLink))
+        {
+            var request = sheetsService.Spreadsheets.Get(sheetFile.Id);
+            request.Fields = "sheets.properties.title";
+            var spreadsheet = request.Execute();
+
+            foreach (var sheet in spreadsheet.Sheets)
+            {
+                var sheetTitle = sheet.Properties.Title;
+                if (IsExcludedTab(sheetTitle))
+                    continue;
+
+                tabs.Add(new GSheetTab
+                {
+                    SpreadsheetName = sheetFile.Name,
+                    SpreadsheetId = sheetFile.Id,
+                    SheetTitle = sheetTitle,
+                    TableName = ToTableName($"{sheetFile.Name}_{sheetTitle}"),
+                });
+            }
+        }
+
+        return tabs;
+    }
+
+    /// <summary>
+    /// 탭 하나의 데이터만 읽어 GSheetTable 로 만든다. 범위·행 처리 규칙은 GetTableFromGSheet 와 같다.
+    /// </summary>
+    public static GSheetTable GetTableFromGSheetTab(GSheetTab tab)
+    {
+        var sheetsService = GAuthAPIHandler.GetSheetsService();
+        var response = sheetsService.Spreadsheets.Values.Get(tab.SpreadsheetId, $"{tab.SheetTitle}!A:Z").Execute();
+        if (response.Values == null || response.Values.Count == 0)
+        {
+            return new GSheetTable
+            {
+                TableName = tab.TableName,
+                Data = new List<string[]>(),
+                SpreadsheetId = tab.SpreadsheetId,
+                SheetTitle = tab.SheetTitle
+            };
+        }
+
+        return ConvertToGSheetTable(response.Values, tab.TableName, tab.SpreadsheetId, tab.SheetTitle);
+    }
+
+    /// <summary>
+    /// GetTableFromGSheet 의 테이블 이름("{시트파일}_{탭}")을 추출 결과 .bin 이름으로 바꾼다.
+    /// 첫 '_' 앞 토막과 '_' 를 지운다. BytesExtractorFromGSheet 가 .bin 이름을 정할 때 쓰는 규칙이다.
+    /// </summary>
+    public static string ToTableName(string gsheetTableName)
+    {
+        var head = gsheetTableName.Split('_')[0];
+        return gsheetTableName.Replace(head + "_", "");
+    }
+
+    /// <summary>
+    /// 캐시된 OAuth 토큰이 있는지 확인한다. 없으면 GSheet 호출이 브라우저 로그인을 기다리며 멈춘다.
+    /// </summary>
+    public static bool HasCachedToken() => GAuthAPIHandler.HasCachedToken();
+
+    private static bool IsExcludedTab(string sheetTitle)
+        => sheetTitle.StartsWith("#") || sheetTitle.StartsWith("//");
 
     /// <summary>
     /// Google Sheets의 값들을 GSheetTable로 변환합니다.

@@ -1,54 +1,26 @@
 namespace TableAutomationTool.EnumGenerator;
 
+/// <summary>
+/// EnumGenerator ì„¤ì •.
+///
+/// Enum ì€ íˆ´ì´ ë§Œë“¤ì§€ ì•ŠëŠ”ë‹¤. í”„ë¡œê·¸ë˜ë¨¸ê°€ í´ë¼ì´ì–¸íŠ¸ì— ì§ì ‘ ì‘ì„±í•œ C# enum ì†ŒìŠ¤ íŒŒì¼ì„
+/// SystemEnumFiles ì— ë“±ë¡í•˜ë©´, íˆ´ì´ ê·¸ íŒŒì¼ì„ ì½ì–´ EnumDB(Binary/EnumDB.bin)ë¥¼ ë§Œë“ ë‹¤.
+/// EnumDB ëŠ” ë°ì´í„° ì¶”ì¶œ(enum ì…€ ê²€ì¦Â·ìˆ«ìâ†’ë©¤ë²„ëª… ë³€í™˜)ê³¼ ì½”ë“œ ìƒì„±(enum ë„¤ì„ìŠ¤í˜ì´ìŠ¤ using)ì—ì„œ ì“´ë‹¤.
+/// </summary>
 public class EnumGeneratorConfig
 {
-    // ============================================
-    // ·ÎÄÃ ÆÄÀÏ ¼³Á¤
-    // ============================================
-    
     /// <summary>
-    /// ·ÎÄÃ ÆÄÀÏ¿¡¼­ ·ÎµåÇÒÁö ¿©ºÎ
+    /// enum ì´ ì •ì˜ëœ C# ì†ŒìŠ¤ íŒŒì¼ ê²½ë¡œ ëª©ë¡.
+    /// ìƒëŒ€ ê²½ë¡œëŠ” ë‹¤ë¥¸ ì„¤ì •ê³¼ ê°™ì´ ì‹¤í–‰ íŒŒì¼ í´ë” ê¸°ì¤€ì´ë‹¤.
+    /// íŒŒì¼ ì´ë¦„(í™•ì¥ì ì œì™¸)ì´ EnumDB ì˜ ì‹œíŠ¸ ì´ë¦„ì´ ëœë‹¤.
     /// </summary>
-    public bool IsLoadFromLocal { get; set; } = true;
-    
-    /// <summary>
-    /// ·ÎÄÃ Enum Excel ÆÄÀÏ °æ·Î
-    /// </summary>
-    public string EnumFilePath { get; set; } = "SystemEnum.xlsx";
-    
-    // ============================================
-    // ±¸±Û ½ÃÆ® ¼³Á¤
-    // ============================================
-    
-    /// <summary>
-    /// ±¸±Û ½ÃÆ®¿¡¼­ ·ÎµåÇÒÁö ¿©ºÎ
-    /// </summary>
-    public bool IsLoadFromGSheet { get; set; } = false;
-    
-    /// <summary>
-    /// ±¸±Û µå¶óÀÌºê Æú´õ ¸µÅ© (Enum ½ÃÆ®°¡ Æ÷ÇÔµÈ Æú´õ)
-    /// </summary>
-    public string SrcGDriveLink { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// ±¸±Û ½ÃÆ®¿¡¼­ Enum ½ÃÆ®¸¦ ½Äº°ÇÏ±â À§ÇÑ ¿ÍÀÏµåÄ«µå ÆĞÅÏ
-    /// </summary>
-    public string[] EnumSheetPatterns { get; set; } = ["*Enum*", "*enum*"];
-    
-    // ============================================
-    // ¹ÙÀÌ³Ê¸® Ãâ·Â ¼³Á¤
-    // ============================================
-   
+    public string[] SystemEnumFiles { get; set; } = [];
 
     public static EnumGeneratorConfig GetDefault()
     {
         return new EnumGeneratorConfig()
         {
-            IsLoadFromLocal = true,
-            EnumFilePath = "SystemEnum.xlsx",
-            IsLoadFromGSheet = false,
-            SrcGDriveLink = string.Empty,
-            EnumSheetPatterns = ["*Enum*", "*enum*"],
+            SystemEnumFiles = [],
         };
     }
 }

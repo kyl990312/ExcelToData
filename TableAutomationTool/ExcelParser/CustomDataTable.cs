@@ -65,6 +65,16 @@ public class CustomDataTable
             {
                 if (rowData.TryGetValue(columnName, out var value))
                 {
+                    // 배열 셀은 "[a,b,c]" 문자열로 들어오므로 요소 타입 배열로 변환한다.
+                    // (그대로 두면 BinaryWriter 가 string 을 char 열거로 기록한다)
+                    if (value is string arrayText && _header.IsColumnArray(columnName))
+                    {
+                        value = DataTypeHelper.ConvertValue(arrayText,
+                            _header.GetColumnDataType(columnName),
+                            _header.GetColumnCustomTypeName(columnName),
+                            isArray: true);
+                    }
+
                     _data[columnName].Add(value);
                 }
                 else

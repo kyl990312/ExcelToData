@@ -1,3 +1,4 @@
+using TableAutomationTool.AiTools;
 using TableAutomationTool.Common.Utils;
 using TableAutomationTool.ExcelToData;
 using TableAutomationTool.CodeGenerator;
@@ -19,8 +20,8 @@ class Program
 
         var command = args[0].ToLower();
 
-        // diff 는 목록을 stdout 으로 파이프에 넘겨야 하므로 배너를 찍지 않는다.
-        if (command != "diff")
+        // diff·ai 는 결과를 stdout 으로 넘겨야 하므로 배너를 찍지 않는다.
+        if (command != "diff" && command != "ai")
             Logger.Instance.Log("[TableAutomationTool] Starting...");
 
         var targetFileName = ParseTargetFileName(args);
@@ -53,6 +54,9 @@ class Program
 
                 case "diff":
                     return RunDiff(args);
+
+                case "ai":
+                    return AiToolRunner.Run(args.Skip(1).ToArray());
 
                 case "help":
                 case "-h":
@@ -537,7 +541,7 @@ class Program
         Console.WriteLine("Commands:");
         Console.WriteLine("  extract, etd          Excel 파일을 Binary로 변환");
         Console.WriteLine("  generate, gen, cg     Binary를 C# 클래스로 생성");
-        Console.WriteLine("  enum                  Enum 코드 생성");
+        Console.WriteLine("  enum                  enum 소스(SystemEnumFiles) → EnumDB.bin");
         Console.WriteLine("  all, pipeline         전체 파이프라인 실행 (enum → extract → generate)");
         Console.WriteLine("  init-config           기본 Config 파일 생성");
         Console.WriteLine("  test                  EnumDB 공유 메모리 검증");
@@ -545,6 +549,7 @@ class Program
         Console.WriteLine("  diff all              변경분만 전체 파이프라인 (Y/N 확인)");
         Console.WriteLine("  diff extract|etd      변경분만 추출 (Y/N 확인)");
         Console.WriteLine("  diff generate|gen|cg  변경분만 코드 생성 (Y/N 확인)");
+        Console.WriteLine("  ai <tool>             AI 용 JSON 툴 (tables·schema·rows·diff·run, 'ai help' 로 상세)");
         Console.WriteLine("  help, -h, --help      이 도움말 표시");
         Console.WriteLine();
         Console.WriteLine("Options:");
@@ -586,6 +591,11 @@ class Program
         Console.WriteLine("  TableAutomationTool.exe diff all");
         Console.WriteLine("  TableAutomationTool.exe diff extract");
         Console.WriteLine("  TableAutomationTool.exe diff | ForEach-Object { TableAutomationTool.exe extract -each $_ }");
+        Console.WriteLine();
+        Console.WriteLine("  # AI 툴 (stdout 에 JSON)");
+        Console.WriteLine("  TableAutomationTool.exe ai help");
+        Console.WriteLine("  TableAutomationTool.exe ai tables");
+        Console.WriteLine(@"  TableAutomationTool.exe ai rows Character --where ""Id=1001""");
         Console.WriteLine();
         Console.WriteLine("═══════════════════════════════════════════════════════════");
     }

@@ -4,26 +4,26 @@ using TableAutomationTool.Common.Utils;
 namespace TableAutomationTool.UserEnum;
 
 /// <summary>
-/// EnumCache¸¦ ½Ì±ÛÅæÀ¸·Î °ü¸®ÇÏ´Â Àü¿ª Á¢±Ù Å¬·¡½º
-/// - ÇÁ·Î¼¼½º ³» Enum µ¥ÀÌÅÍ ´ÜÀÏ Á¢±ÙÁ¡
-/// - ¹ÙÀÌ³Ê¸® ÆÄÀÏ ¹× IPC¸¦ ÅëÇÑ µ¥ÀÌÅÍ ·Îµå/ÀúÀå
+/// EnumCacheë¥¼ ì‹±ê¸€í†¤ìœ¼ë¡œ ê´€ë¦¬í•˜ëŠ” ì „ì—­ ì ‘ê·¼ í´ë˜ìŠ¤
+/// - í”„ë¡œì„¸ìŠ¤ ë‚´ Enum ë°ì´í„° ë‹¨ì¼ ì ‘ê·¼ì 
+/// - ë°”ì´ë„ˆë¦¬ íŒŒì¼ ë° IPCë¥¼ í†µí•œ ë°ì´í„° ë¡œë“œ/ì €ì¥
 /// </summary>
 public sealed class EnumDB : IDisposable
 {
     private static readonly Lazy<EnumDB> _instance = new(() => new EnumDB());
     
     /// <summary>
-    /// EnumDB ½Ì±ÛÅæ ÀÎ½ºÅÏ½º
+    /// EnumDB ì‹±ê¸€í†¤ ì¸ìŠ¤í„´ìŠ¤
     /// </summary>
     public static EnumDB Instance => _instance.Value;
     
     /// <summary>
-    /// ³»ºÎ EnumCache ÀÎ½ºÅÏ½º
+    /// ë‚´ë¶€ EnumCache ì¸ìŠ¤í„´ìŠ¤
     /// </summary>
     public EnumCache Cache { get; }
     
     /// <summary>
-    /// IPC °øÀ¯ ¸Ş¸ğ¸® ÇÚµé·¯
+    /// IPC ê³µìœ  ë©”ëª¨ë¦¬ í•¸ë“¤ëŸ¬
     /// </summary>
     private SharedEnumMemoryHandler? _sharedMemoryHandler;
     
@@ -38,25 +38,25 @@ public sealed class EnumDB : IDisposable
     }
     
     // ============================================
-    // ¹ÙÀÌ³Ê¸® ÆÄÀÏ ·Îµå/ÀúÀå
+    // ë°”ì´ë„ˆë¦¬ íŒŒì¼ ë¡œë“œ/ì €ì¥
     // ============================================
     
     /// <summary>
-    /// ¹ÙÀÌ³Ê¸® ÆÄÀÏ¿¡¼­ EnumCache µ¥ÀÌÅÍ¸¦ ·ÎµåÇÕ´Ï´Ù.
+    /// ë°”ì´ë„ˆë¦¬ íŒŒì¼ì—ì„œ EnumCache ë°ì´í„°ë¥¼ ë¡œë“œí•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="filePath">·ÎµåÇÒ ¹ÙÀÌ³Ê¸® ÆÄÀÏ °æ·Î</param>
-    /// <returns>·Îµå ¼º°ø ¿©ºÎ</returns>
+    /// <param name="filePath">ë¡œë“œí•  ë°”ì´ë„ˆë¦¬ íŒŒì¼ ê²½ë¡œ</param>
+    /// <returns>ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
     public bool LoadFromBinary(string filePath)
     {
         if (string.IsNullOrEmpty(filePath))
         {
-            Logger.Instance.Error("[EnumDB] ÆÄÀÏ °æ·Î°¡ ºñ¾îÀÖ½À´Ï´Ù");
+            Logger.Instance.Error("[EnumDB] íŒŒì¼ ê²½ë¡œê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
             return false;
         }
 
         if (!File.Exists(filePath))
         {
-            Logger.Instance.Error($"[EnumDB] ÆÄÀÏÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {filePath}");
+            Logger.Instance.Error($"[EnumDB] íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {filePath}");
             return false;
         }
 
@@ -65,66 +65,60 @@ public sealed class EnumDB : IDisposable
             var data = _binaryReader.ReadFromFile(filePath);
             if (data == null || data.Count == 0)
             {
-                Logger.Instance.Warning($"[EnumDB] ¹ÙÀÌ³Ê¸® ÆÄÀÏÀÌ ºñ¾îÀÖ½À´Ï´Ù: {filePath}");
+                Logger.Instance.Warning($"[EnumDB] ë°”ì´ë„ˆë¦¬ íŒŒì¼ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤: {filePath}");
                 return false;
             }
 
             Cache.Clear();
             Cache.RestoreFromBinaryData(data);
 
-            Logger.Instance.Log($"[EnumDB] ¹ÙÀÌ³Ê¸® ·Îµå ¿Ï·á: {filePath} ({Cache.EnumCount}°³ Enum Å¸ÀÔ, {Cache.SheetCount}°³ ½ÃÆ®)");
+            Logger.Instance.Log($"[EnumDB] ë°”ì´ë„ˆë¦¬ ë¡œë“œ ì™„ë£Œ: {filePath} ({Cache.EnumCount}ê°œ Enum íƒ€ì…, {Cache.SheetCount}ê°œ ì‹œíŠ¸)");
             return true;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[EnumDB] ¹ÙÀÌ³Ê¸® ·Îµå Áß ¿À·ù: {ex.Message}");
+            Logger.Instance.Error($"[EnumDB] ë°”ì´ë„ˆë¦¬ ë¡œë“œ ì¤‘ ì˜¤ë¥˜: {ex.Message}");
             return false;
         }
     }
 
     /// <summary>
-    /// ÇöÀç Ä³½Ã µ¥ÀÌÅÍ¸¦ ¹ÙÀÌ³Ê¸® ÆÄÀÏ·Î ÀúÀåÇÕ´Ï´Ù.
+    /// í˜„ì¬ ìºì‹œ ë°ì´í„°ë¥¼ ë°”ì´ë„ˆë¦¬ íŒŒì¼ë¡œ ì €ì¥í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="filePath">ÀúÀåÇÒ ÆÄÀÏ °æ·Î</param>
-    /// <returns>ÀúÀå ¼º°ø ¿©ºÎ</returns>
+    /// <param name="filePath">ì €ì¥í•  íŒŒì¼ ê²½ë¡œ</param>
+    /// <returns>ì €ì¥ ì„±ê³µ ì—¬ë¶€</returns>
     public bool SaveToBinary(string filePath)
     {
         if (string.IsNullOrEmpty(filePath))
         {
-            Logger.Instance.Error("[EnumDB] ÆÄÀÏ °æ·Î°¡ ºñ¾îÀÖ½À´Ï´Ù");
+            Logger.Instance.Error("[EnumDB] íŒŒì¼ ê²½ë¡œê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
             return false;
         }
 
         try
         {
             var data = Cache.ConvertToSerializableData();
-            var columnTypes = new Dictionary<string, string>
-            {
-                ["sheetName"] = "String",
-                ["type"] = "String",
-                ["member"] = "String",
-                ["value"] = "Int32"
-            };
+            var columnTypes = EnumCache.GetSerializableColumnTypes();
             _binaryWriter.WriteToFile(columnTypes, data, filePath);
 
-            Logger.Instance.Log($"[EnumDB] ¹ÙÀÌ³Ê¸® ÀúÀå ¿Ï·á: {filePath} ({Cache.EnumCount}°³ Enum Å¸ÀÔ, {Cache.SheetCount}°³ ½ÃÆ®)");
+            Logger.Instance.Log($"[EnumDB] ë°”ì´ë„ˆë¦¬ ì €ì¥ ì™„ë£Œ: {filePath} ({Cache.EnumCount}ê°œ Enum íƒ€ì…, {Cache.SheetCount}ê°œ ì‹œíŠ¸)");
             return true;
         }
         catch (Exception ex)
         {
-            Logger.Instance.Error($"[EnumDB] ¹ÙÀÌ³Ê¸® ÀúÀå Áß ¿À·ù: {ex.Message}");
+            Logger.Instance.Error($"[EnumDB] ë°”ì´ë„ˆë¦¬ ì €ì¥ ì¤‘ ì˜¤ë¥˜: {ex.Message}");
             return false;
         }
     }
     
     // ============================================
-    // IPC °øÀ¯ ¸Ş¸ğ¸®
+    // IPC ê³µìœ  ë©”ëª¨ë¦¬
     // ============================================
     
     /// <summary>
-    /// ÇöÀç Ä³½Ã µ¥ÀÌÅÍ¸¦ °øÀ¯ ¸Ş¸ğ¸®¿¡ ÀúÀåÇÕ´Ï´Ù.
+    /// í˜„ì¬ ìºì‹œ ë°ì´í„°ë¥¼ ê³µìœ  ë©”ëª¨ë¦¬ì— ì €ì¥í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÀúÀå ¼º°ø ¿©ºÎ</returns>
+    /// <returns>ì €ì¥ ì„±ê³µ ì—¬ë¶€</returns>
     public bool WriteToSharedMemory()
     {
         _sharedMemoryHandler ??= new SharedEnumMemoryHandler();
@@ -132,9 +126,9 @@ public sealed class EnumDB : IDisposable
     }
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ µ¥ÀÌÅÍ¸¦ ·ÎµåÇÕ´Ï´Ù.
+    /// ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ë°ì´í„°ë¥¼ ë¡œë“œí•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>·Îµå ¼º°ø ¿©ºÎ</returns>
+    /// <returns>ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
     public bool ReadFromSharedMemory()
     {
         _sharedMemoryHandler ??= new SharedEnumMemoryHandler();
@@ -142,67 +136,67 @@ public sealed class EnumDB : IDisposable
     }
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ·Îµå ½Ãµµ, ½ÇÆĞ ½Ã ¹ÙÀÌ³Ê¸® ÆÄÀÏ¿¡¼­ ·Îµå
+    /// ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ë¡œë“œ ì‹œë„, ì‹¤íŒ¨ ì‹œ ë°”ì´ë„ˆë¦¬ íŒŒì¼ì—ì„œ ë¡œë“œ
     /// </summary>
-    /// <param name="fallbackBinaryPath">Æú¹é¿ë ¹ÙÀÌ³Ê¸® ÆÄÀÏ °æ·Î</param>
-    /// <returns>·Îµå ¼º°ø ¿©ºÎ</returns>
+    /// <param name="fallbackBinaryPath">í´ë°±ìš© ë°”ì´ë„ˆë¦¬ íŒŒì¼ ê²½ë¡œ</param>
+    /// <returns>ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
     public bool LoadWithFallback(string fallbackBinaryPath)
     {
-        // 1Â÷: °øÀ¯ ¸Ş¸ğ¸® ½Ãµµ
+        // 1ì°¨: ê³µìœ  ë©”ëª¨ë¦¬ ì‹œë„
         if (ReadFromSharedMemory())
         {
-            Logger.Instance.Log("[EnumDB] IPC¿¡¼­ ·Îµå ¼º°ø");
+            Logger.Instance.Log("[EnumDB] IPCì—ì„œ ë¡œë“œ ì„±ê³µ");
             return true;
         }
         
-        // 2Â÷: ¹ÙÀÌ³Ê¸® ÆÄÀÏ Æú¹é
+        // 2ì°¨: ë°”ì´ë„ˆë¦¬ íŒŒì¼ í´ë°±
         if (File.Exists(fallbackBinaryPath))
         {
-            Logger.Instance.Log("[EnumDB] IPC ½ÇÆĞ, ¹ÙÀÌ³Ê¸® ÆÄÀÏ¿¡¼­ ·Îµå");
+            Logger.Instance.Log("[EnumDB] IPC ì‹¤íŒ¨, ë°”ì´ë„ˆë¦¬ íŒŒì¼ì—ì„œ ë¡œë“œ");
             return LoadFromBinary(fallbackBinaryPath);
         }
         
-        Logger.Instance.Warning("[EnumDB] ·Îµå ½ÇÆĞ: IPC ¾øÀ½, ¹ÙÀÌ³Ê¸® ÆÄÀÏ ¾øÀ½");
+        Logger.Instance.Warning("[EnumDB] ë¡œë“œ ì‹¤íŒ¨: IPC ì—†ìŒ, ë°”ì´ë„ˆë¦¬ íŒŒì¼ ì—†ìŒ");
         return false;
     }
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®¿¡¼­ ·Îµå ½Ãµµ, ½ÇÆĞ ½Ã ¹ÙÀÌ³Ê¸® ÆÄÀÏ¿¡¼­ ·Îµå ÈÄ °øÀ¯ ¸Ş¸ğ¸®¿¡ Ä³½Ì
+    /// ê³µìœ  ë©”ëª¨ë¦¬ì—ì„œ ë¡œë“œ ì‹œë„, ì‹¤íŒ¨ ì‹œ ë°”ì´ë„ˆë¦¬ íŒŒì¼ì—ì„œ ë¡œë“œ í›„ ê³µìœ  ë©”ëª¨ë¦¬ì— ìºì‹±
     /// </summary>
-    /// <param name="fallbackBinaryPath">Æú¹é¿ë ¹ÙÀÌ³Ê¸® ÆÄÀÏ °æ·Î</param>
-    /// <param name="cacheToSharedMemory">Æú¹é ·Îµå ÈÄ °øÀ¯ ¸Ş¸ğ¸®¿¡ Ä³½Ì ¿©ºÎ</param>
-    /// <returns>·Îµå ¼º°ø ¿©ºÎ</returns>
+    /// <param name="fallbackBinaryPath">í´ë°±ìš© ë°”ì´ë„ˆë¦¬ íŒŒì¼ ê²½ë¡œ</param>
+    /// <param name="cacheToSharedMemory">í´ë°± ë¡œë“œ í›„ ê³µìœ  ë©”ëª¨ë¦¬ì— ìºì‹± ì—¬ë¶€</param>
+    /// <returns>ë¡œë“œ ì„±ê³µ ì—¬ë¶€</returns>
     public bool LoadWithFallback(string fallbackBinaryPath, bool cacheToSharedMemory)
     {
-        // 1Â÷: °øÀ¯ ¸Ş¸ğ¸® ½Ãµµ
+        // 1ì°¨: ê³µìœ  ë©”ëª¨ë¦¬ ì‹œë„
         if (ReadFromSharedMemory())
         {
-            Logger.Instance.Log("[EnumDB] IPC¿¡¼­ ·Îµå ¼º°ø");
+            Logger.Instance.Log("[EnumDB] IPCì—ì„œ ë¡œë“œ ì„±ê³µ");
             return true;
         }
         
-        // 2Â÷: ¹ÙÀÌ³Ê¸® ÆÄÀÏ Æú¹é
+        // 2ì°¨: ë°”ì´ë„ˆë¦¬ íŒŒì¼ í´ë°±
         if (!File.Exists(fallbackBinaryPath))
         {
-            Logger.Instance.Warning("[EnumDB] ·Îµå ½ÇÆĞ: IPC ¾øÀ½, ¹ÙÀÌ³Ê¸® ÆÄÀÏ ¾øÀ½");
+            Logger.Instance.Warning("[EnumDB] ë¡œë“œ ì‹¤íŒ¨: IPC ì—†ìŒ, ë°”ì´ë„ˆë¦¬ íŒŒì¼ ì—†ìŒ");
             return false;
         }
         
-        Logger.Instance.Log("[EnumDB] IPC ½ÇÆĞ, ¹ÙÀÌ³Ê¸® ÆÄÀÏ¿¡¼­ ·Îµå");
+        Logger.Instance.Log("[EnumDB] IPC ì‹¤íŒ¨, ë°”ì´ë„ˆë¦¬ íŒŒì¼ì—ì„œ ë¡œë“œ");
         var result = LoadFromBinary(fallbackBinaryPath);
         
-        // 3Â÷: Æú¹é ¼º°ø ½Ã °øÀ¯ ¸Ş¸ğ¸®¿¡ Ä³½Ì
+        // 3ì°¨: í´ë°± ì„±ê³µ ì‹œ ê³µìœ  ë©”ëª¨ë¦¬ì— ìºì‹±
         if (result && cacheToSharedMemory)
         {
             WriteToSharedMemory();
-            Logger.Instance.Log("[EnumDB] ¹ÙÀÌ³Ê¸® µ¥ÀÌÅÍ¸¦ °øÀ¯ ¸Ş¸ğ¸®¿¡ Ä³½Ì ¿Ï·á");
+            Logger.Instance.Log("[EnumDB] ë°”ì´ë„ˆë¦¬ ë°ì´í„°ë¥¼ ê³µìœ  ë©”ëª¨ë¦¬ì— ìºì‹± ì™„ë£Œ");
         }
         
         return result;
     }
     
     /// <summary>
-    /// °øÀ¯ ¸Ş¸ğ¸®°¡ Á¸ÀçÇÏ´ÂÁö È®ÀÎÇÕ´Ï´Ù.
+    /// ê³µìœ  ë©”ëª¨ë¦¬ê°€ ì¡´ì¬í•˜ëŠ”ì§€ í™•ì¸í•©ë‹ˆë‹¤.
     /// </summary>
     public bool SharedMemoryExists()
     {
@@ -211,34 +205,39 @@ public sealed class EnumDB : IDisposable
     }
     
     // ============================================
-    // ÆíÀÇ ¸Ş¼­µå (EnumCache À§ÀÓ)
+    // í¸ì˜ ë©”ì„œë“œ (EnumCache ìœ„ì„)
     // ============================================
     
     /// <summary>
-    /// Æ¯Á¤ Enum Å¸ÀÔÀÇ ¸â¹ö µ¥ÀÌÅÍ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// íŠ¹ì • Enum íƒ€ì…ì˜ ë©¤ë²„ ë°ì´í„°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
     public List<(string member, int value)> GetEnumMembers(string enumType) 
         => Cache.GetEnumMembers(enumType);
     
     /// <summary>
-    /// Æ¯Á¤ ½ÃÆ®¿¡¼­ Á¤ÀÇµÈ Enum Å¸ÀÔ ¸ñ·ÏÀ» ¹İÈ¯ÇÕ´Ï´Ù.
+    /// íŠ¹ì • ì‹œíŠ¸ì—ì„œ ì •ì˜ëœ Enum íƒ€ì… ëª©ë¡ì„ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
     public List<string> GetEnumTypesBySheet(string sheetName) 
         => Cache.GetEnumTypesBySheet(sheetName);
     
     /// <summary>
-    /// ¸ğµç Enum µ¥ÀÌÅÍ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// ëª¨ë“  Enum ë°ì´í„°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
     public IReadOnlyDictionary<string, List<(string member, int value)>> GetAllEnums() 
         => Cache.GetAllEnums();
     
     /// <summary>
-    /// Enum Å¸ÀÔ Á¸Àç ¿©ºÎ¸¦ È®ÀÎÇÕ´Ï´Ù.
+    /// Enum íƒ€ì… ì¡´ì¬ ì—¬ë¶€ë¥¼ í™•ì¸í•©ë‹ˆë‹¤.
     /// </summary>
     public bool HasEnum(string enumType) => Cache.HasEnum(enumType);
+
+    /// <summary>
+    /// Enum íƒ€ì…ì´ ì„ ì–¸ëœ ë„¤ì„ìŠ¤í˜ì´ìŠ¤ë¥¼ ì¡°íšŒí•©ë‹ˆë‹¤. ì „ì—­ì´ê±°ë‚˜ ëª¨ë¥´ëŠ” íƒ€ì…ì´ë©´ ë¹ˆ ë¬¸ìì—´ì…ë‹ˆë‹¤.
+    /// </summary>
+    public string GetEnumNamespace(string enumType) => Cache.GetEnumNamespace(enumType);
     
     /// <summary>
-    /// Enum ¸â¹ö ÀÌ¸§À¸·Î °ªÀ» Á¶È¸ÇÕ´Ï´Ù.
+    /// Enum ë©¤ë²„ ì´ë¦„ìœ¼ë¡œ ê°’ì„ ì¡°íšŒí•©ë‹ˆë‹¤.
     /// </summary>
     public int? GetEnumValue(string enumType, string memberName)
     {
@@ -248,7 +247,7 @@ public sealed class EnumDB : IDisposable
     }
     
     /// <summary>
-    /// Enum °ªÀ¸·Î ¸â¹ö ÀÌ¸§À» Á¶È¸ÇÕ´Ï´Ù.
+    /// Enum ê°’ìœ¼ë¡œ ë©¤ë²„ ì´ë¦„ì„ ì¡°íšŒí•©ë‹ˆë‹¤.
     /// </summary>
     public string? GetEnumMemberName(string enumType, int value)
     {
@@ -258,7 +257,7 @@ public sealed class EnumDB : IDisposable
     }
     
     // ============================================
-    // »óÅÂ Á¶È¸ (EnumCache À§ÀÓ)
+    // ìƒíƒœ ì¡°íšŒ (EnumCache ìœ„ì„)
     // ============================================
     
     public bool IsEmpty => Cache.IsEmpty;
@@ -266,16 +265,16 @@ public sealed class EnumDB : IDisposable
     public IEnumerable<string> EnumTypes => Cache.EnumTypes;
     
     // ============================================
-    // ¸Ş¸ğ¸® °ü¸®
+    // ë©”ëª¨ë¦¬ ê´€ë¦¬
     // ============================================
     
     /// <summary>
-    /// ÀüÃ¼ Ä³½Ã¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    /// ì „ì²´ ìºì‹œë¥¼ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
     /// </summary>
     public void Clear() => Cache.Clear();
     
     /// <summary>
-    /// µğ¹ö±×¿ë: ÇöÀç Ä³½Ã »óÅÂ¸¦ Ãâ·ÂÇÕ´Ï´Ù.
+    /// ë””ë²„ê·¸ìš©: í˜„ì¬ ìºì‹œ ìƒíƒœë¥¼ ì¶œë ¥í•©ë‹ˆë‹¤.
     /// </summary>
     public void PrintInfo() => Cache.PrintCacheInfo();
     
