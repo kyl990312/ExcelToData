@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>테이블 에디터 — UI/UX 기획서</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --panel:#ffffff; --ink:#1c2128; --muted:#5b6673;
+    --line:#e3e7ec; --accent:#3b6ef5; --accent-soft:#eaf0ff;
+    --ok:#1f9d55; --warn:#c47f17; --danger:#d1453b;
+    --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(20,30,50,.08),0 1px 2px rgba(20,30,50,.06);
+    --radius:10px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0f1319; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+      --line:#262d38; --accent:#5b8bff; --accent-soft:#1a2440;
+      --ok:#3fb950; --warn:#d9a441; --danger:#f0665a;
+      --code-bg:#1b212b; --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1319; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#262d38; --accent:#5b8bff; --accent-soft:#1a2440;
+    --ok:#3fb950; --warn:#d9a441; --danger:#f0665a; --code-bg:#1b212b;
+  }
+  :root[data-theme="light"]{
+    --bg:#f7f8fa; --panel:#ffffff; --ink:#1c2128; --muted:#5b6673;
+    --line:#e3e7ec; --accent:#3b6ef5; --accent-soft:#eaf0ff;
+    --ok:#1f9d55; --warn:#c47f17; --danger:#d1453b; --code-bg:#f0f2f5;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.65; font-size:15px;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:32px 20px 96px}
+  header.doc{
+    background:linear-gradient(135deg,var(--accent),#7a5cf0);
+    color:#fff; border-radius:14px; padding:30px 30px 26px; margin-bottom:14px;
+    box-shadow:var(--shadow);
+  }
+  header.doc h1{margin:0 0 6px; font-size:26px; letter-spacing:-.3px}
+  header.doc p{margin:2px 0; opacity:.92; font-size:14px}
+  .meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .meta span{background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25);
+    padding:3px 10px; border-radius:999px; font-size:12.5px}
+  h2{font-size:20px; margin:38px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--line);
+    letter-spacing:-.2px}
+  h2 .n{color:var(--accent); font-variant-numeric:tabular-nums; margin-right:8px}
+  h3{font-size:16px; margin:22px 0 8px}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0; padding-left:22px}
+  li{margin:4px 0}
+  code{background:var(--code-bg); padding:1.5px 6px; border-radius:5px; font-size:13px;
+    font-family:"Cascadia Code",Consolas,monospace}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px; margin:14px 0; box-shadow:var(--shadow)}
+  table{width:100%; border-collapse:collapse; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); color:var(--ink); font-weight:600}
+  tbody tr:nth-child(even){background:rgba(128,128,128,.04)}
+  .wire{background:var(--code-bg); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; overflow-x:auto; margin:12px 0}
+  .wire pre{margin:0; font-family:"Cascadia Code",Consolas,monospace; font-size:12.5px;
+    line-height:1.5; white-space:pre; color:var(--ink)}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft);
+    padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0}
+  .callout.warn{border-color:var(--warn); background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .callout.q{border-color:var(--danger); background:color-mix(in srgb,var(--danger) 10%,transparent)}
+  .callout.ok{border-color:var(--ok); background:color-mix(in srgb,var(--ok) 10%,transparent)}
+  .callout b{display:block; margin-bottom:3px}
+  .pill{display:inline-block; padding:1px 9px; border-radius:999px; font-size:12px;
+    font-weight:600; border:1px solid var(--line)}
+  .pill.now{background:color-mix(in srgb,var(--ok) 15%,transparent); color:var(--ok); border-color:transparent}
+  .pill.later{background:color-mix(in srgb,var(--muted) 15%,transparent); color:var(--muted); border-color:transparent}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr}}
+  .toc{columns:2; column-gap:24px; font-size:14px}
+  @media (max-width:600px){.toc{columns:1}}
+  .toc a{color:var(--accent); text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .legend{font-size:13px; color:var(--muted); margin-top:6px}
+  footer.doc{margin-top:44px; padding-top:16px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:13px}
+  .kbd{font-family:monospace; background:var(--code-bg); border:1px solid var(--line);
+    border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <h1>테이블 에디터 (Table Editor)</h1>
+  <p>UI/UX 기획서 — 단일 창 · 센터 상단 기능 탭 전환</p>
+  <p>게임 데이터 테이블의 조회·편집 · 데이터(바이너리) 추출 · 코드 추출 · 설정을 하나의 실행 파일에서</p>
+  <div class="meta">
+    <span>작성일 2026-07-20 (v0.2)</span>
+    <span>형태: Windows 독립 실행 GUI (.NET WPF)</span>
+    <span>위치: TableAutomationTool 솔루션 내 프로젝트</span>
+    <span>엔진 연동: DLL 직접 참조</span>
+  </div>
+</header>
+
+<div class="card">
+  <strong>목차</strong>
+  <div class="toc" style="margin-top:8px">
+    <a href="#s1">1. 개요 &amp; 목적</a><br>
+    <a href="#s2">2. 설계 원칙</a><br>
+    <a href="#s3">3. 정보 구조(IA) &amp; 네비게이션</a><br>
+    <a href="#s4">4. 전체 레이아웃</a><br>
+    <a href="#s5">5. 탭 명세 — 편집 (뷰어 통합)</a><br>
+    <a href="#s6">6. 탭 명세 — 데이터 추출</a><br>
+    <a href="#s7">7. 탭 명세 — 코드 추출</a><br>
+    <a href="#s8">8. 탭 명세 — 설정</a><br>
+    <a href="#s9">9. 공통 UX 패턴</a><br>
+    <a href="#s10">10. 데이터 흐름</a><br>
+    <a href="#s11">11. 범위 밖 &amp; 향후</a><br>
+    <a href="#s12">12. 결정 사항 &amp; 미확정</a><br>
+  </div>
+</div>
+
+<!-- 1 -->
+<h2 id="s1"><span class="n">01</span>개요 &amp; 목적</h2>
+<p><b>테이블 에디터</b>는 게임 데이터 테이블 작업(원본 편집 → 바이너리 변환 → 코드 생성)의 전 과정을
+하나의 GUI 창에서 처리하는 <b>Windows 독립 실행 파일</b>이다. TableAutomationTool 솔루션에
+프로젝트로 추가되며, CLI(<code>tabletool</code>)와 동일한 엔진(DLL)을 직접 참조해 동작한다.</p>
+
+<table>
+  <tr><th style="width:20%">항목</th><th>내용</th></tr>
+  <tr><td>대상 사용자</td><td>기획자 · 데이터 담당자 · 클라이언트 개발자 (테이블을 편집하고 바이너리/코드를 뽑는 사람)</td></tr>
+  <tr><td>실행 환경</td><td>Windows 데스크톱 앱(.NET WPF, <code>TableEditor.exe</code>). CLI와 같은 <code>Output</code> 폴더에 배치되어 Config를 공유</td></tr>
+  <tr><td>핵심 가치</td><td>① 창 하나에서 끝냄 ② 팝업 없는 탭 전환 ③ 전체/개별 처리 일관 지원</td></tr>
+</table>
+
+<h3>지원 기능(이번 범위)</h3>
+<table>
+  <tr><th style="width:26%">기능</th><th>설명</th><th style="width:14%">상태</th></tr>
+  <tr><td>편집 (뷰어 통합)</td><td>테이블 조회·검색 + 셀 값 편집 + 신규 테이블 추가. 원본은 <b>GSheet · xlsx 둘 다</b> 지원</td><td><span class="pill now">이번</span></td></tr>
+  <tr><td>데이터 추출</td><td>원본 → <code>.bin</code> 변환. <b>전체 &amp; 개별</b> 지원</td><td><span class="pill now">이번</span></td></tr>
+  <tr><td>코드 추출</td><td><code>.bin</code> → C#/C++ 클래스 생성. <b>전체 &amp; 개별</b> 지원</td><td><span class="pill now">이번</span></td></tr>
+  <tr><td>설정</td><td>각 엔진(Enum/ExcelToData/CodeGen/GAuth)의 경로·옵션 설정 관리</td><td><span class="pill now">이번</span></td></tr>
+</table>
+
+<!-- 2 -->
+<h2 id="s2"><span class="n">02</span>설계 원칙</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">① 팝업 → 탭 전환</h3>
+    <p>별도 창·모달 팝업을 없애고, <b>센터 상단 기능 탭</b>으로 화면을 갈아끼운다.
+    맥락이 끊기지 않고 이동이 한 번의 클릭으로 끝난다.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">② 단일 진입점</h3>
+    <p><code>TableEditor.exe</code> 하나로 모든 기능 진입. 창을 여러 개 띄우지 않는다.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">③ 전체/개별 일관</h3>
+    <p>데이터·코드 추출 모두 <b>전체 실행</b>과 <b>선택 항목만</b>을 같은 UI 패턴(체크박스 목록 + [전체]/[선택] 버튼)으로 제공. 내부적으로 개별은 엔진의 <code>-each</code>로 매핑.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">④ 상태·로그 상시 노출</h3>
+    <p>실행 진행/성공/실패는 팝업 대신 창 하단 <b>상태 바 + 로그 패널</b>에 남긴다. 실패는 색·아이콘으로 구분.</p>
+  </div>
+</div>
+
+<!-- 3 -->
+<h2 id="s3"><span class="n">03</span>정보 구조(IA) &amp; 네비게이션</h2>
+<div class="wire"><pre>테이블 에디터 (단일 창 · 센터 상단 기능 탭)
+├─ 편집          뷰어 포함: 조회 · 검색 · 셀 수정 · 신규 테이블 (GSheet / xlsx)
+├─ 데이터 추출    원본 → .bin  (전체 / 개별)
+├─ 코드 추출      .bin → C#/C++ (전체 / 개별)
+└─ 설정          엔진별 경로 · 옵션 세팅</pre></div>
+<p>네비게이션 모델: <b>센터 상단 가로 기능 탭 4개</b>. 클릭 시 아래 콘텐츠 영역이 해당 기능 화면으로
+전환된다. 각 탭의 상태(선택·검색어·체크·스크롤)는 세션 동안 유지되어 탭을 오가도 잃지 않는다.</p>
+<div class="callout">
+  <b>페이지 전환 규칙</b>
+  기존에 팝업·별도 창으로 열리던 기능(컬럼 필터, Config 창 등)은 전부 탭 내 화면/사이드 패널로
+  흡수한다. 모달 다이얼로그는 <em>파괴적 확인</em>(삭제·덮어쓰기·미저장 이탈)에만 예외적으로 사용.
+</div>
+
+<!-- 4 -->
+<h2 id="s4"><span class="n">04</span>전체 레이아웃</h2>
+<div class="wire"><pre>┌─────────────────────────────────────────────────────────────────────┐
+│                [ 편집 ] [ 데이터 추출 ] [ 코드 추출 ] [ 설정 ]        │  ← 센터 상단 기능 탭
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│                     [ 선택된 탭 콘텐츠 영역 ]                        │
+│                                                                     │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  ● 준비됨   |  마지막 실행: Item.bin 생성 완료 (0.8s)      [로그 ▴]   │  ← 상태 바
+└─────────────────────────────────────────────────────────────────────┘</pre>
+<div class="legend">상단 기능 탭(중앙 정렬·고정) · 콘텐츠(가변) · 하단 상태 바(전 탭 공통). 로그 패널은 상태 바에서 위로 펼침/접힘.</div>
+</div>
+
+<!-- 5 -->
+<h2 id="s5"><span class="n">05</span>탭 — 편집 (뷰어 통합)</h2>
+<p><b>목적:</b> 테이블을 찾아 열고(뷰어), 셀 값을 수정하고, 신규 테이블을 추가한다.
+원본은 <b>xlsx</b>와 <b>GSheet</b> 둘 다 지원한다. 조회와 편집은 별도 페이지가 아니라 <b>이 탭 하나</b>에서 이루어진다.</p>
+<div class="wire"><pre>┌ 편집 ───────────────────────────────────────────────────────────────┐
+│ 원본 (◉ xlsx  ○ GSheet)   시트 [ Sheet1 ▾ ]     [+ 신규 테이블] [저장] │
+├───────────────┬─────────────────────────────────────────────────────┤
+│ [검색어… ][검색]│  Id   │ Name          │ Price    │ Type            │  ← 좌측 상단: 검색
+├───────────────┤ ──────┼───────────────┼──────────┼───────────────── │
+│ ▸ Item        │  1001 │ Iron Sword    │[ 120  ]  │ Weapon           │
+│   Character   │  1002 │ Health Potion │ 30       │ Consumable       │
+│   Skill       │   …   │               │          │                  │
+│   Stage       │                                                     │
+│               │                                                     │
+│  (테이블 리스트)│                                                     │
+├───────────────┴─────────────────────────────────────────────────────┤
+│ 변경 3건 · 미저장                        [되돌리기]  [저장 후 데이터 추출] │
+└─────────────────────────────────────────────────────────────────────┘</pre></div>
+
+<h3>좌측 — 테이블 리스트 &amp; 검색</h3>
+<table>
+  <tr><th style="width:24%">요소</th><th>동작</th></tr>
+  <tr><td>검색 입력 + [검색] 버튼</td><td>좌측 <b>상단</b> 고정. <b>검색 버튼을 눌렀을 때</b> 검색어를 <b>포함</b>하는 테이블만 리스트에 표시(대소문자 무시). <b>검색어가 비어 있으면 전체 테이블 표시</b>. <span class="kbd">Enter</span>로도 실행</td></tr>
+  <tr><td>테이블 리스트</td><td>원본 소스(xlsx 폴더 / GSheet 폴더)의 테이블 목록. 클릭 시 우측 그리드에 로드. 선택 항목 강조</td></tr>
+</table>
+
+<h3>우측 — 데이터 그리드 (뷰어 + 편집)</h3>
+<table>
+  <tr><th style="width:24%">요소</th><th>동작</th></tr>
+  <tr><td>원본 선택 (xlsx / GSheet)</td><td>소스 전환 시 테이블 리스트 갱신. xlsx는 Config의 원본 폴더, GSheet는 GAuth 인증 + 폴더 링크 사용</td></tr>
+  <tr><td>시트 선택</td><td>xlsx 파일에 시트가 여럿일 때 전환</td></tr>
+  <tr><td>셀 편집</td><td>더블클릭 → 인라인 편집. 헤더 규약(1행 컬럼명·2행 타입)은 그리드에서 보호되고 데이터 행만 편집</td></tr>
+  <tr><td>신규 테이블 추가</td><td>[+ 신규 테이블] → 탭 내 <b>인라인 패널</b>(팝업 아님)에서 테이블명·컬럼(이름:타입) 정의 후 생성. 헤더 2행 규약 자동 세팅. 산출물은 원본 폴더의 <b>xlsx 파일</b></td></tr>
+  <tr><td>저장</td><td>변경분을 원본에 반영. 미저장 변경 건수 하단 표시. GSheet는 1차에서 <b>읽기 전용</b>(§12 D2)</td></tr>
+  <tr><td>저장 후 데이터 추출</td><td>저장과 동시에 해당 테이블만 <code>-each</code> 바이너리 추출로 연결(선택 기능)</td></tr>
+</table>
+<p class="legend">상태·예외: 로드 실패 시 상태 바에 오류 + 빈 그리드. 미저장 상태에서 다른 테이블/탭 이동 시 확인.</p>
+
+<!-- 6 -->
+<h2 id="s6"><span class="n">06</span>탭 — 데이터 추출</h2>
+<p><b>목적:</b> 원본(xlsx/GSheet) → <code>.bin</code> 변환. <b>전체</b> 또는 <b>선택 항목만</b>.</p>
+<div class="wire"><pre>┌ 데이터 추출 ─────────────────────────────────────────────────────────┐
+│  소스: ◉ 로컬 xlsx   ○ GSheet 폴더            [목록 새로고침]         │
+│  [☑ 모두]                                                            │
+│  ┌ 테이블 목록 ───────────────┐   ┌──────────────────────┐          │
+│  │ ☑ Item                     │   │  [ 전체 추출 ]         │          │
+│  │ ☑ Character                │   ├──────────────────────┤          │
+│  │ ☐ Skill                    │   │  [ 선택 추출 ]         │          │
+│  │ ☑ Stage                    │   └──────────────────────┘          │
+│  └────────────────────────────┘                                     │
+│  진행 ▓▓▓▓▓▓▓░░░  Item → Item.bin …                                  │
+└─────────────────────────────────────────────────────────────────────┘</pre></div>
+<table>
+  <tr><th style="width:24%">요소</th><th>동작 / 매핑</th></tr>
+  <tr><td>소스 선택</td><td>로컬 xlsx 또는 GSheet 폴더. GSheet 개별 추출은 엔진의 <code>-each</code> 클라이언트 필터 활용</td></tr>
+  <tr><td>전체 추출</td><td>목록 전부 → ExcelToData 엔진 전체 실행</td></tr>
+  <tr><td>선택 추출</td><td>체크 항목만 → 각 항목 <code>-each &lt;이름&gt;</code> 실행</td></tr>
+  <tr><td>완료 후</td><td>결과를 상태 바·로그에 남김. 산출 <code>.bin</code>은 코드 추출 탭 목록에 반영</td></tr>
+</table>
+<div class="callout warn">
+  <b>알아둘 점 — GSheet 개별 추출</b>
+  GSheet는 폴더 전체 탭을 내려받은 뒤 이름으로 필터하므로, 개별 선택이어도 <b>네트워크 다운로드는 전체</b>이고
+  저장되는 <code>.bin</code>만 선택분으로 줄어든다.
+</div>
+
+<!-- 7 -->
+<h2 id="s7"><span class="n">07</span>탭 — 코드 추출</h2>
+<p><b>목적:</b> <code>.bin</code> → C#/C++ 클래스 생성. <b>전체</b> 또는 <b>선택 항목만</b>. (데이터 추출 탭과 동일 패턴)</p>
+<div class="wire"><pre>┌ 코드 추출 ───────────────────────────────────────────────────────────┐
+│  출력 언어: C# (설정 탭에서 변경)     ☑ Enum 코드 함께 생성           │
+│  [☑ 모두]                                                            │
+│  ┌ 바이너리 목록 (.bin) ──────┐   ┌──────────────────────┐          │
+│  │ ☑ Item                     │   │  [ 전체 생성 ]         │          │
+│  │ ☐ Character                │   ├──────────────────────┤          │
+│  │ ☑ Stage                    │   │  [ 선택 생성 ]         │          │
+│  └────────────────────────────┘   └──────────────────────┘          │
+│  결과: Item.cs, Stage.cs 생성 (2)                                    │
+└─────────────────────────────────────────────────────────────────────┘</pre></div>
+<table>
+  <tr><th style="width:24%">요소</th><th>동작 / 매핑</th></tr>
+  <tr><td>출력 언어</td><td>설정 탭의 확장자 규약(C#/C++)을 표시. 변경은 설정 탭에서</td></tr>
+  <tr><td>Enum 코드 함께</td><td>체크 시 Enum 생성(EnumDB) 선행 실행(전체 단위)</td></tr>
+  <tr><td>전체 생성</td><td>Binary 폴더 전부 → CodeGenerator 엔진 전체 실행</td></tr>
+  <tr><td>선택 생성</td><td>체크 항목만 → 각 항목 <code>-each &lt;이름&gt;</code> 실행</td></tr>
+</table>
+
+<!-- 8 -->
+<h2 id="s8"><span class="n">08</span>탭 — 설정</h2>
+<p><b>목적:</b> 각 엔진이 쓰는 Config를 GUI로 편집·생성한다. (구 별도 Config 창을 탭으로 흡수)</p>
+<div class="wire"><pre>┌ 설정 ───────────────────────────────────────────────────────────────┐
+│  ▾ 데이터 추출 (ExcelToData)                                          │
+│      ☑ 로컬 사용   Src [ …/Data     ] [찾기]   Dst [ …/Binary ] [찾기] │
+│      ☐ GSheet 사용  GDrive 링크 [ …                              ]    │
+│  ▾ JSON 추출        Src [ … ]  Dst [ … ]                             │
+│  ▾ 코드 생성 (CodeGenerator)                                          │
+│      Binary [ … ]  Class 출력 [ … ]  네임스페이스 [ … ]  확장자 [.cs ▾] │
+│      ☑ Enum 코드 생성   Enum 출력 [ … ]                               │
+│  ▾ Enum 생성        Enum 파일 [ … ]  시트 패턴 [ *Enum*,*enum* ]      │
+│  ▾ GAuth            client_secret [ … ]  User [ … ]                  │
+│                                                                     │
+│  [기본값 생성]                                  [검증]  [저장]        │
+└─────────────────────────────────────────────────────────────────────┘</pre></div>
+<table>
+  <tr><th style="width:24%">요소</th><th>동작</th></tr>
+  <tr><td>엔진별 섹션</td><td>ExcelToData(Binary/JSON) · CodeGenerator · EnumGenerator · GAuth 각각의 실제 Config 필드를 편집(접이식)</td></tr>
+  <tr><td>기본값 생성</td><td>각 Config를 엔진 기본값으로 리셋(저장 전까지 파일 미변경)</td></tr>
+  <tr><td>검증</td><td>필수 경로 존재/형식 확인. 문제 항목 인라인 경고</td></tr>
+  <tr><td>저장</td><td>각 엔진 Config(JSON) 파일에 기록. 없으면 생성(<code>init-config</code> 동등)</td></tr>
+</table>
+<p class="legend">이 탭의 값은 편집·추출 탭이 공유하는 <b>단일 진실</b>이다. Config 파일 위치·형식은 CLI와 동일(<code>Config/*.json</code>)해서 CLI와 혼용 가능.</p>
+
+<!-- 9 -->
+<h2 id="s9"><span class="n">09</span>공통 UX 패턴</h2>
+<table>
+  <tr><th style="width:22%">패턴</th><th>규칙</th></tr>
+  <tr><td>선택 목록</td><td>체크박스 목록 + [모두] 토글 + [전체]/[선택] 실행 버튼. 데이터·코드 추출 탭 동일</td></tr>
+  <tr><td>진행 표시</td><td>실행 중 진행 표시 + 현재 항목명. 실행 중 관련 버튼 비활성</td></tr>
+  <tr><td>결과/로그</td><td>하단 상태 바 요약 + 펼침 로그 패널. 성공 <span class="pill now">녹색</span> / 실패 <span class="pill" style="color:var(--danger)">적색</span></td></tr>
+  <tr><td>모달 최소화</td><td>정보 전달은 탭/패널로. 모달은 <b>삭제·덮어쓰기·미저장 이탈 확인</b>에만</td></tr>
+  <tr><td>미저장 보호</td><td>편집 탭 이탈/창 닫기 시 미저장 변경 있으면 확인</td></tr>
+  <tr><td>단축키</td><td><span class="kbd">Ctrl+S</span> 저장 · <span class="kbd">Enter</span> 검색 실행 · <span class="kbd">F5</span> 목록 새로고침</td></tr>
+</table>
+
+<!-- 10 -->
+<h2 id="s10"><span class="n">10</span>데이터 흐름</h2>
+<div class="wire"><pre>  [원본]                    [중간]              [산출물]
+  xlsx ─┐
+        ├─▶ (데이터 추출) ──▶  *.bin  ─▶ (코드 추출) ─▶  *.cs / *.h·cpp
+  GSheet┘         ▲                            ▲
+                  │                            │
+               [설정] ──── 경로·옵션 ──────────┘
+                  ▲
+             EnumDB.bin  ◀── (Enum 생성, 전체 단위)
+
+  편집 탭  ── 원본(xlsx/GSheet)을 읽어 표시 · 수정 · 신규 테이블 생성</pre></div>
+<p>편집→저장→추출→코드생성이 한 창 안에서 연결되며, 모든 경로·옵션의 출처는 설정 탭 한 곳이다.
+엔진은 CLI와 동일 DLL을 직접 참조하므로 동작·산출물이 CLI와 완전히 일치한다.</p>
+
+<!-- 11 -->
+<h2 id="s11"><span class="n">11</span>범위 밖 &amp; 향후</h2>
+<ul>
+  <li><span class="pill later">향후</span> <b>Table Loader</b> — UI/UX 미정으로 이번 제외. 확정되면 설정 탭 이관 여부 재검토.</li>
+  <li><span class="pill later">향후</span> <b>런타임 뷰어</b> — 데이터를 실제 게임에서 보여주는 부분은 <b>엔진별 개별 구현</b>(Unity/Unreal 등). 본 툴 범위 밖.</li>
+  <li><span class="pill later">향후</span> GSheet 원본 직접 쓰기 · 다중 정렬 · 컬럼 필터 패널 · 변경 이력/undo 스택 · 대량 편집(찾아 바꾸기).</li>
+</ul>
+
+<!-- 12 -->
+<h2 id="s12"><span class="n">12</span>결정 사항 &amp; 미확정</h2>
+<div class="callout ok">
+  <b>D1. 확정 — 뷰어와 편집 통합</b>
+  별도 페이지가 아니라 <b>편집 탭 하나</b>에서 조회+편집. (v0.1 Q1 해소)
+</div>
+<div class="callout ok">
+  <b>D2. 확정 — GSheet는 1차 읽기 전용</b>
+  GSheet 원본은 조회·추출 지원. 셀 편집 저장(원본 되쓰기)은 쓰기 권한·API 반영이 필요해 <b>후속 단계</b>로 미룬다. (v0.1 Q2 부분 확정)
+</div>
+<div class="callout ok">
+  <b>D3. 확정 — 엔진 호출은 DLL 직접 참조</b>
+  같은 솔루션 내 프로젝트 참조로 Invoker를 직접 호출. exe 프로세스 호출 없음. (v0.1 Q3 해소)
+</div>
+<div class="callout ok">
+  <b>D4. 확정 — 신규 테이블 산출물은 xlsx</b>
+  신규 테이블 추가는 원본 폴더에 헤더 2행 규약의 <b>xlsx 파일 생성</b>. GSheet 신규 시트는 향후. (v0.1 Q4 해소)
+</div>
+<div class="callout ok">
+  <b>D5. 확정 — UI 기술은 WPF</b>
+  독립 실행 파일 요구에 따라 Unity가 아닌 <b>.NET WPF</b>. (v0.1 Q5 해소)
+</div>
+<div class="callout q">
+  <b>미확정 — 저장 후 데이터 추출 기본값</b>
+  편집 탭의 [저장 후 데이터 추출]을 기본 켬으로 할지. 1차 구현은 별도 버튼(수동)으로 제공.
+</div>
+
+<footer class="doc">
+  테이블 에디터 UI/UX 기획서 v0.2 · 센터 상단 기능 탭 반영 · WPF 독립 실행 확정.<br>
+  저장 위치: <code>TableAutomarionTool/Documents/TableEditor-UIUX-기획서.html</code>
+</footer>
+
+</div>
+</body>
+</html>

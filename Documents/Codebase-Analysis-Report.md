@@ -5,6 +5,14 @@
 **Framework**: .NET 9.0
 **Overall Grade**: C+ (60/100)
 
+> ⚠️ **이 문서는 2025-11-22 시점의 스냅샷입니다.** 이후 백엔드 12개 프로젝트가
+> `TableAutomationTool` 하나로 통합되었고, 개별 실행 파일(`ExcelToData.exe` ·
+> `CodeGenerator.exe` · `EnumGenerator.exe` · `Tester.exe` · `TableTool.exe`)은 제거되어
+> 통합 CLI `TableAutomationTool.exe`의 서브커맨드로만 접근합니다. Unity 전용 빌드
+> (`netstandard2.1` / `Configuration=Unity`)도 폐기되었습니다.
+> 현재 구조와 실행 방법은 [README.md](../README.md)를 보십시오.
+> 아래 본문의 프로젝트 구성·실행 예시는 **당시 기록**으로만 읽으십시오.
+
 ---
 
 ## Table of Contents

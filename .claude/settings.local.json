@@ -1,8 +1,0 @@
-{
-  "outputStyle": "Explanatory",
-  "permissions": {
-    "allow": [
-      "SlashCommand(/init)"
-    ]
-  }
-}

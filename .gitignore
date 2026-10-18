@@ -196,3 +196,9 @@ TestDataGenerator/
 ExtractToDataConfigGenerateTest/
 cacle
 cacle.pub
+
+# AI / GitHub 설정 (로컬 전용)
+.claude/
+.harness/
+CLAUDE.md
+.github/
