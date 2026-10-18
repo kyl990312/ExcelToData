@@ -1,7 +1,6 @@
 using System.Globalization;
 using TableAutomationTool.GAuth;
 using TableAutomationTool.Shared;
-using TableAutomationTool.UserEnum;
 
 namespace TableAutomationTool.AiTools;
 
@@ -50,6 +49,20 @@ public abstract class AiWriteCommand : AiCommand
 
     public override void Execute(out string result)
     {
+        try
+        {
+            ExecuteWrite(out result);
+        }
+        catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            // 쓰기 툴은 탭 목록·값·재검증으로 여러 번 읽는다. 적용 뒤 예외는 Verify 가 받으므로 여기 오면 쓰기 전(또는 거절된 쓰기)이다.
+            throw new AiToolException("gsheet_api_error", ex.Message,
+                "Google API 요청 한도(사용자당 분당 읽기 횟수 등)를 넘었습니다. 시트는 바뀌지 않았습니다. 1분쯤 기다렸다가 다시 시도하세요.");
+        }
+    }
+
+    private void ExecuteWrite(out string result)
+    {
         var name = Args.RequirePositional(0, "테이블 이름");
         var dryRun = Args.Has("dry-run");
 
@@ -57,9 +70,8 @@ public abstract class AiWriteCommand : AiCommand
             Warnings.Add("설정상 추출 소스가 GSheet 가 아닙니다(IsLoadFromGSheet=false). 이 수정은 추출 결과에 반영되지 않습니다.");
 
         // enum 값 검사와 리더의 배열 enum 변환이 EnumDB 를 쓴다. 쓰기 전후 읽기가 같은 EnumDB 상태에서 돌도록 먼저 불러 둔다.
-        new LoadEnumDBCommand().Execute(out var enumResult);
-        if (EnumDB.Instance.IsEmpty)
-            Warnings.Add($"EnumDB 를 불러오지 못해 enum 값을 검사하지 못했습니다({enumResult}). 'ai run enum' 으로 만들 수 있습니다.");
+        // 불러오지 못하면 enum 컬럼에 쓰려 할 때 enum_unavailable 로 멈춘다.
+        new LoadEnumDBCommand().Execute(out _);
 
         // 추출기는 같은 이름의 탭을 차례로 같은 .bin 에 덮어써 마지막 탭이 남는다. 어느 탭이 원본인지 정할 수 없으므로 쓰지 않는다.
         var matches = AiTableSource.FindGSheetTabs(Ctx, name);
@@ -81,7 +93,7 @@ public abstract class AiWriteCommand : AiCommand
             Apply(tab, plan.Edits);
             applied = true;
 
-            mismatches = Verify(tab, plan.Expected);
+            mismatches = Verify(tab, sheet.Table.Columns, plan.Expected);
             verified = mismatches.Count == 0;
             if (mismatches.Count > 0)
             {
@@ -125,11 +137,11 @@ public abstract class AiWriteCommand : AiCommand
     }
 
     /// <summary>다시 읽어 기대 테이블과 비교한다. 쓰기는 이미 끝났으므로 다시 읽기 실패도 예외 대신 불일치로 돌려준다.</summary>
-    private static List<object> Verify(GSheetTab tab, List<Dictionary<string, object?>> expected)
+    private static List<object> Verify(GSheetTab tab, IReadOnlyList<AiColumn> columns, List<Dictionary<string, object?>> expected)
     {
         try
         {
-            return AiGSheetTable.Diff(expected, AiGSheetTable.Load(tab));
+            return AiGSheetTable.Diff(columns, expected, AiGSheetTable.Load(tab));
         }
         catch (Exception ex)
         {
@@ -251,7 +263,7 @@ public sealed class AiUpdateCommand : AiWriteCommand
             throw new AiToolException("invalid_args", "바꿀 값을 --set \"컬럼=값\" 으로 지정하세요.");
 
         var targets = SelectRows(sheet);
-        var cells = sets.Select(s => (s.column, value: AiGSheetTable.Encode(s.column, s.value, Warnings))).ToList();
+        var cells = sets.Select(s => (s.column, value: AiGSheetTable.Encode(s.column, s.value))).ToList();
 
         var plan = new WritePlan { Expected = sheet.CloneRows(), Unchanged = 0 };
         foreach (var r in targets)
@@ -351,9 +363,9 @@ public sealed class AiInsertCommand : AiWriteCommand
             AiCellValue cell;
             try
             {
-                cell = AiGSheetTable.Encode(column, input, Warnings);
+                cell = AiGSheetTable.Encode(column, input);
             }
-            catch (AiToolException ex) when (!fromSet)
+            catch (AiToolException ex) when (!fromSet && ex.Code == "invalid_value")
             {
                 throw new AiToolException(ex.Code, $"--copy {copy} 행의 값을 쓸 수 없습니다: {ex.Message}",
                     $"--set \"{column.Name}=값\" 으로 덮어쓰세요.");

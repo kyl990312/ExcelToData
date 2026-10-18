@@ -126,8 +126,6 @@ public static class AiToolRunner
         _ when FindTokenError(ex) is { } token => new ErrorInfo("gsheet_auth_expired",
             $"Google 토큰을 갱신할 수 없습니다: {token.Error?.Error}",
             "토큰이 만료·폐기되었습니다(인증 라이브러리가 캐시를 지웁니다). 사용자에게 TableEditor 설정 탭의 [Google 인증]을 다시 요청하세요."),
-        Google.GoogleApiException { HttpStatusCode: System.Net.HttpStatusCode.TooManyRequests } quota => new ErrorInfo("gsheet_api_error", quota.Message,
-            "Google API 요청 한도(사용자당 분당 읽기 횟수 등)를 넘었습니다. 1분쯤 기다렸다가 다시 시도하세요."),
         Google.GoogleApiException google => new ErrorInfo("gsheet_api_error", google.Message,
             "폴더 링크·공유 권한을 확인하세요. 토큰이 만료됐으면 사용자에게 [Google 인증]을 다시 요청하세요."),
         _ => new ErrorInfo("internal_error", $"{ex.GetType().Name}: {ex.Message}", "stderr 로그를 확인하세요.")
@@ -222,7 +220,7 @@ public static class AiToolRunner
             "invalid_args", "unknown_tool", "config_not_found", "source_not_found", "source_disabled", "table_not_found",
             "column_not_found", "gsheet_not_configured", "gsheet_auth_required", "gsheet_auth_expired", "gsheet_api_error",
             "diff_path_not_configured", "diff_path_not_found", "not_a_git_repository", "git_not_found", "git_failed",
-            "run_failed", "no_match", "multiple_matches", "invalid_value", "missing_value", "no_columns", "layout_mismatch", "ambiguous_table",
+            "run_failed", "no_match", "multiple_matches", "invalid_value", "missing_value", "no_columns", "layout_mismatch", "ambiguous_table", "enum_unavailable",
             "gsheet_permission_denied", "verify_failed", "timeout", "internal_error"
         },
     };

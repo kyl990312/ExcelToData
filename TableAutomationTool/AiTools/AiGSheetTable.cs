@@ -190,11 +190,11 @@ public sealed class AiGSheetTable
     /// 컬럼에 쓸 입력 문자열을 검사하고 시트 값으로 바꾼다. 추출을 깨뜨릴 값(빈 숫자·변환 불가·enum 멤버 아님)이면 invalid_value.
     /// 숫자는 numberValue, 나머지는 stringValue(수식 해석 없음)로 쓴다.
     /// </summary>
-    public static AiCellValue Encode(AiColumn column, string input, List<string> warnings)
+    public static AiCellValue Encode(AiColumn column, string input)
     {
         if (!column.IsArray)
         {
-            var cell = EncodeScalar(column, column.Type, input, inArray: false, warnings);
+            var cell = EncodeScalar(column, column.Type, input, inArray: false);
             return cell with { Expected = AiTableSource.NormalizeCellText(cell.Text, column) };
         }
 
@@ -202,14 +202,14 @@ public sealed class AiGSheetTable
         var elementType = column.Type[..^2];
         var elements = input.Trim().Trim('[', ']')
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(e => EncodeScalar(column, elementType, e.Trim().Trim('"'), inArray: true, warnings).Text)
+            .Select(e => EncodeScalar(column, elementType, e.Trim().Trim('"'), inArray: true).Text)
             .ToList();
 
         var text = elements.Count == 0 ? string.Empty : $"[{string.Join(",", elements)}]";
         return new AiCellValue(text, text, AiTableSource.NormalizeCellText(text, column));
     }
 
-    private static AiCellValue EncodeScalar(AiColumn column, string type, string input, bool inArray, List<string> warnings)
+    private static AiCellValue EncodeScalar(AiColumn column, string type, string input, bool inArray)
     {
         if (type == "String")
             return new AiCellValue(input, input, null);
@@ -256,23 +256,23 @@ public sealed class AiGSheetTable
                 return new AiCellValue(text, text, null);
             }
             default:
-                return EncodeEnum(column, type, text, inArray, warnings);
+                return EncodeEnum(column, type, text, inArray);
         }
     }
 
     /// <summary>
     /// 클라이언트는 enum 셀을 Enum.Parse(ignoreCase) 로 읽으므로 멤버 이름(선언된 대소문자로 맞춘다)이나 정수만 받는다.
     /// 배열 요소의 정수는 리더(ConvertToUserEnumString)가 멤버 이름으로 바꾸고 없는 값이면 빈 문자열로 만들므로, 정의된 값만 받아 이름으로 쓴다.
+    /// 정의를 찾지 못하면(EnumDB 를 못 읽었거나 오래됐거나 타입 오타) 검사할 수 없으므로 쓰지 않는다.
     /// </summary>
-    private static AiCellValue EncodeEnum(AiColumn column, string enumType, string text, bool inArray, List<string> warnings)
+    private static AiCellValue EncodeEnum(AiColumn column, string enumType, string text, bool inArray)
     {
         if (!EnumDB.Instance.HasEnum(enumType))
-        {
-            var warning = $"'{column.Name}' 의 타입 '{enumType}' 이 EnumDB 에 없어 값을 검사하지 않았습니다.";
-            if (!warnings.Contains(warning))
-                warnings.Add(warning);
-            return new AiCellValue(text, text, null);
-        }
+            throw new AiToolException("enum_unavailable",
+                $"'{column.Name}' 의 타입 '{enumType}' 정의가 EnumDB 에 없어 값을 검사할 수 없습니다. 쓰지 않았습니다.",
+                EnumDB.Instance.IsEmpty
+                    ? "EnumDB 를 불러오지 못했습니다. 'ai run enum' 으로 EnumDB 를 만든 뒤(사용자 요청 시) 다시 시도하세요."
+                    : "enum 소스가 바뀌었으면 'ai run enum' 으로 EnumDB 를 다시 만들고(사용자 요청 시), 아니면 시트의 컬럼 타입 오타를 확인하세요.");
 
         var members = EnumDB.Instance.GetEnumMembers(enumType);
         var member = members.FirstOrDefault(m => m.member.Equals(text, StringComparison.OrdinalIgnoreCase)).member;
@@ -306,19 +306,26 @@ public sealed class AiGSheetTable
     // ───────────── 검증 ─────────────
 
     /// <summary>
-    /// 기대 테이블과 다시 읽은 테이블을 비교한다. 같은 Format(InvariantCulture) 문자열이면 같은 값으로 본다.
-    /// 다른 셀은 최대 MaxMismatches 개까지 돌려준다.
+    /// 기대 테이블과 다시 읽은 테이블을 비교한다. 컬럼(이름·타입·순서)을 먼저 보고, 셀은 기대 컬럼 기준으로
+    /// 같은 Format(InvariantCulture) 문자열이면 같은 값으로 본다. 다른 셀은 최대 MaxMismatches 개까지 돌려준다.
     /// </summary>
-    public static List<object> Diff(IReadOnlyList<Dictionary<string, object?>> expected, AiGSheetTable actual)
+    public static List<object> Diff(IReadOnlyList<AiColumn> expectedColumns, IReadOnlyList<Dictionary<string, object?>> expected,
+                                    AiGSheetTable actual)
     {
         var mismatches = new List<object>();
+
+        var expectedSchema = expectedColumns.Select(c => $"{c.Name}:{c.Type}").ToList();
+        var actualSchema = actual.Table.Columns.Select(c => $"{c.Name}:{c.Type}").ToList();
+        if (!expectedSchema.SequenceEqual(actualSchema))
+            mismatches.Add(new { reason = "columns", expected = expectedSchema, actual = actualSchema });
+
         var rows = actual.Table.Rows;
         if (expected.Count != rows.Count)
             mismatches.Add(new { reason = "rowCount", expected = expected.Count, actual = rows.Count });
 
         for (int r = 0; r < Math.Min(expected.Count, rows.Count) && mismatches.Count < MaxMismatches; r++)
         {
-            foreach (var column in actual.Table.Columns)
+            foreach (var column in expectedColumns)
             {
                 expected[r].TryGetValue(column.Name, out var e);
                 rows[r].TryGetValue(column.Name, out var a);
