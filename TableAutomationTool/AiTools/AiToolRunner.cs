@@ -64,7 +64,7 @@ public static class AiToolRunner
                 var task = Task.Run(() => Execute(parsed, callerDirectory, capture));
                 if (!task.Wait(TimeSpan.FromSeconds(timeout)))
                 {
-                    if (AiWriteCommand.TryBlockApply())
+                    if (AiGSheetWriteCommand.TryBlockApply())
                         throw new AiToolException("timeout", $"{timeout}초 안에 끝나지 않았습니다.",
                             "GSheet 인증이 브라우저 로그인을 기다리는 중일 수 있습니다. --timeout 으로 늘리거나 사용자에게 확인하세요.");
 
@@ -111,6 +111,10 @@ public static class AiToolRunner
             "update" => new AiUpdateCommand(ctx, args),
             "insert" => new AiInsertCommand(ctx, args),
             "delete" => new AiDeleteCommand(ctx, args),
+            "rename-column" => new AiRenameColumnCommand(ctx, args),
+            "add-column" => new AiAddColumnCommand(ctx, args),
+            "add-sheet" => new AiAddSheetCommand(ctx, args),
+            "add-file" => new AiAddFileCommand(ctx, args),
             _ => throw new AiToolException("unknown_tool", $"알 수 없는 툴: {args.Tool}", "ai help 로 목록을 확인하세요.")
         };
 
@@ -156,9 +160,11 @@ public static class AiToolRunner
         usage = "TableAutomationTool.exe ai <tool> [args] [--option value] [--timeout sec] [--pretty]",
         output = "stdout 에 JSON 한 줄. {ok, tool, data | error{code,message,hint}, warnings}. 종료 코드 ok=0, 실패=1. 로그는 stderr.",
         sources = "local = ExcelToDataConfig.SrcDirectory 의 xlsx 시트, gsheet = SrcGDriveLink 폴더의 시트 탭, bin = DstDirectory 의 추출 결과. --source 생략 시 설정(IsLoadFromGSheet)을 따른다.",
-        writes = "update·insert·delete 는 GSheet 탭만 고친다(--source 없음, 로컬 xlsx·.bin 은 그대로). 먼저 --dry-run 으로 changes 를 확인하고 적용한다. "
-                 + "적용하면 batchUpdate 한 번으로 쓰고 다시 읽어 verified 를 준다. 값은 컬럼 타입으로 검사한다(빈 숫자·변환 불가·enum 멤버 아님은 invalid_value). "
-                 + ".bin 반영은 ai run extract 가 따로 한다.",
+        writes = "update·insert·delete·rename-column·add-column·add-sheet·add-file 은 GSheet 만 고친다(--source 없음, 로컬 xlsx·.bin 은 그대로). 먼저 --dry-run 으로 결과를 확인하고 적용한다. "
+                 + "적용하면 batchUpdate 한 번으로 쓰고(add-file 은 파일 생성 + 탭 쓰기 두 번) 다시 읽어 verified 를 준다. 값은 컬럼 타입으로 검사한다(빈 숫자·변환 불가·enum 멤버 아님은 invalid_value). "
+                 + ".bin·코드 반영은 ai run extract·generate 가 따로 한다.",
+        types = "컬럼 타입: Int16 Int32 Int64 Single Double Boolean String DateTime(별칭 short int long float bool 은 바꿔 쓴다), 배열은 'Int32[]' 처럼 '[]'(Boolean·DateTime 제외), "
+                + "그 밖은 EnumDB 에 있는 enum 이름. 컬럼·테이블 이름은 식별자(영문·숫자·_, 숫자 시작 불가). 리더는 A:Z(26열)만 읽는다.",
         tools = new object[]
         {
             new
@@ -214,6 +220,35 @@ public static class AiToolRunner
                 usage = "ai delete <table> (--row N... | --where \"Col=Val\"...) [--all] [--dry-run]",
                 description = "GSheet 에서 행을 지운다. 대상 선택은 update 와 같다. 지운 행의 값은 changes 에 남는다.",
             },
+            new
+            {
+                name = "rename-column",
+                usage = "ai rename-column <table> --column \"OldName\" --name NewName [--dry-run]",
+                description = "GSheet 컬럼 이름(이름 헤더 셀)을 바꾼다. 타입·데이터는 그대로. --column 은 정확히 같은 이름(앞뒤 공백 포함)을 먼저 찾고 없으면 대소문자 무시. "
+                              + "--name 은 식별자(영문·숫자·_, 숫자 시작·공백 불가)이고 다른 컬럼과 겹치면 invalid_value. 바꾼 뒤 ai run generate 로 코드에 반영한다.",
+            },
+            new
+            {
+                name = "add-column",
+                usage = "ai add-column <table> --name Col --type Type [--after Col] [--value V] [--dry-run]",
+                description = "GSheet 테이블에 컬럼을 추가한다. 시트 열을 하나 끼워 이름·타입 헤더를 쓰고 모든 데이터 행을 --value 로 채운다. "
+                              + "--after 는 이 컬럼 바로 오른쪽에 끼운다(기본 마지막 컬럼, 뒤의 '#' 메모 열은 밀림). 데이터 행이 있으면 String·배열이 아닌 타입은 --value 필요(missing_value). "
+                              + "행마다 다른 값은 추가한 뒤 update 로 바꾼다. Z 열을 넘기면 column_limit.",
+            },
+            new
+            {
+                name = "add-sheet",
+                usage = "ai add-sheet <spreadsheet> --sheet Tab --column \"Name:Type\"... [--dry-run]",
+                description = "GSheet 폴더의 기존 스프레드시트(파일 이름)에 테이블 탭을 추가한다. 1행 컬럼 이름, 2행 타입만 쓴다(행은 insert 로). "
+                              + "테이블 이름은 '<파일>_<탭>' 규칙(파일 이름에 '_' 가 없으면 탭 이름)이고 식별자여야 하며, 이미 있는 테이블과 겹치면 already_exists.",
+            },
+            new
+            {
+                name = "add-file",
+                usage = "ai add-file <spreadsheet> --sheet Tab --column \"Name:Type\"... [--dry-run]",
+                description = "GSheet 폴더에 새 스프레드시트 파일을 만들고 첫 탭을 테이블 탭(이름 --sheet)으로 만든다. 탭·컬럼 규칙은 add-sheet 와 같다. "
+                              + "드라이브 쓰기 권한이 필요하다(gsheet_scope_insufficient). 탭 쓰기가 실패하면 만든 파일은 휴지통으로 옮긴다.",
+            },
         },
         errorCodes = new[]
         {
@@ -221,7 +256,8 @@ public static class AiToolRunner
             "column_not_found", "gsheet_not_configured", "gsheet_auth_required", "gsheet_auth_expired", "gsheet_api_error",
             "diff_path_not_configured", "diff_path_not_found", "not_a_git_repository", "git_not_found", "git_failed",
             "run_failed", "no_match", "multiple_matches", "invalid_value", "missing_value", "no_columns", "layout_mismatch", "ambiguous_table", "enum_unavailable",
-            "gsheet_permission_denied", "verify_failed", "timeout", "internal_error"
+            "column_limit", "already_exists", "spreadsheet_not_found", "ambiguous_spreadsheet",
+            "gsheet_permission_denied", "gsheet_scope_insufficient", "verify_failed", "timeout", "internal_error"
         },
     };
 }

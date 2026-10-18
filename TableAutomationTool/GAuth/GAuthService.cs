@@ -45,6 +45,15 @@ public sealed record GSheetDeleteRow(int Row) : GSheetEdit;
 /// <summary>셀 값을 쓴다. Value 는 string(문자 그대로, 수식 해석 없음) | double(숫자) | bool. 서식은 건드리지 않는다.</summary>
 public sealed record GSheetSetCell(int Row, int Column, object Value) : GSheetEdit;
 
+/// <summary>
+/// Column 위치에 빈 열을 끼운다. 기존 Column 이후 열은 한 칸씩 밀린다. InheritFromBefore 면 왼쪽, 아니면 오른쪽 열의 서식을 따른다.
+/// 물려받은 서식 중 숫자 표시 형식과 데이터 확인 규칙은 지운다(옆 열의 날짜 형식·드롭다운이 새 열 값의 표시 값을 바꾸지 않도록).
+/// </summary>
+public sealed record GSheetInsertColumn(int Column, bool InheritFromBefore) : GSheetEdit;
+
+/// <summary>스프레드시트 탭의 sheetId(gid)·이름. 제외 탭('#'·'//')도 포함한다.</summary>
+public sealed record GSheetProperties(int SheetId, string Title);
+
 public static class GAuthService
 {
     /// <summary>
@@ -210,14 +219,14 @@ public static class GAuthService
         if (edits.Count == 0)
             return;
 
-        var requests = edits.Select(edit => ToRequest(tab.SheetId, edit)).ToList();
+        var requests = edits.SelectMany(edit => ToRequests(tab.SheetId, edit)).ToList();
         var sheetsService = GAuthAPIHandler.GetSheetsService();
         sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, tab.SpreadsheetId).Execute();
 
         Logger.Instance.Log($"[GAuthService] EditGSheetTab 완료: {tab.SpreadsheetName}/{tab.SheetTitle} ({requests.Count} request(s))");
     }
 
-    private static Request ToRequest(int sheetId, GSheetEdit edit)
+    private static IEnumerable<Request> ToRequests(int sheetId, GSheetEdit edit)
     {
         DimensionRange RowRange(int row) => new()
         {
@@ -227,34 +236,180 @@ public static class GAuthService
             EndIndex = row + 1,
         };
 
-        return edit switch
+        GridRange ColumnGrid(int column) => new()
         {
-            GSheetInsertRow insert => new Request
-            {
-                InsertDimension = new InsertDimensionRequest
-                {
-                    Range = RowRange(insert.Row),
-                    InheritFromBefore = insert.InheritFromBefore,
-                }
-            },
-            GSheetDeleteRow delete => new Request
-            {
-                DeleteDimension = new DeleteDimensionRequest { Range = RowRange(delete.Row) }
-            },
-            GSheetSetCell cell => new Request
-            {
-                UpdateCells = new UpdateCellsRequest
-                {
-                    Start = new GridCoordinate { SheetId = sheetId, RowIndex = cell.Row, ColumnIndex = cell.Column },
-                    Rows = new List<RowData>
-                    {
-                        new() { Values = new List<CellData> { new() { UserEnteredValue = ToExtendedValue(cell.Value) } } }
-                    },
-                    Fields = "userEnteredValue",
-                }
-            },
-            _ => throw new ArgumentException($"알 수 없는 편집: {edit.GetType().Name}", nameof(edit))
+            SheetId = sheetId,
+            StartColumnIndex = column,
+            EndColumnIndex = column + 1,
         };
+
+        switch (edit)
+        {
+            case GSheetInsertRow insert:
+                yield return new Request
+                {
+                    InsertDimension = new InsertDimensionRequest
+                    {
+                        Range = RowRange(insert.Row),
+                        InheritFromBefore = insert.InheritFromBefore,
+                    }
+                };
+                break;
+            case GSheetDeleteRow delete:
+                yield return new Request
+                {
+                    DeleteDimension = new DeleteDimensionRequest { Range = RowRange(delete.Row) }
+                };
+                break;
+            case GSheetSetCell cell:
+                yield return new Request
+                {
+                    UpdateCells = new UpdateCellsRequest
+                    {
+                        Start = new GridCoordinate { SheetId = sheetId, RowIndex = cell.Row, ColumnIndex = cell.Column },
+                        Rows = new List<RowData>
+                        {
+                            new() { Values = new List<CellData> { new() { UserEnteredValue = ToExtendedValue(cell.Value) } } }
+                        },
+                        Fields = "userEnteredValue",
+                    }
+                };
+                break;
+            case GSheetInsertColumn insert:
+                yield return new Request
+                {
+                    InsertDimension = new InsertDimensionRequest
+                    {
+                        Range = new DimensionRange
+                        {
+                            SheetId = sheetId,
+                            Dimension = "COLUMNS",
+                            StartIndex = insert.Column,
+                            EndIndex = insert.Column + 1,
+                        },
+                        InheritFromBefore = insert.InheritFromBefore,
+                    }
+                };
+                // 숫자 표시 형식을 자동으로 되돌린다. 리더는 표시 값을 읽으므로 옆 열의 날짜·백분율 형식이 남으면 값이 바뀐다.
+                yield return new Request
+                {
+                    RepeatCell = new RepeatCellRequest
+                    {
+                        Range = ColumnGrid(insert.Column),
+                        Cell = new CellData { UserEnteredFormat = new CellFormat() },
+                        Fields = "userEnteredFormat.numberFormat",
+                    }
+                };
+                // 규칙 없이 보내면 범위의 데이터 확인 규칙을 지운다
+                yield return new Request
+                {
+                    SetDataValidation = new SetDataValidationRequest { Range = ColumnGrid(insert.Column) }
+                };
+                break;
+            default:
+                throw new ArgumentException($"알 수 없는 편집: {edit.GetType().Name}", nameof(edit));
+        }
+    }
+
+    /// <summary>스프레드시트의 모든 탭(제외 탭 포함)을 순서대로 돌려준다.</summary>
+    public static List<GSheetProperties> GetGSheetProperties(string spreadsheetId)
+    {
+        var request = GAuthAPIHandler.GetSheetsService().Spreadsheets.Get(spreadsheetId);
+        request.Fields = "sheets.properties(sheetId,title)";
+        return (request.Execute().Sheets ?? new List<Sheet>())
+            .Select(s => new GSheetProperties(s.Properties.SheetId ?? 0, s.Properties.Title))
+            .ToList();
+    }
+
+    /// <summary>
+    /// 스프레드시트에 tab.SheetId·tab.SheetTitle 로 탭을 추가하고 rows 를 A1 부터 문자열 값으로 쓴다.
+    /// batchUpdate 한 번이라 탭 추가와 값 쓰기는 함께 적용되거나 함께 실패한다.
+    /// </summary>
+    public static void AddGSheetTab(GSheetTab tab, IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        var requests = new List<Request>
+        {
+            new()
+            {
+                AddSheet = new AddSheetRequest
+                {
+                    Properties = new SheetProperties { SheetId = tab.SheetId, Title = tab.SheetTitle }
+                }
+            },
+            WriteRows(tab.SheetId, rows),
+        };
+        GAuthAPIHandler.GetSheetsService().Spreadsheets
+            .BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, tab.SpreadsheetId).Execute();
+
+        Logger.Instance.Log($"[GAuthService] AddGSheetTab 완료: {tab.SpreadsheetName}/{tab.SheetTitle}");
+    }
+
+    /// <summary>
+    /// 기존 탭(tab.SheetId)의 이름을 tab.SheetTitle 로 바꾸고 rows 를 A1 부터 문자열 값으로 쓴다. 새 파일의 기본 탭을 테이블로 만들 때 쓴다.
+    /// </summary>
+    public static void InitGSheetTab(GSheetTab tab, IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        var requests = new List<Request>
+        {
+            new()
+            {
+                UpdateSheetProperties = new UpdateSheetPropertiesRequest
+                {
+                    Properties = new SheetProperties { SheetId = tab.SheetId, Title = tab.SheetTitle },
+                    Fields = "title",
+                }
+            },
+            WriteRows(tab.SheetId, rows),
+        };
+        GAuthAPIHandler.GetSheetsService().Spreadsheets
+            .BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, tab.SpreadsheetId).Execute();
+
+        Logger.Instance.Log($"[GAuthService] InitGSheetTab 완료: {tab.SpreadsheetName}/{tab.SheetTitle}");
+    }
+
+    private static Request WriteRows(int sheetId, IReadOnlyList<IReadOnlyList<string>> rows) => new()
+    {
+        UpdateCells = new UpdateCellsRequest
+        {
+            Start = new GridCoordinate { SheetId = sheetId, RowIndex = 0, ColumnIndex = 0 },
+            Rows = rows
+                .Select(row => new RowData
+                {
+                    Values = row.Select(text => new CellData { UserEnteredValue = new ExtendedValue { StringValue = text } }).ToList()
+                })
+                .ToList(),
+            Fields = "userEnteredValue",
+        }
+    };
+
+    /// <summary>
+    /// 폴더에 빈 구글 시트 파일을 만들고 (파일 ID, 링크)를 돌려준다. 공유 드라이브 폴더도 된다.
+    /// 드라이브 쓰기 범위(drive)가 필요하다. 예전 읽기 전용 범위로 받은 토큰이면 403(insufficient authentication scopes)이다.
+    /// </summary>
+    public static (string Id, string Link) CreateGoogleSheet(string folderLink, string name)
+    {
+        var request = GAuthAPIHandler.GetDriveService().Files.Create(new Google.Apis.Drive.v3.Data.File
+        {
+            Name = name,
+            MimeType = "application/vnd.google-apps.spreadsheet",
+            Parents = new List<string> { ExtractFolderId(folderLink) },
+        });
+        request.SupportsAllDrives = true;
+        request.Fields = "id, webViewLink";
+        var file = request.Execute();
+
+        Logger.Instance.Log($"[GAuthService] CreateGoogleSheet 완료: {name} (ID: {file.Id})");
+        return (file.Id, file.WebViewLink ?? $"https://docs.google.com/spreadsheets/d/{file.Id}");
+    }
+
+    /// <summary>파일을 휴지통으로 옮긴다(드라이브에서 되돌릴 수 있다). 휴지통 파일은 폴더 목록에서 빠진다.</summary>
+    public static void TrashFile(string fileId)
+    {
+        var request = GAuthAPIHandler.GetDriveService().Files.Update(new Google.Apis.Drive.v3.Data.File { Trashed = true }, fileId);
+        request.SupportsAllDrives = true;
+        request.Execute();
+
+        Logger.Instance.Log($"[GAuthService] TrashFile 완료: {fileId}");
     }
 
     private static ExtendedValue ToExtendedValue(object value) => value switch
