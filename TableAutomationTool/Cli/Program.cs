@@ -549,7 +549,7 @@ class Program
         Console.WriteLine("  diff all              변경분만 전체 파이프라인 (Y/N 확인)");
         Console.WriteLine("  diff extract|etd      변경분만 추출 (Y/N 확인)");
         Console.WriteLine("  diff generate|gen|cg  변경분만 코드 생성 (Y/N 확인)");
-        Console.WriteLine("  ai <tool>             AI 용 JSON 툴 (tables·schema·rows·diff·run·update·insert·delete, 'ai help' 로 상세)");
+        Console.WriteLine("  ai <tool>             AI 용 JSON 툴 (tables·schema·rows·diff·run·update·insert·delete·rename-column·add-column·add-sheet·add-file, 'ai help' 로 상세)");
         Console.WriteLine("  help, -h, --help      이 도움말 표시");
         Console.WriteLine();
         Console.WriteLine("Options:");

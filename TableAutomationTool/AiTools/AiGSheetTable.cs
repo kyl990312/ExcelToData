@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using TableAutomationTool.ExcelParser;
 using TableAutomationTool.GAuth;
 using TableAutomationTool.UserEnum;
@@ -28,6 +29,9 @@ public sealed class AiGSheetTable
 
     private const int MaxMismatches = 20;
 
+    /// <summary>리더(GetTableFromGSheetTab·GetGSheetTabValues)가 읽는 열 수(A:Z). 그 밖의 열은 테이블에 들어가지 않는다.</summary>
+    public const int MaxSheetColumns = 26;
+
     private readonly Dictionary<string, int> _sheetColumns;
 
     public GSheetTab Tab { get; }
@@ -41,18 +45,22 @@ public sealed class AiGSheetTable
     /// <summary>데이터 행(_row) → 시트 행(0부터)</summary>
     public IReadOnlyList<int> DataRows { get; }
 
+    /// <summary>이름 헤더 행(시트 행, 0부터)</summary>
+    public int NameRow { get; }
+
     /// <summary>타입 헤더 행(시트 행, 0부터)</summary>
     public int TypeRow { get; }
 
     public string Origin => Table.Origin;
 
-    private AiGSheetTable(GSheetTab tab, AiTable table, List<string[]> values, List<int> dataRows, int typeRow,
+    private AiGSheetTable(GSheetTab tab, AiTable table, List<string[]> values, List<int> dataRows, int nameRow, int typeRow,
                           Dictionary<string, int> sheetColumns)
     {
         Tab = tab;
         Table = table;
         Values = values;
         DataRows = dataRows;
+        NameRow = nameRow;
         TypeRow = typeRow;
         _sheetColumns = sheetColumns;
     }
@@ -121,7 +129,7 @@ public sealed class AiGSheetTable
         CrossCheck(custom, values, columns, dataRows);
 
         var table = AiTableSource.FromCustomTable(custom, AiTableSourceKind.GSheet, AiTableSource.GSheetOrigin(tab));
-        return new AiGSheetTable(tab, table, values, dataRows, validRows[1], sheetColumns);
+        return new AiGSheetTable(tab, table, values, dataRows, validRows[0], validRows[1], sheetColumns);
     }
 
     /// <summary>
@@ -302,6 +310,92 @@ public sealed class AiGSheetTable
 
     private static AiToolException Invalid(AiColumn column, string input, string reason, string? hint = null)
         => new("invalid_value", $"'{column.Name}'({column.Type}) 에 '{input}' 를 쓸 수 없습니다: {reason}", hint);
+
+    // ───────────── 스키마 규칙 (컬럼·테이블 추가) ─────────────
+
+    private static readonly Regex IdentifierPattern = new("^[A-Za-z_][A-Za-z0-9_]*$");
+
+    /// <summary>리더(DataTypeHelper.ParseDataType)가 아는 기본 타입. 이 밖의 이름은 사용자 enum 으로 읽힌다.</summary>
+    private static readonly string[] PrimitiveTypes = { "Int16", "Int32", "Int64", "Single", "Double", "Boolean", "String", "DateTime" };
+
+    /// <summary>C# 별칭. 시트에 그대로 쓰면 리더가 enum 으로 읽으므로 기본 타입 이름으로 바꿔 쓴다.</summary>
+    private static readonly Dictionary<string, string> TypeAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["short"] = "Int16", ["int"] = "Int32", ["long"] = "Int64", ["float"] = "Single", ["bool"] = "Boolean",
+    };
+
+    /// <summary>
+    /// 배열로 쓸 수 없는 기본 타입. 리더는 Boolean 을 enum 으로 보고(배열 요소를 enum 멤버로 바꾼다) DateTime 배열은 생성 코드가 다루지 않는다.
+    /// </summary>
+    private static readonly string[] NonArrayTypes = { "Boolean", "DateTime" };
+
+    /// <summary>컬럼·테이블 이름을 검사한다. 생성 코드의 식별자(프로퍼티·클래스 이름)가 되므로 영문·숫자·'_' 만 받는다.</summary>
+    public static void RequireIdentifier(string name, string what, string? hint = null)
+    {
+        if (!IdentifierPattern.IsMatch(name))
+            throw new AiToolException("invalid_value", $"{what}은(는) 영문·숫자·'_' 로 된 식별자여야 합니다(숫자로 시작 불가, 공백 불가): '{name}'",
+                hint ?? "이름은 생성 코드의 식별자가 됩니다.");
+    }
+
+    /// <summary>
+    /// 새 컬럼의 타입 문자열을 검사하고 시트에 쓸 이름으로 바꾼다. 기본 타입은 대소문자·'System.' 접두어·C# 별칭(int 등)을 받아
+    /// 리더가 아는 이름(Int32 등)으로 쓴다. 그 밖은 EnumDB 에 있는 enum 이어야 한다(선언된 대소문자로 맞춘다). 배열은 '[]' 를 붙인다.
+    /// EnumDB 를 먼저 불러 둬야 한다.
+    /// </summary>
+    public static string NormalizeType(string input)
+    {
+        var text = input.Trim();
+        var isArray = text.EndsWith("[]", StringComparison.Ordinal);
+        var name = isArray ? text[..^2].Trim() : text;
+        if (name.StartsWith("System.", StringComparison.OrdinalIgnoreCase))
+            name = name[7..];
+
+        var primitive = PrimitiveTypes.FirstOrDefault(t => t.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        ?? TypeAliases.GetValueOrDefault(name);
+        if (primitive != null)
+        {
+            if (isArray && NonArrayTypes.Contains(primitive))
+                throw new AiToolException("invalid_value", $"{primitive} 는 배열 타입으로 쓸 수 없습니다: '{input}'",
+                    $"배열이 되는 타입: {string.Join(", ", PrimitiveTypes.Except(NonArrayTypes))}, enum");
+            return isArray ? primitive + "[]" : primitive;
+        }
+
+        if (name.Length == 0 || !IdentifierPattern.IsMatch(name))
+            throw new AiToolException("invalid_value", $"타입 이름이 잘못되었습니다: '{input}'", SupportedTypesHint);
+
+        if (EnumDB.Instance.IsEmpty)
+            throw new AiToolException("enum_unavailable",
+                $"'{name}' 은(는) 기본 타입이 아니고, EnumDB 를 불러오지 못해 enum 인지 확인할 수 없습니다. 쓰지 않았습니다.",
+                "'ai run enum' 으로 EnumDB 를 만든 뒤(사용자 요청 시) 다시 시도하세요.");
+
+        var declared = EnumDB.Instance.HasEnum(name)
+            ? name
+            : EnumDB.Instance.EnumTypes.FirstOrDefault(t => t.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (declared == null)
+        {
+            var similar = EnumDB.Instance.EnumTypes
+                .Where(t => t.Contains(name, StringComparison.OrdinalIgnoreCase) || name.Contains(t, StringComparison.OrdinalIgnoreCase))
+                .Take(20)
+                .ToList();
+            throw new AiToolException("invalid_value", $"'{name}' 은(는) 기본 타입도 아니고 EnumDB 의 enum 도 아닙니다.",
+                $"{SupportedTypesHint}"
+                + (similar.Count > 0 ? $" / 비슷한 enum: {string.Join(", ", similar)}" : string.Empty)
+                + " / 새 enum 이면 enum 소스에 먼저 추가하고 'ai run enum' 으로 EnumDB 를 다시 만드세요(사용자 요청 시).");
+        }
+        return isArray ? declared + "[]" : declared;
+    }
+
+    private static string SupportedTypesHint
+        => $"기본 타입: {string.Join(", ", PrimitiveTypes)} (별칭 {string.Join(", ", TypeAliases.Keys)}), 배열은 '[]', 그 밖은 EnumDB 의 enum 이름";
+
+    /// <summary>시트 열 이름(0 → A, 25 → Z, 26 → AA)</summary>
+    public static string ColumnLetter(int column)
+    {
+        var letters = string.Empty;
+        for (var n = column + 1; n > 0; n = (n - 1) / 26)
+            letters = (char)('A' + (n - 1) % 26) + letters;
+        return letters;
+    }
 
     // ───────────── 검증 ─────────────
 

@@ -13,8 +13,10 @@ namespace TableAutomationTool.GAuth.Core;
 
 internal static class GAuthAPIHandler
 {
+    // Drive 쓰기(drive)는 폴더에 새 구글 시트 파일을 만들 때(ai add-file) 필요하다.
+    // drive.file 은 앱이 만들지 않은 폴더를 부모로 지정할 수 없어 쓰지 않는다.
     static string[] Scopes = {
-        DriveService.Scope.DriveReadonly,
+        DriveService.Scope.Drive,
         SheetsService.Scope.Spreadsheets
     };
 
@@ -68,6 +70,8 @@ internal static class GAuthAPIHandler
     /// - 캐시된 토큰이 있으면 브라우저 없이 끝나고, 없으면 브라우저를 열어 로그인을 기다린다.
     /// - 인증 후 Drive 계정 정보를 조회해 실제로 연결되는지 확인하고, 로그인한 계정 이메일을 돌려준다.
     /// - 캐시된 토큰이 만료·폐기된 경우(테스트 게시 상태의 7일 만료 등) 토큰을 지우고 한 번 다시 로그인한다.
+    /// - 캐시된 토큰에 Scopes 가 모두 들어 있지 않으면(범위를 늘리기 전에 받은 토큰) 토큰을 지우고 한 번 다시 동의받는다.
+    ///   인증 라이브러리는 저장된 토큰의 범위를 보지 않으므로, 그대로 두면 새 범위가 필요한 호출만 403 이 된다.
     /// - 이후 같은 프로세스의 GSheet 호출도 이 설정을 쓴다.
     /// </summary>
     public static string Authorize(UserCredentialConfig config, CancellationToken cancellationToken)
@@ -94,13 +98,19 @@ internal static class GAuthAPIHandler
             {
                 return AuthorizeOnce(config, secretPath, cancellationToken);
             }
-            catch (Exception ex) when (attempt == 1 && IsTokenError(ex))
+            catch (Exception ex) when (attempt == 1 && (IsTokenError(ex) || ex is MissingScopeException))
             {
                 Console.WriteLine($"[GAuth] 캐시된 토큰을 쓸 수 없습니다({ex.Message}). 토큰을 지우고 다시 로그인합니다.");
                 if (Directory.Exists(TokenStorePath))
                     Directory.Delete(TokenStorePath, true);
             }
         }
+    }
+
+    private sealed class MissingScopeException : Exception
+    {
+        public MissingScopeException(IEnumerable<string> missing)
+            : base($"토큰에 필요한 권한이 없습니다: {string.Join(", ", missing)}. 로그인 화면에서 요청한 권한을 모두 허용하세요.") { }
     }
 
     private static string AuthorizeOnce(UserCredentialConfig config, string secretPath, CancellationToken cancellationToken)
@@ -114,6 +124,16 @@ internal static class GAuthAPIHandler
                 config.User,
                 cancellationToken,
                 new FileDataStore(TokenStorePath, true)).GetAwaiter().GetResult();
+        }
+
+        // 토큰 응답의 scope 는 공백으로 구분한 허용 범위다. 비어 있으면 알 수 없으므로 막지 않는다.
+        var granted = credential.Token?.Scope;
+        if (!string.IsNullOrWhiteSpace(granted))
+        {
+            var grantedSet = granted.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+            var missing = Scopes.Where(s => !grantedSet.Contains(s)).ToList();
+            if (missing.Count > 0)
+                throw new MissingScopeException(missing);
         }
 
         using var drive = new DriveService(new BaseClientService.Initializer()

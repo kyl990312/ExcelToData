@@ -5,47 +5,24 @@ using TableAutomationTool.Shared;
 namespace TableAutomationTool.AiTools;
 
 /// <summary>
-/// GSheet 쓰기 툴(update·insert·delete)의 공통 흐름:
-/// 탭 찾기 → 원시 값 읽기·좌표 계산(AiGSheetTable) → 편집·기대 테이블 계산(Plan) → (--dry-run 이 아니면) batchUpdate 한 번 → 다시 읽어 검증.
+/// GSheet·드라이브를 바꾸는 툴의 공통 부분: 시간 초과와의 경합 막기, 권한·범위·요청 한도 오류 바꾸기, 다시 읽어 검증하기.
 /// 쓰기 대상은 항상 GSheet 다(--source 를 받지 않는다). 로컬 xlsx·.bin 은 건드리지 않는다.
 /// </summary>
-public abstract class AiWriteCommand : AiCommand
+public abstract class AiGSheetWriteCommand : AiCommand
 {
-    private const int MaxListedRows = 20;
-
-    // 시트 쓰기 시작 여부. AiToolRunner 의 시간 초과와 경합하므로 Interlocked 로 바꾼다.
-    // 0 = 아직, 1 = batchUpdate 를 보냄, 2 = 시간 초과로 막힘(이후 쓰지 않는다)
+    // 쓰기 시작 여부. AiToolRunner 의 시간 초과와 경합하므로 Interlocked 로 바꾼다.
+    // 0 = 아직, 1 = 쓰기 요청을 보냄, 2 = 시간 초과로 막힘(이후 쓰지 않는다)
     private static int _applyState;
 
     /// <summary>
     /// 시간 초과 시 AiToolRunner 가 부른다. 쓰기를 아직 시작하지 않았으면 막고 true(결과를 버려도 시트는 그대로),
-    /// 이미 batchUpdate 를 보냈으면 false(결과를 버리면 적용 여부를 알 수 없으므로 끝까지 기다려야 한다).
+    /// 이미 쓰기 요청을 보냈으면 false(결과를 버리면 적용 여부를 알 수 없으므로 끝까지 기다려야 한다).
     /// </summary>
     internal static bool TryBlockApply() => Interlocked.CompareExchange(ref _applyState, 2, 0) != 1;
 
-    protected sealed class WritePlan
-    {
-        /// <summary>순서대로 적용할 편집 (GAuthService.EditGSheetTab)</summary>
-        public List<GSheetEdit> Edits { get; } = new();
+    protected AiGSheetWriteCommand(AiContext ctx, AiArgs args) : base(ctx, args) { }
 
-        /// <summary>결과로 돌려줄 변경 내역</summary>
-        public List<object> Changes { get; } = new();
-
-        /// <summary>적용 후 리더가 읽어야 할 테이블 전체</summary>
-        public List<Dictionary<string, object?>> Expected { get; init; } = new();
-
-        /// <summary>Expected 에서 이번에 값이 바뀌거나 생긴 행 (키 중복 검사 대상)</summary>
-        public List<int> TouchedRows { get; } = new();
-
-        /// <summary>이미 같은 값이라 쓰지 않은 셀 수 (update 만)</summary>
-        public int? Unchanged { get; set; }
-    }
-
-    protected AiWriteCommand(AiContext ctx, AiArgs args) : base(ctx, args) { }
-
-    public override int MaxPositionals => 1;
-
-    protected abstract WritePlan Plan(AiGSheetTable sheet);
+    protected abstract void ExecuteWrite(out string result);
 
     public override void Execute(out string result)
     {
@@ -61,13 +38,110 @@ public abstract class AiWriteCommand : AiCommand
         }
     }
 
-    private void ExecuteWrite(out string result)
+    /// <summary>
+    /// 쓰기 요청을 보낸다. 시간 초과로 막혔으면 보내지 않는다. 한 툴이 여러 번 불러도 된다(add-file 은 파일 생성과 탭 쓰기 두 번).
+    /// 거절(403)은 범위 부족과 권한 없음으로 나눠 알린다. 거절된 요청은 아무것도 바꾸지 않는다.
+    /// </summary>
+    protected static void Send(Action write)
+    {
+        if (Interlocked.CompareExchange(ref _applyState, 1, 0) == 2)
+            throw new AiToolException("timeout", "시간 초과로 쓰기를 시작하지 않았습니다. 시트는 바뀌지 않았습니다.");
+
+        try
+        {
+            write();
+        }
+        catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.Forbidden
+                                                   && ex.Message.Contains("insufficient authentication scopes", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AiToolException("gsheet_scope_insufficient", $"로그인 토큰에 이 작업에 필요한 권한(범위)이 없어 거절되었습니다: {ex.Message}",
+                "드라이브 쓰기 권한이 추가되기 전에 받은 토큰입니다. 사용자에게 TableEditor 설정 탭의 [Google 인증]을 다시 요청하세요(새 권한 동의 화면이 뜹니다).");
+        }
+        catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new AiToolException("gsheet_permission_denied", $"시트를 수정할 권한이 없습니다: {ex.Message}",
+                "로그인한 Google 계정에 이 스프레드시트(새 파일이면 폴더) 편집 권한이 있는지 확인하세요.");
+        }
+    }
+
+    /// <summary>결과를 돌려주는 쓰기 요청(파일 생성 등). 규칙은 Send(Action) 과 같다.</summary>
+    protected static T Send<T>(Func<T> write)
+    {
+        T result = default!;
+        Send(() => { result = write(); });
+        return result;
+    }
+
+    /// <summary>다시 읽어 기대 테이블과 비교한다. 쓰기는 이미 끝났으므로 다시 읽기 실패도 예외 대신 불일치로 돌려준다.</summary>
+    protected static List<object> Verify(GSheetTab tab, IReadOnlyList<AiColumn> columns, List<Dictionary<string, object?>> expected)
+    {
+        try
+        {
+            return AiGSheetTable.Diff(columns, expected, AiGSheetTable.Load(tab));
+        }
+        catch (Exception ex)
+        {
+            return new List<object> { new { reason = "reread_failed", message = $"{ex.GetType().Name}: {ex.Message}" } };
+        }
+    }
+
+    /// <summary>검증 불일치를 실패로 기록한다. 이미 쓴 뒤이므로 Data 는 그대로 돌려준다.</summary>
+    protected void FailVerify()
+    {
+        Succeeded = false;
+        FailureCode = "verify_failed";
+        FailureMessage = "시트에 썼지만 다시 읽은 값이 기대와 다릅니다. data.mismatches 를 확인하세요"
+                         + "(셀 표시 형식이 값을 바꿨거나 다른 편집이 동시에 있었을 수 있습니다).";
+    }
+
+    protected void WarnIfNotGSheetSource()
+    {
+        if (!Ctx.Extract.IsLoadFromGSheet)
+            Warnings.Add("설정상 추출 소스가 GSheet 가 아닙니다(IsLoadFromGSheet=false). 이 수정은 추출 결과에 반영되지 않습니다.");
+    }
+}
+
+/// <summary>
+/// 기존 테이블 탭을 고치는 툴(update·insert·delete·rename-column·add-column)의 공통 흐름:
+/// 탭 찾기 → 원시 값 읽기·좌표 계산(AiGSheetTable) → 편집·기대 테이블 계산(Plan) → (--dry-run 이 아니면) batchUpdate 한 번 → 다시 읽어 검증.
+/// </summary>
+public abstract class AiWriteCommand : AiGSheetWriteCommand
+{
+    private const int MaxListedRows = 20;
+
+    protected sealed class WritePlan
+    {
+        /// <summary>순서대로 적용할 편집 (GAuthService.EditGSheetTab)</summary>
+        public List<GSheetEdit> Edits { get; } = new();
+
+        /// <summary>결과로 돌려줄 변경 내역</summary>
+        public List<object> Changes { get; } = new();
+
+        /// <summary>적용 후 리더가 읽어야 할 테이블 전체</summary>
+        public List<Dictionary<string, object?>> Expected { get; init; } = new();
+
+        /// <summary>적용 후 리더가 읽어야 할 컬럼. null 이면 지금 컬럼 그대로다. (컬럼 헤더를 바꾸는 rename-column·add-column 만)</summary>
+        public IReadOnlyList<AiColumn>? Columns { get; init; }
+
+        /// <summary>Expected 에서 이번에 값이 바뀌거나 생긴 행 (키 중복 검사 대상)</summary>
+        public List<int> TouchedRows { get; } = new();
+
+        /// <summary>이미 같은 값이라 쓰지 않은 셀 수 (update 만)</summary>
+        public int? Unchanged { get; set; }
+    }
+
+    protected AiWriteCommand(AiContext ctx, AiArgs args) : base(ctx, args) { }
+
+    public override int MaxPositionals => 1;
+
+    protected abstract WritePlan Plan(AiGSheetTable sheet);
+
+    protected override void ExecuteWrite(out string result)
     {
         var name = Args.RequirePositional(0, "테이블 이름");
         var dryRun = Args.Has("dry-run");
 
-        if (!Ctx.Extract.IsLoadFromGSheet)
-            Warnings.Add("설정상 추출 소스가 GSheet 가 아닙니다(IsLoadFromGSheet=false). 이 수정은 추출 결과에 반영되지 않습니다.");
+        WarnIfNotGSheetSource();
 
         // enum 값 검사와 리더의 배열 enum 변환이 EnumDB 를 쓴다. 쓰기 전후 읽기가 같은 EnumDB 상태에서 돌도록 먼저 불러 둔다.
         // 불러오지 못하면 enum 컬럼에 쓰려 할 때 enum_unavailable 로 멈춘다.
@@ -90,18 +164,13 @@ public abstract class AiWriteCommand : AiCommand
         List<object>? mismatches = null;
         if (!dryRun && plan.Edits.Count > 0)
         {
-            Apply(tab, plan.Edits);
+            Send(() => GAuthService.EditGSheetTab(tab, plan.Edits));
             applied = true;
 
-            mismatches = Verify(tab, sheet.Table.Columns, plan.Expected);
+            mismatches = Verify(tab, plan.Columns ?? sheet.Table.Columns, plan.Expected);
             verified = mismatches.Count == 0;
             if (mismatches.Count > 0)
-            {
-                Succeeded = false;
-                FailureCode = "verify_failed";
-                FailureMessage = "시트에 썼지만 다시 읽은 값이 기대와 다릅니다. data.mismatches 를 확인하세요"
-                                 + "(셀 표시 형식이 값을 바꿨거나 다른 편집이 동시에 있었을 수 있습니다).";
-            }
+                FailVerify();
         }
 
         Data = new
@@ -118,35 +187,6 @@ public abstract class AiWriteCommand : AiCommand
             mismatches,
         };
         result = $"[{GetType().Name}] {sheet.Table.Name}: {(dryRun ? "dry-run" : applied ? "applied" : "no change")}, {plan.Edits.Count} edit(s)";
-    }
-
-    private static void Apply(GSheetTab tab, IReadOnlyList<GSheetEdit> edits)
-    {
-        if (Interlocked.CompareExchange(ref _applyState, 1, 0) != 0)
-            throw new AiToolException("timeout", "시간 초과로 시트 쓰기를 시작하지 않았습니다. 시트는 바뀌지 않았습니다.");
-
-        try
-        {
-            GAuthService.EditGSheetTab(tab, edits);
-        }
-        catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.Forbidden)
-        {
-            throw new AiToolException("gsheet_permission_denied", $"시트를 수정할 권한이 없습니다: {ex.Message}",
-                "로그인한 Google 계정에 이 스프레드시트 편집 권한이 있는지 확인하세요. 토큰 범위가 부족하면 사용자에게 TableEditor 설정 탭의 [Google 인증]을 다시 요청하세요.");
-        }
-    }
-
-    /// <summary>다시 읽어 기대 테이블과 비교한다. 쓰기는 이미 끝났으므로 다시 읽기 실패도 예외 대신 불일치로 돌려준다.</summary>
-    private static List<object> Verify(GSheetTab tab, IReadOnlyList<AiColumn> columns, List<Dictionary<string, object?>> expected)
-    {
-        try
-        {
-            return AiGSheetTable.Diff(columns, expected, AiGSheetTable.Load(tab));
-        }
-        catch (Exception ex)
-        {
-            return new List<object> { new { reason = "reread_failed", message = $"{ex.GetType().Name}: {ex.Message}" } };
-        }
     }
 
     /// <summary>
@@ -417,6 +457,144 @@ public sealed class AiDeleteCommand : AiWriteCommand
 
         foreach (var r in targets)
             plan.Changes.Add(new { _row = r, sheetRow = sheet.DataRows[r] + 1, values = sheet.Table.Rows[r] });
+        return plan;
+    }
+}
+
+/// <summary>
+/// ai rename-column &lt;table&gt; — 컬럼 이름(이름 헤더 행의 셀)을 바꾼다. 타입 행·데이터는 그대로다.
+/// 이름 앞뒤 공백 같은 헤더 오타를 고칠 때 쓴다. 이름은 생성 코드의 프로퍼티 이름이 되므로 C# 식별자만 받는다.
+/// --column 은 정확히 같은 이름을 먼저 찾고(공백 포함), 없으면 대소문자만 무시해 찾는다.
+/// </summary>
+public sealed class AiRenameColumnCommand : AiWriteCommand
+{
+    public AiRenameColumnCommand(AiContext ctx, AiArgs args) : base(ctx, args) { }
+
+    public override IReadOnlyCollection<string> Options => new[] { "column", "name", "dry-run" };
+
+    protected override WritePlan Plan(AiGSheetTable sheet)
+    {
+        var from = Args.Get("column") ?? throw new AiToolException("invalid_args", "바꿀 컬럼을 --column \"이름\" 으로 지정하세요.",
+            "ai schema 로 컬럼 이름을 확인하세요(앞뒤 공백 포함).");
+        var to = Args.Get("name") ?? throw new AiToolException("invalid_args", "새 이름을 --name 이름 으로 지정하세요.");
+
+        var columnNames = sheet.Table.Columns.Select(c => c.Name).ToList();
+        var oldName = columnNames.Contains(from) ? from : AiRowFilter.RequireColumn(columnNames, from);
+
+        AiGSheetTable.RequireIdentifier(to, "컬럼 이름", "이름은 생성 코드(Template)의 프로퍼티 이름이 됩니다.");
+
+        if (to == oldName)
+            return new WritePlan { Expected = sheet.CloneRows() };
+
+        // 리더는 중복 이름의 뒤 컬럼을 버린다. 대소문자만 다른 이름도 --where·--set 이 구분하지 못하므로 막는다.
+        var duplicate = columnNames.FirstOrDefault(c => c != oldName && c.Equals(to, StringComparison.OrdinalIgnoreCase));
+        if (duplicate != null)
+            throw new AiToolException("invalid_value", $"같은 이름의 컬럼이 이미 있습니다: {duplicate}");
+
+        var sheetColumn = sheet.SheetColumnOf(oldName);
+        var plan = new WritePlan
+        {
+            Expected = sheet.Table.Rows
+                .Select(row => row.ToDictionary(kv => kv.Key == oldName ? to : kv.Key, kv => kv.Value))
+                .ToList(),
+            Columns = sheet.Table.Columns
+                .Select(c => c.Name != oldName ? c : new AiColumn
+                {
+                    Name = to,
+                    Type = c.Type,
+                    DataType = c.DataType,
+                    IsArray = c.IsArray,
+                    EnumType = c.EnumType,
+                })
+                .ToList(),
+        };
+        plan.Edits.Add(new GSheetSetCell(sheet.NameRow, sheetColumn, to));
+        plan.Changes.Add(new { sheetRow = sheet.NameRow + 1, sheetColumn = sheetColumn + 1, before = oldName, after = to });
+        return plan;
+    }
+}
+
+/// <summary>
+/// ai add-column &lt;table&gt; — 컬럼을 추가한다. 시트 열을 하나 끼워 이름·타입 헤더를 쓰고, 데이터 행은 --value 로 채운다.
+/// 기본 위치는 마지막 컬럼 바로 오른쪽이라 그 뒤의 '#' 메모 열 등은 한 칸 밀릴 뿐 그대로 남는다.
+/// 위치는 --after 로만 정한다. A열 앞에 끼우면 A열의 '//'(주석 행)·EOF 표시가 B열로 밀려 리더가 알아보지 못하기 때문이다.
+/// </summary>
+public sealed class AiAddColumnCommand : AiWriteCommand
+{
+    public AiAddColumnCommand(AiContext ctx, AiArgs args) : base(ctx, args) { }
+
+    public override IReadOnlyCollection<string> Options => new[] { "name", "type", "after", "value", "dry-run" };
+
+    protected override WritePlan Plan(AiGSheetTable sheet)
+    {
+        var name = Args.Get("name") ?? throw new AiToolException("invalid_args", "새 컬럼 이름을 --name 이름 으로 지정하세요.");
+        var typeInput = Args.Get("type") ?? throw new AiToolException("invalid_args", "새 컬럼 타입을 --type 타입 으로 지정하세요.",
+            "Int32 | Int64 | Single | Double | Boolean | String | DateTime | enum 이름, 배열은 'Int32[]'");
+
+        AiGSheetTable.RequireIdentifier(name, "컬럼 이름", "이름은 생성 코드(Template)의 프로퍼티 이름이 됩니다.");
+
+        var columns = sheet.Table.Columns;
+        var columnNames = columns.Select(c => c.Name).ToList();
+        // 리더는 중복 이름의 뒤 컬럼을 버린다. 대소문자만 다른 이름도 --where·--set 이 구분하지 못하므로 막는다.
+        var duplicate = columnNames.FirstOrDefault(c => c.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (duplicate != null)
+            throw new AiToolException("invalid_value", $"같은 이름의 컬럼이 이미 있습니다: {duplicate}");
+
+        var type = AiGSheetTable.NormalizeType(typeInput);
+        var column = AiColumn.From(name, type);
+
+        var after = Args.Get("after") is { } afterText ? AiRowFilter.RequireColumn(columnNames, afterText) : columnNames[^1];
+        var sheetColumn = sheet.SheetColumnOf(after) + 1;
+
+        // 끼운 열 오른쪽의 컬럼은 한 칸씩 밀린다. 리더는 A:Z 만 읽으므로 Z 를 넘는 컬럼이 생기면 쓰지 않는다.
+        var lastColumn = columnNames
+            .Select(sheet.SheetColumnOf)
+            .Select(c => c >= sheetColumn ? c + 1 : c)
+            .Append(sheetColumn)
+            .Max();
+        if (lastColumn >= AiGSheetTable.MaxSheetColumns)
+            throw new AiToolException("column_limit",
+                $"컬럼을 끼우면 {AiGSheetTable.ColumnLetter(lastColumn)}열까지 쓰게 되는데, 리더는 A:Z({AiGSheetTable.MaxSheetColumns}열)만 읽습니다.",
+                "테이블 컬럼 수를 줄이거나, 중간의 '#' 메모 열·빈 열을 사용자에게 정리해 달라고 요청하세요.");
+
+        // 새 행이 아니라 기존 데이터 행을 채우므로 insert 처럼 조용한 기본값을 넣지 않는다
+        var valueText = Args.Get("value");
+        var cell = valueText != null ? AiGSheetTable.Encode(column, valueText) : null;
+        if (cell == null && sheet.DataRows.Count > 0 && !column.IsArray && column.Type != "String")
+            throw new AiToolException("missing_value",
+                $"데이터 행이 {sheet.DataRows.Count}개라 {type} 컬럼에는 채울 값이 필요합니다(빈 셀은 추출 시 타입 변환이 실패합니다).",
+                "--value 로 모든 행에 넣을 값을 주고, 행마다 다른 값은 추가한 뒤 ai update 로 바꾸세요.");
+
+        var expectedValue = cell?.Expected ?? AiTableSource.NormalizeCellText(string.Empty, column);
+        var plan = new WritePlan
+        {
+            Expected = sheet.CloneRows(),
+            Columns = columns.Take(columnNames.IndexOf(after) + 1)
+                .Append(column)
+                .Concat(columns.Skip(columnNames.IndexOf(after) + 1))
+                .ToList(),
+        };
+        foreach (var row in plan.Expected)
+            row[name] = expectedValue;
+
+        plan.Edits.Add(new GSheetInsertColumn(sheetColumn, InheritFromBefore: true));
+        plan.Edits.Add(new GSheetSetCell(sheet.NameRow, sheetColumn, name));
+        plan.Edits.Add(new GSheetSetCell(sheet.TypeRow, sheetColumn, type));
+        if (cell is { Text.Length: > 0 })
+        {
+            foreach (var sheetRow in sheet.DataRows)
+                plan.Edits.Add(new GSheetSetCell(sheetRow, sheetColumn, cell.SheetValue));
+        }
+
+        plan.Changes.Add(new
+        {
+            column = name,
+            type,
+            after,
+            sheetColumn = AiGSheetTable.ColumnLetter(sheetColumn),
+            value = expectedValue,
+            filledRows = cell is { Text.Length: > 0 } ? sheet.DataRows.Count : 0,
+        });
         return plan;
     }
 }
